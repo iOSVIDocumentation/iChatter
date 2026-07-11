@@ -1,109 +1,202 @@
-const express = require('express');
-const cors = require('cors');
-const nodemailer = require('nodemailer');
-
-const app = express();
-app.use(cors());
-app.use(express.json());
-
-// Хранилище временных кодов верификации в памяти сервера
-const tempCodes = {};
-
-// НАСТРОЙКА ПОЧТОВОГО РОБОТА
-// ВНИМАНИЕ: pass — это 16-значный пароль приложения, созданный в безопасности Google
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: '1rol4k2@gmail.com', 
-        pass: 'ЗДЕСЬ_ТВОЙ_16_ЗНАЧНЫЙ_ПАРОЛЬ_ПРИЛОЖЕНИЯ' 
-    }
-});
-
-// Проверка подключения к почтовому серверу при запуске
-transporter.verify((error, success) => {
-    if (error) {
-        console.log('⚠ Предупреждение: Транспорт почты не авторизован:', error.message);
-    } else {
-        console.log('⚙ Почтовый сервер успешно готов к отправке писем!');
-    }
-});
-
-// Роут отправки проверочного кода
-app.post('/api/send-code', (req, res) => {
-    const { email, username } = req.body;
-    if (!email) return res.status(400).json({ error: 'Укажите адрес почты' });
-
-    // Генерация 6-значного цифрового кода
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    
-    // Запись кода в память со сроком жизни 10 минут
-    tempCodes[email] = { 
-        code: code, 
-        username: username || 'Пользователь',
-        expires: Date.now() + 600000 
-    };
-
-    const mailOptions = {
-        from: '"iChatter" <1rol4k2@gmail.com>',
-        to: email,
-        subject: 'Код авторизации iChatter',
-        text: `Приветствуем! Ваш одноразовый код для входа в ретро-мессенджер iChatter: ${code}\nКод действует 10 минут.`
-    };
-
-    transporter.sendMail(mailOptions, (err, info) => {
-        if (err) {
-            console.error('\n======= ОШИБКА ОТПРАВКИ ПОЧТЫ =======');
-            console.error(err);
-            console.error('=====================================\n');
-            return res.status(500).json({ error: 'Не удалось отправить код на почту. Проверьте консоль сервера.' });
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>iChatter - Вход</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <style>
+        html, body { 
+            height: 100%; 
+            margin: 0; 
+            padding: 0; 
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; 
+            background-color: #cbd2d9; 
         }
-        console.log(`[ПОЧТА] Код верификации ${code} успешно отправлен пользователю ${email}`);
-        res.json({ success: true });
-    });
-});
+        
+        #auth-container { 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: flex-start; 
+            height: 100%; 
+        }
+        
+        /* Верхний навигационный бар в стиле iOS 6 */
+        .ios-header {
+            width: 100%; 
+            height: 44px;
+            background: linear-gradient(#768da5, #4c647f); 
+            border-bottom: 1px solid #2d3e52;
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.3); 
+            color: #fff; 
+        }
+        .ios-header h1 { 
+            font-size: 19px; 
+            margin: 0; 
+            font-weight: bold;
+            text-shadow: 0 -1px 0 rgba(0,0,0,0.6); 
+        }
+        
+        /* Заголовок группы настроек */
+        .ios-section-title {
+            width: 90%; 
+            max-width: 420px; 
+            margin: 25px auto 6px auto;
+            color: #4c566c; 
+            font-size: 14px; 
+            font-weight: bold;
+            text-shadow: 0 1px 0 #fff; 
+            text-align: left;
+            box-sizing: border-box;
+            padding-left: 10px;
+        }
 
-// Роут проверки кода и выдачи авторизации
-app.post('/api/verify-code', (req, res) => {
-    const { email, code } = req.body;
-    
-    if (!email || !code) {
-        return res.status(400).json({ error: 'Заполните все поля!' });
-    }
+        /* Контейнер формы с закругленными краями */
+        .ios-table-view {
+            background: #ffffff; 
+            border: 1px solid #ababab; 
+            border-radius: 10px;
+            width: 90%; 
+            max-width: 420px; 
+            margin: 0 auto; 
+            overflow: hidden;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1); 
+            display: flex; 
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+        
+        /* Ячейка формы ввода */
+        .ios-input-cell { 
+            padding: 12px 15px; 
+            border-bottom: 1px solid #cccccc; 
+            display: flex; 
+            align-items: center;
+            background: #ffffff;
+        }
+        .ios-input-cell:last-child { 
+            border-bottom: none; 
+        }
+        
+        .ios-input-cell input { 
+            border: none; 
+            outline: none; 
+            font-size: 16px; 
+            width: 100%; 
+            background: transparent; 
+            color: #000000;
+        }
+        
+        /* Кнопка действия */
+        .ios-action-btn {
+            width: 90%; 
+            max-width: 420px; 
+            margin: 20px auto; 
+            padding: 12px; 
+            font-size: 17px; 
+            font-weight: bold; 
+            color: #ffffff; 
+            background: linear-gradient(#5a7494, #374e6c);
+            border: 1px solid #26384f; 
+            border-radius: 8px; 
+            cursor: pointer;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 1px 2px rgba(0,0,0,0.2);
+            text-shadow: 0 -1px 0 rgba(0,0,0,0.5);
+            box-sizing: border-box;
+        }
+        .ios-action-btn:active { 
+            background: linear-gradient(#374e6c, #26384f); 
+        }
+    </style>
+</head>
+<body>
 
-    const record = tempCodes[email];
+    <div id="auth-container">
+        <div class="ios-header">
+            <h1>iChatter Вход</h1>
+        </div>
+        
+        <!-- Окна переключаются через js -->
+        <div id="step-email-block" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
+            <div class="ios-section-title">РЕГИСТРАЦИЯ / ВХОД</div>
+            <div class="ios-table-view">
+                <div class="ios-input-cell">
+                    <input type="email" id="email-field" placeholder="Email (например, name@mail.com)">
+                </div>
+                <div class="ios-input-cell">
+                    <input type="text" id="username-field" placeholder="Имя пользователя (никнейм)">
+                </div>
+            </div>
+            <button class="ios-action-btn" onclick="requestVerificationCode()">Получить код</button>
+        </div>
 
-    if (!record) {
-        return res.status(400).json({ error: 'Код не запрашивался или устарел!' });
-    }
+        <div id="step-code-block" style="width: 100%; display: none; flex-direction: column; align-items: center;">
+            <div class="ios-section-title">ПОДТВЕРЖДЕНИЕ ПОЧТЫ</div>
+            <div class="ios-table-view">
+                <div class="ios-input-cell">
+                    <input type="text" id="code-field" placeholder="Введите 6-значный код">
+                </div>
+            </div>
+            <button class="ios-action-btn" onclick="submitVerificationCode()">Войти в мессенджер</button>
+        </div>
+    </div>
 
-    if (Date.now() > record.expires) {
-        delete tempCodes[email];
-        return res.status(400).json({ error: 'Время действия кода истекло!' });
-    }
+    <script>
+        function requestVerificationCode() {
+            const email = document.getElementById('email-field').value.trim();
+            const username = document.getElementById('username-field').value.trim();
+            
+            if (!email) return alert('Пожалуйста, заполните поле Email!');
+            if (!username) return alert('Пожалуйста, введите никнейм!');
 
-    if (record.code !== code.trim()) {
-        return res.status(400).json({ error: 'Неверный проверочный код!' });
-    }
+            fetch('/api/send-code', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, username })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) return alert(data.error);
+                
+                alert("Инструкция отправлена! Проверьте ваш почтовый ящик.");
+                document.getElementById('step-email-block').style.display = 'none';
+                document.getElementById('step-code-block').style.display = 'flex';
+            })
+            .catch(err => {
+                alert("Ошибка: Сервер не отвечает. Убедитесь, что бэкенд в Termux активен.");
+            });
+        }
 
-    // Успешный вход — генерируем объект пользователя
-    const userSession = {
-        id: 'usr_' + Math.random().toString(36).substr(2, 9),
-        email: email,
-        username: record.username,
-        authTime: Date.now()
-    };
+        function submitVerificationCode() {
+            const email = document.getElementById('email-field').value.trim();
+            const code = document.getElementById('code-field').value.trim();
+            const username = document.getElementById('username-field').value.trim();
 
-    // Очищаем использованный код из памяти
-    delete tempCodes[email];
+            if (!code) return alert('Введите код авторизации!');
 
-    console.log(`[УСПЕХ] Пользователь ${userSession.username} (${email}) успешно вошел.`);
-    res.json({ success: true, user: userSession });
-});
-
-// Старт сервера
-const PORT = 3000;
-app.listen(PORT, () => {
-    console.log(`=============================================`);
-    console.log(` Локальный бэкенд iChatter запущен на порту ${PORT}`);
-    console.log(`=============================================`);
-});
+            fetch('/api/verify-code', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, code, username })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) return alert(data.error);
+                
+                // Сохраняем сессию локально
+                localStorage.setItem('userId', data.user.id);
+                localStorage.setItem('userData', JSON.stringify(data.user));
+                
+                alert("Вход успешно выполнен!");
+                window.location.href = '/chat';
+            })
+            .catch(err => {
+                alert("Ошибка обработки подтверждения кода.");
+            });
+        }
+    </script>
+</body>
+</html>

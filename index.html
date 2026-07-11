@@ -2,115 +2,266 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>iChatter — Чат</title>
-    <!-- Защитный скрипт: выполняется ДО загрузки всего интерфейса -->
     <script>
-        const currentUser = localStorage.getItem('chat_user');
+        var currentUser = localStorage.getItem('chat_user');
         if (!currentUser || currentUser.trim() === "") {
             window.location.href = '/login';
         }
     </script>
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        /* Твои оригинальные стили оформления интерфейса iChatter (iOS 6) */
-        body {
-            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-            background-color: #cbd2d9;
+        html, body {
+            height: 100%;
             margin: 0;
             padding: 0;
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+            background-color: #cbd2d9;
+            overflow: hidden;
         }
-        .header {
-            background: linear-gradient(to bottom, #7fa4c7 0%, #4673a3 100%);
+
+        /* iOS 6 Navigation Bar (Старый градиент WebKit) */
+        .ios-navbar {
+            background: -webkit-gradient(linear, left top, left bottom, from(#7fa4c7), color-stop(0.5, #537fa9), color-stop(0.51, #3a6795), to(#3b618a));
+            border-bottom: 1px solid #2d4b6b;
             color: white;
             text-align: center;
-            padding: 10px;
+            height: 44px;
+            line-height: 44px;
             font-weight: bold;
-            text-shadow: 0 -1px 0 rgba(0,0,0,0.4);
+            font-size: 20px;
+            text-shadow: 0 -1px 0 rgba(0,0,0,0.6);
+            -webkit-box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            z-index: 10;
         }
+
+        .nav-left {
+            position: absolute;
+            left: 8px;
+            top: 8px;
+            line-height: 1;
+        }
+
+        .ios-bar-btn {
+            background: -webkit-gradient(linear, left top, left bottom, from(#739bbd), color-stop(0.5, #4c77a3), color-stop(0.51, #345e8b), to(#365a83));
+            border: 1px solid #243f5c;
+            -webkit-border-radius: 5px;
+            border-radius: 5px;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            padding: 6px 10px;
+            cursor: pointer;
+            text-shadow: 0 -1px 0 rgba(0,0,0,0.5);
+        }
+
+        /* Абсолютное позиционирование вместо Flexbox для iOS 6 */
         .chat-container {
-            display: flex;
-            height: calc(100vh - 40px);
+            position: absolute;
+            top: 44px;
+            bottom: 0;
+            left: 0; right: 0;
         }
+
         .sidebar {
-            width: 250px;
-            background: #fff;
+            width: 200px;
+            position: absolute;
+            top: 0; bottom: 0; left: 0;
+            background: #ffffff;
             border-right: 1px solid #ababab;
         }
-        .main-chat {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            background: #e5e5e5;
+
+        .sidebar-header {
+            background: #f0f0f0;
+            padding: 8px 12px;
+            font-size: 13px;
+            font-weight: bold;
+            color: #4c566c;
+            text-shadow: 0 1px 0 #fff;
+            border-bottom: 1px solid #cbd2d9;
         }
-        .messages {
-            flex: 1;
-            padding: 20px;
+
+        .chat-list {
+            position: absolute;
+            top: 32px; bottom: 0; left: 0; right: 0;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch; /* Плавный скролл на iOS */
         }
-        .input-area {
-            padding: 10px;
-            background: #fff;
-            border-top: 1px solid #ababab;
-            display: flex;
-        }
-        .input-area input {
-            flex: 1;
-            padding: 8px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-        .input-area button {
-            margin-left: 10px;
-            padding: 8px 15px;
-            background: #4673a3;
-            color: white;
-            border: none;
-            border-radius: 4px;
+
+        .chat-item {
+            padding: 12px;
+            border-bottom: 1px solid #cbd2d9;
+            font-weight: bold;
+            font-size: 15px;
             cursor: pointer;
+            background: #fff;
+        }
+        .chat-item.active {
+            background: -webkit-gradient(linear, left top, left bottom, from(#058cf5), to(#015de6)) !important;
+            color: #fff !important;
+        }
+
+        .main-chat {
+            position: absolute;
+            top: 0; bottom: 0; left: 200px; right: 0;
+            background-color: #e5e5e5;
+        }
+
+        .messages-box {
+            position: absolute;
+            top: 0; bottom: 44px; left: 0; right: 0;
+            padding: 12px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Облачка сообщений со старыми градиентами */
+        .message {
+            max-width: 75%;
+            padding: 8px 14px;
+            -webkit-border-radius: 14px;
+            border-radius: 14px;
+            font-size: 15px;
+            margin-bottom: 8px;
+            clear: both;
+        }
+
+        .message.received {
+            background: -webkit-gradient(linear, left top, left bottom, from(#f9f9f9), to(#e2e2e2));
+            border: 1px solid #c8c7cc;
+            float: left;
+            color: #000;
+        }
+
+        .message.sent {
+            background: -webkit-gradient(linear, left top, left bottom, from(#bee96d), color-stop(0.5, #a7e243), color-stop(0.51, #92dc1a), to(#84d700));
+            border: 1px solid #63a600;
+            float: right;
+            color: #000;
+        }
+
+        /* Тулбар ввода */
+        .input-bar {
+            background: -webkit-gradient(linear, left top, left bottom, from(#f4f4f4), to(#cbd2d9));
+            border-top: 1px solid #ababab;
+            height: 44px;
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            box-sizing: border-box;
+            padding: 7px 8px;
+        }
+
+        .input-wrapper {
+            margin-right: 70px;
+        }
+
+        .input-bar input {
+            width: 100%;
+            height: 30px;
+            border: 1px solid #abc;
+            -webkit-border-radius: 15px;
+            border-radius: 15px;
+            padding: 0 10px;
+            font-size: 14px;
+            outline: none;
+            background: #fff;
+            box-sizing: border-box;
+        }
+
+        .send-btn {
+            position: absolute;
+            right: 8px;
+            top: 7px;
+            width: 60px;
+            height: 30px;
+            background: -webkit-gradient(linear, left top, left bottom, from(#7fa4c7), color-stop(0.5, #537fa9), color-stop(0.51, #3a6795), to(#3b618a));
+            border: 1px solid #2d4b6b;
+            -webkit-border-radius: 15px;
+            border-radius: 15px;
+            color: white;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            text-shadow: 0 -1px 0 rgba(0,0,0,0.5);
         }
     </style>
 </head>
 <body>
 
-<div class="header">iChatter</div>
+    <div class="ios-navbar">
+        <div class="nav-left">
+            <button class="ios-bar-btn" id="logoutBtn">Выйти</button>
+        </div>
+        <span id="navTitle">iChatter</span>
+    </div>
 
-<div class="chat-container">
-    <div class="sidebar" id="sidebar">
-        <div style="padding: 10px; font-weight: bold; border-bottom: 1px solid #eee;">
-            Вы: <span id="myUsernameDisplay"></span>
+    <div class="chat-container">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                Вы: <span id="myUsernameDisplay"></span>
+            </div>
+            <div class="chat-list" id="chatListContainer">
+                <div class="chat-item active">Общий чат</div>
+            </div>
         </div>
-        <!-- Список чатов -->
+
+        <div class="main-chat">
+            <div class="messages-box" id="messagesBox">
+                <div class="message received">iChatter успешно запущен на iOS 6. Скевоморфизм активен!</div>
+            </div>
+            
+            <div class="input-bar">
+                <div class="input-wrapper">
+                    <input type="text" id="msgInput" placeholder="Сообщение">
+                </div>
+                <button class="send-btn" id="sendBtn">Отпр.</button>
+            </div>
+        </div>
     </div>
-    <div class="main-chat">
-        <div class="messages" id="messagesBox">
-            <!-- Сообщения появятся тут -->
-        </div>
-        <div class="input-area">
-            <input type="text" id="msgInput" placeholder="Ваше сообщение...">
-            <button id="sendBtn">Отпр.</button>
-        </div>
-    </div>
-</div>
 
 <script>
-    // Основная логика работы мессенджера iChatter через Socket.io
     document.getElementById('myUsernameDisplay').textContent = currentUser;
 
-    const socket = io({ query: { r: Date.now() } });
+    var socket = io({ query: { r: Date.now() } });
 
-    socket.on('connect', () => {
-        console.log('Подключено к серверу!');
-        // Отправляем пинг для синхронизации онлайна
+    socket.on('connect', function() {
         socket.emit('online_ping', { username: currentUser });
     });
 
-    socket.on('connect_error', () => {
-        alert('Ошибка связи с WebSocket сервером.');
+    document.getElementById('logoutBtn').addEventListener('click', function() {
+        localStorage.removeItem('chat_user');
+        window.location.href = '/login';
     });
 
-    // Твоя остальная логика обработки событий чата:
-    // (socket.on('chat_message'), socket.on('restore_chats') и т.д.)
+    var msgInput = document.getElementById('msgInput');
+    var sendBtn = document.getElementById('sendBtn');
+    var messagesBox = document.getElementById('messagesBox');
+
+    function sendMessage() {
+        var text = msgInput.value.trim();
+        if(!text) return;
+
+        var msgDiv = document.createElement('div');
+        msgDiv.className = 'message sent';
+        msgDiv.textContent = text;
+        messagesBox.appendChild(msgDiv);
+        
+        // Очистка float элементов для корректного скролла
+        var clearDiv = document.createElement('div');
+        clearDiv.style.clear = 'both';
+        messagesBox.appendChild(clearDiv);
+
+        messagesBox.scrollTop = messagesBox.scrollHeight;
+        msgInput.value = '';
+    }
+
+    sendBtn.addEventListener('click', sendMessage);
+    msgInput.addEventListener('keypress', function(e) { 
+        if(e.key === 'Enter' || e.keyCode === 13) sendMessage(); 
+    });
 </script>
 </body>
 </html>

@@ -128,7 +128,8 @@
 
     <div class="error-msg" id="errorBlock"></div>
 
-    <form id="loginForm">
+    <!-- Заменили тег <form> на <div>, чтобы полностью исключить скрытый сабмит формы браузером -->
+    <div id="loginFormContainer">
         <div class="ios-group">
             <div class="ios-row">
                 <label for="username">Логин</label>
@@ -140,14 +141,15 @@
             </div>
         </div>
 
-        <button type="submit" class="ios-btn">Войти</button>
-    </form>
+        <button type="button" id="loginBtn" class="ios-btn">Войти</button>
+    </div>
 </div>
 
 <script>
-    // Подключение сокетов с запретом кэширования соединения
+    // Подключение сокетов со случайным параметром для обхода агрессивного кэша
     const socket = io({ query: { r: Date.now() } });
     const errorBlock = document.getElementById('errorBlock');
+    const loginBtn = document.getElementById('loginBtn');
 
     socket.on('connect_error', () => {
         errorBlock.textContent = 'Сервер недоступен. Проверь Termux!';
@@ -158,10 +160,16 @@
         errorBlock.style.display = 'none'; 
     });
 
-    document.getElementById('loginForm').addEventListener('submit', (e) => {
-        e.preventDefault();
+    // Функция сбора данных и отправки на сервер
+    function handleLogin() {
         const username = document.getElementById('username').value.trim();
-        const password = document.getElementById('password').value;[cite: 2]
+        const password = document.getElementById('password').value;
+
+        if (!username || !password) {
+            errorBlock.textContent = 'Заполните все поля!';
+            errorBlock.style.display = 'block';
+            return;
+        }
 
         if (!socket.connected) {
             errorBlock.textContent = 'Сервер недоступен. Проверь Termux!';
@@ -169,11 +177,27 @@
             return;
         }
 
-        // Отправляем данные на сервер[cite: 2]
-        socket.emit('check_user_exists', { username: username, password: password });
-    });
+        // Индикация загрузки
+        loginBtn.textContent = 'Вход...';
+        loginBtn.disabled = true;
 
+        // Отправка события авторизации/регистрации
+        socket.emit('check_user_exists', { username: username, password: password });
+    }
+
+    // Слушаем клик по кнопке
+    loginBtn.addEventListener('click', handleLogin);
+
+    // Слушаем Enter в полях ввода
+    document.getElementById('username').addEventListener('keypress', (e) => { if (e.key === 'Enter') handleLogin(); });
+    document.getElementById('password').addEventListener('keypress', (e) => { if (e.key === 'Enter') handleLogin(); });
+
+    // Обработка ответа от сервера
     socket.on('user_exists_result', (data) => {
+        // Возвращаем кнопку в рабочее состояние
+        loginBtn.textContent = 'Войти';
+        loginBtn.disabled = false;
+
         if (data.exists) {
             localStorage.setItem('chat_user', data.username);
             window.location.href = '/main'; 

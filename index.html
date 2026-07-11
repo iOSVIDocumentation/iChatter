@@ -2,222 +2,446 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>iChatter - Чат</title>
+    <title>iChatter - Мессенджер</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
         html, body { 
-            height: 100%; 
-            margin: 0; 
-            padding: 0; 
+            height: 100%; margin: 0; padding: 0; 
             font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; 
-            background-color: #dbecf7; 
+            background-color: #cbd2d9; 
         }
         
         #chat-container {
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-            max-width: 600px;
-            margin: 0 auto;
-            background: #cbd2d9;
-            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            display: flex; flex-direction: column; height: 100%;
+            max-width: 450px; margin: 0 auto; background: #ffffff;
+            box-shadow: 0 0 15px rgba(0,0,0,0.3); position: relative; overflow: hidden;
         }
         
+        /* ШАПКА В СТИЛЕ iOS 6 */
         .ios-header {
-            height: 44px;
-            background: linear-gradient(#768da5, #4c647f); 
-            border-bottom: 1px solid #2d3e52;
-            display: flex; 
-            align-items: center; 
-            justify-content: space-between;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.3); 
-            color: #fff;
-            padding: 0 10px;
-            flex-shrink: 0;
+            height: 44px; background: linear-gradient(#768da5, #4c647f); 
+            border-bottom: 1px solid #2d3e52; display: flex; 
+            align-items: center; justify-content: space-between;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.3); color: #fff;
+            padding: 0 10px; flex-shrink: 0; z-index: 10;
         }
         .ios-header h1 { 
-            font-size: 19px; 
-            margin: 0; 
-            font-weight: bold;
-            text-shadow: 0 -1px 0 rgba(0,0,0,0.6);
-            flex-grow: 1;
-            text-align: center;
+            font-size: 19px; margin: 0; font-weight: bold;
+            text-shadow: 0 -1px 0 rgba(0,0,0,0.6); text-align: center; flex-grow: 1;
         }
         
-        .ios-logout-btn {
-            background: linear-gradient(#945a5a, #6c3737);
-            border: 1px solid #4f2626;
-            border-radius: 5px;
-            color: white;
-            padding: 5px 10px;
-            font-size: 12px;
-            font-weight: bold;
-            cursor: pointer;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.2);
+        .ios-btn {
+            background: linear-gradient(#5a7494, #374e6c); border: 1px solid #26384f;
+            border-radius: 5px; color: white; padding: 6px 12px;
+            font-size: 12px; font-weight: bold; cursor: pointer;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.2); text-shadow: 0 -1px 0 rgba(0,0,0,0.4);
         }
+        .ios-btn-back { background: linear-gradient(#768da5, #4c647f); }
+        .ios-btn-action { background: linear-gradient(#4ba3e3, #1d6fa5); border-color: #124668; }
 
-        /* ПОИСКОВАЯ СТРОКА В СТИЛЕ iOS 6 */
+        /* ЭКРАНЫ */
+        .screen { display: none; flex-direction: column; flex-grow: 1; overflow: hidden; background: #fff; }
+        .screen-active { display: flex; }
+
+        /* СТРОКА ПОИСКА ПО ID */
         .ios-search-bar {
             background: linear-gradient(#d1d7dc, #b4bcc4);
-            border-bottom: 1px solid #99a3ad;
-            padding: 6px 10px;
-            display: flex;
-            align-items: center;
-            flex-shrink: 0;
+            border-bottom: 1px solid #99a3ad; padding: 6px 10px; display: flex; gap: 5px;
         }
         .ios-search-input {
-            width: 100%;
-            height: 28px;
-            border: 1px solid #939ca5;
-            border-radius: 14px;
-            padding: 0 12px 0 28px;
-            font-size: 14px;
-            outline: none;
+            flex-grow: 1; height: 28px; border: 1px solid #939ca5; border-radius: 14px;
+            padding: 0 12px 0 28px; font-size: 14px; outline: none;
             background: #fff url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="%238e8e93" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>') no-repeat 10px center;
-            box-shadow: inset 0 1px 2px rgba(0,0,0,0.2);
-            box-sizing: border-box;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.2); box-sizing: border-box;
         }
 
-        #messages-area {
-            flex-grow: 1;
-            overflow-y: auto;
-            padding: 15px;
-            background: #dbecf7;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
+        /* СПИСКИ ДИАЛОГОВ (TABLE VIEW) */
+        .list-container { flex-grow: 1; overflow-y: auto; background: #ffffff; }
+        .table-view-cell {
+            padding: 10px 15px; border-bottom: 1px solid #e0e0e0;
+            display: flex; align-items: center; justify-content: space-between; cursor: pointer;
         }
+        .table-view-cell:active { background: #027aff; color: #fff; }
+        .cell-main { display: flex; align-items: center; gap: 12px; }
+        .avatar { width: 42px; height: 42px; border-radius: 50%; border: 1px solid #ababab; background: #eee; object-fit: cover;}
+        .contact-info { display: flex; flex-direction: column; }
+        .contact-name { font-size: 16px; font-weight: bold; color: #000; }
+        .table-view-cell:active .contact-name { color: #fff; }
+        .last-msg { font-size: 13px; color: #8e8e93; margin-top: 2px; max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .table-view-cell:active .last-msg { color: rgba(255,255,255,0.8); }
+        .cell-actions { display: flex; gap: 5px; }
 
-        /* Облачка */
-        .msg {
-            max-width: 75%;
-            padding: 8px 14px;
-            border-radius: 15px;
-            font-size: 15px;
-            line-height: 1.4;
-            word-wrap: break-word;
-            box-shadow: 0 1px 1px rgba(0,0,0,0.1);
-        }
-        .msg-inbound {
-            background: #e5e5ea;
-            color: black;
-            align-self: flex-start;
-            border-bottom-left-radius: 5px;
-        }
-        .msg-outbound {
-            background: linear-gradient(#00d331, #00b924);
-            color: white;
-            align-self: flex-end;
-            border-bottom-right-radius: 5px;
-            text-shadow: 0 -1px 0 rgba(0,0,0,0.2);
-        }
-        .msg-author {
-            font-size: 11px;
-            color: #666;
-            margin-bottom: 2px;
-            display: block;
-        }
-        .msg-outbound .msg-author {
-            color: rgba(255,255,255,0.7);
-        }
+        /* ОКНО ЧАТА */
+        #chat-screen { background: #dbecf7; }
+        #messages-area { flex-grow: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
+        
+        /* ОБЛАЧКА СООБЩЕНИЙ */
+        .msg-wrapper { display: flex; flex-direction: column; max-width: 75%; position: relative; }
+        .msg-wrapper.me { align-self: flex-end; }
+        .msg-wrapper.other { align-self: flex-start; }
+        
+        .msg-meta { font-size: 10px; color: #7a7a7a; margin-bottom: 2px; padding: 0 5px; }
+        .msg-wrapper.me .msg-meta { align-self: flex-end; }
 
+        .msg { padding: 8px 14px; border-radius: 15px; font-size: 15px; line-height: 1.4; word-wrap: break-word; box-shadow: 0 1px 1px rgba(0,0,0,0.1); cursor: pointer; }
+        .msg-inbound { background: #e5e5ea; color: black; border-bottom-left-radius: 3px; }
+        .msg-outbound { background: linear-gradient(#00d331, #00b924); color: white; border-bottom-right-radius: 3px; text-shadow: 0 -1px 0 rgba(0,0,0,0.2); }
+        .msg-system { background: transparent; color: #7f8c8d; font-style: italic; box-shadow: none; cursor: default; align-self: center; font-size: 13px; }
+        .edited-tag { font-size: 10px; opacity: 0.6; margin-left: 5px; }
+
+        /* НИЖНЯЯ ПАНЕЛЬ */
         #input-panel {
-            background: linear-gradient(#f4f4f4, #cbd2d9);
-            border-top: 1px solid #a5a5a5;
-            padding: 8px 10px;
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            flex-shrink: 0;
+            background: linear-gradient(#f4f4f4, #cbd2d9); border-top: 1px solid #a5a5a5;
+            padding: 8px 10px; display: flex; gap: 8px; align-items: center; flex-shrink: 0;
         }
         #message-input {
-            flex-grow: 1;
-            height: 32px;
-            border: 1px solid #ababab;
-            border-radius: 16px;
-            padding: 0 12px;
-            font-size: 15px;
-            outline: none;
-            background: #fff;
-            box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+            flex-grow: 1; height: 32px; border: 1px solid #ababab; border-radius: 16px;
+            padding: 0 12px; font-size: 15px; outline: none; background: #fff; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
         }
-        #send-btn {
-            height: 32px;
-            padding: 0 15px;
-            background: linear-gradient(#5a7494, #374e6c);
-            border: 1px solid #26384f;
-            border-radius: 16px;
-            color: white;
-            font-weight: bold;
-            font-size: 14px;
-            cursor: pointer;
-            text-shadow: 0 -1px 0 rgba(0,0,0,0.4);
+
+        /* НАСТРОЙКИ (GROUPED TABLE VIEW) */
+        .settings-container { padding: 15px; background: #f0f0f6; height: 100%; overflow-y: auto; box-sizing: border-box; }
+        .settings-group { background: #fff; border: 1px solid #bbb; border-radius: 10px; margin-bottom: 20px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .settings-row { padding: 12px 15px; border-bottom: 1px solid #eee; display: flex; align-items: center; justify-content: space-between; background: #fff; }
+        .settings-row:last-child { border-bottom: none; }
+        .settings-row label { font-size: 15px; font-weight: bold; color: #4c566c; width: 100px; }
+        .settings-row input, .settings-row textarea { border: none; outline: none; font-size: 16px; width: 100%; background: transparent; text-align: right; color: #000; }
+        .settings-row textarea { resize: none; height: 40px; text-align: left; border: 1px solid #e0e0e0; padding: 4px; border-radius: 5px; }
+        
+        /* ПАК АВАТАРОК */
+        .avatar-picker { display: flex; gap: 10px; padding: 10px; overflow-x: auto; background: #fff; border-radius: 8px; border: 1px solid #ccc; margin-top: 5px; }
+        .picker-img { width: 50px; height: 50px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; object-fit: cover;}
+        .picker-img.selected { border-color: #027aff; box-shadow: 0 0 5px rgba(2,122,255,0.5); }
+
+        /* НИЖНИЙ ТАБ-БАР (iOS СТИЛЬ) */
+        .ios-tab-bar {
+            height: 49px; background: linear-gradient(#4a4a4a, #1f1f1f); border-top: 1px solid #000;
+            display: flex; justify-content: space-around; align-items: center; flex-shrink: 0; z-index: 10;
         }
+        .tab-item { display: flex; flex-direction: column; align-items: center; color: #9c9c9c; cursor: pointer; font-size: 11px; font-weight: bold; text-decoration: none; }
+        .tab-item.active { color: #ffffff; }
+        .tab-icon { font-size: 20px; margin-bottom: 2px; }
+
+        /* МОДАЛЬНЫЕ ОКНА И МЕНЮ РЕДАКТИРОВАНИЯ */
+        .context-menu {
+            position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.8);
+            padding: 15px; display: none; flex-direction: column; gap: 10px; border-top-left-radius: 12px; border-top-right-radius: 12px; z-index: 100;
+        }
+        .context-btn { width: 100%; padding: 12px; border-radius: 8px; border: none; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .btn-edit { background: #4ba3e3; color: white; }
+        .btn-delete { background: #e74c3c; color: white; }
+        .btn-cancel { background: #7f8c8d; color: white; }
     </style>
 </head>
 <body>
 
     <div id="chat-container">
+        <!-- ОБЩАЯ ШАПКА -->
         <div class="ios-header">
-            <button class="ios-logout-btn" onclick="logout()">Выйти</button>
-            <h1 id="chat-title">iChatter</h1>
-            <div style="width: 50px;"></div>
+            <button id="header-left-btn" class="ios-btn" onclick="handleHeaderLeft()">Выйти</button>
+            <h1 id="header-title">Сообщения</h1>
+            <button id="header-right-btn" class="ios-btn ios-btn-action" style="visibility: hidden;">Архив</button>
         </div>
-        
-        <!-- Новая строка поиска -->
-        <div class="ios-search-bar">
-            <input type="text" id="search-input" class="ios-search-input" placeholder="Поиск" oninput="handleSearch()">
+
+        <!-- 1. ЭКРАН: СПИСОК ЧАТОВ -->
+        <div id="screen-dialogs" class="screen screen-active">
+            <div class="ios-search-bar">
+                <input type="text" id="search-id-input" class="ios-search-input" placeholder="Найти друга по ID (Например: #123456)">
+                <button class="ios-btn" onclick="searchUserById()">Найти</button>
+            </div>
+            <div id="dialogs-list" class="list-container"></div>
         </div>
-        
-        <!-- Область сообщений -->
-        <div id="messages-area"></div>
-        
-        <!-- Панель отправки -->
-        <div id="input-panel">
-            <input type="text" id="message-input" placeholder="Сообщение" onkeypress="handleKeyPress(event)">
-            <button id="send-btn" onclick="sendMessage()">Отпр.</button>
+
+        <!-- 2. ЭКРАН: АРХИВ ЧАТОВ -->
+        <div id="screen-archive" class="screen">
+            <div id="archive-list" class="list-container"></div>
+        </div>
+
+        <!-- 3. ЭКРАН: ОКНО ПЕРЕПИСКИ -->
+        <div id="screen-chat" class="screen">
+            <div id="messages-area"></div>
+            <div id="input-panel">
+                <input type="text" id="message-input" placeholder="Сообщение" onkeypress="handleKeyPress(event)">
+                <button class="ios-btn ios-btn-action" onclick="sendMessage()">Отпр.</button>
+            </div>
+        </div>
+
+        <!-- 4. ЭКРАН: НАСТРОЙКИ ПРОФИЛЯ -->
+        <div id="screen-settings" class="screen">
+            <div class="settings-container">
+                <div class="settings-group" style="text-align: center; padding: 15px; background: none; border: none; box-shadow: none;">
+                    <img id="profile-view-avatar" class="avatar" src="" style="width: 70px; height: 70px; margin: 0 auto 5px auto; display: block;">
+                    <span id="profile-view-id" style="font-size: 14px; color: #666; font-weight: bold;"></span>
+                </div>
+                
+                <div class="settings-group">
+                    <div class="settings-row"><label>Никнейм</label><input type="text" id="set-username" readonly style="color:#777;"></div>
+                    <div class="settings-row"><label>Имя</label><input type="text" id="set-name" placeholder="Твое имя"></div>
+                    <div class="settings-row"><label>Возраст</label><input type="number" id="set-age" placeholder="Сколько лет"></div>
+                </div>
+
+                <div style="font-size: 14px; font-weight: bold; color: #4c566c; margin-bottom: 5px; padding-left: 5px;">О СЕБЕ</div>
+                <div class="settings-group">
+                    <div class="settings-row" style="flex-direction: column; align-items: stretch;"><textarea id="set-about" placeholder="Расскажи что-нибудь о себе..."></textarea></div>
+                </div>
+
+                <div style="font-size: 14px; font-weight: bold; color: #4c566c; margin-bottom: 5px; padding-left: 5px;">ВЫБЕРИ СВОЙ АВАТАР</div>
+                <div class="avatar-picker" id="avatar-list-picker"></div>
+                
+                <button class="ios-action-btn ios-btn ios-btn-action" onclick="saveProfile()" style="width: 100%; padding: 12px; font-size: 16px; margin-top: 20px; border-radius: 8px;">Сохранить профиль</button>
+            </div>
+        </div>
+
+        <!-- КОНТЕКСТНОЕ МЕНЮ ДЛЯ СООБЩЕНИЙ -->
+        <div id="msg-context-menu" class="context-menu">
+            <button class="context-btn btn-edit" onclick="triggerEditMessage()">Редактировать</button>
+            <button class="context-btn btn-delete" onclick="triggerDeleteMessage()">Удалить сообщение</button>
+            <button class="context-btn btn-cancel" onclick="closeContextMenu()">Отмена</button>
+        </div>
+
+        <!-- ТАБ-БАР -->
+        <div class="ios-tab-bar" id="main-tab-bar">
+            <div class="tab-item active" id="tab-chats" onclick="switchTab('dialogs')"><span class="tab-icon">💬</span>Чат</div>
+            <div class="tab-item" id="tab-archive" onclick="switchTab('archive')"><span class="tab-icon">📦</span>Архив</div>
+            <div class="tab-item" id="tab-settings" onclick="switchTab('settings')"><span class="tab-icon">⚙️</span>Настройки</div>
         </div>
     </div>
 
     <script>
-        const userData = JSON.parse(localStorage.getItem('userData'));
-        if (!userData) {
-            window.location.href = 'login.html'; 
-        } else {
-            document.getElementById('chat-title').innerText = `iChat {${userData.username}}`;
+        // ВСТРОЕННЫЙ НАБОР ГОТОВЫХ АВАТАРОК (Base64 макеты SVG, чтобы грузились везде без внешних ссылок)
+        const BUILTIN_AVATARS = [
+            'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="%234c647f"><circle cx="50" cy="50" r="50"/><path d="M50 30a15 15 0 1 0 0 30 15 15 0 0 0 0-30zm0 35c-20 0-35 10-35 20v5h70v-5c0-10-15-20-35-20z" fill="white"/></svg>', // Classic iOS
+            'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="%2327ae60"><rect width="100" height="100"/><circle cx="50" cy="40" r="20" fill="white"/><path d="M20 80 c0-25 15-30 30-30 s30 5 30 30z" fill="white"/></svg>', // Green Gamer
+            'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="%23e74c3c"><rect width="100" height="100"/><path d="M30 30h40v40H30z" fill="white"/><circle cx="50" cy="50" r="10" fill="%23e74c3c"/></svg>', // Retro Apple Red
+            'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="%23f1c40f"><circle cx="50" cy="50" r="50"/><path d="M30 40h10v10H30zm30 0h10v10H60zm-30 25h40v5H30z" fill="black"/></svg>'  // Pixel Face
+        ];
+
+        // Симуляция данных сессии юзера
+        let mySession = JSON.parse(localStorage.getItem('userData')) || { username: "Ostap", id: "usr_internal" };
+        
+        // Генерация или получение кастомного ID пользователя (#XXXXXX)
+        if(!localStorage.getItem('myCustomId')) {
+            localStorage.setItem('myCustomId', '#' + Math.floor(100000 + Math.random() * 900000));
+        }
+        let myCustomId = localStorage.getItem('myCustomId');
+
+        // Локальное хранилище данных профиля
+        let myProfile = JSON.parse(localStorage.getItem('myProfile')) || {
+            name: "", age: "", about: "", avatar: BUILTIN_AVATARS[0]
+        };
+
+        // Локальная база активных и архивных чатов
+        let chatsList = JSON.parse(localStorage.getItem('chatsList')) || [
+            { id: "#777888", username: "danila_dev", avatar: BUILTIN_AVATARS[1], lastMessage: "Скрипт на Python готов, проверяй.", archived: false },
+            { id: "#111222", username: "alex_modder", avatar: BUILTIN_AVATARS[2], lastMessage: "CoolBooter завел на iOS 6?", archived: false }
+        ];
+
+        // Структурированная база переписок
+        let chatHistory = JSON.parse(localStorage.getItem('chatHistory')) || {
+            "#777888": [{ msgId: 1, sender: "danila_dev", text: "Скрипт на Python готов, проверяй.", time: Date.now(), edited: false, deleted: false }],
+            "#111222": [{ msgId: 2, sender: "alex_modder", text: "CoolBooter завел на iOS 6?", time: Date.now(), edited: false, deleted: false }]
+        };
+
+        let currentScreen = "dialogs";
+        let activeChatId = null;
+        let selectedMsgId = null;
+        let tempSelectedAvatar = myProfile.avatar;
+
+        window.onload = function() {
+            initProfileScreen();
+            renderDialogs();
+            renderArchive();
+        };
+
+        // --- УПРАВЛЕНИЕ ЭКРАНАМИ И ВКЛАДКАМИ ---
+        function switchTab(screenName) {
+            if (activeChatId) closeChat();
+            
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('screen-active'));
+            document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+            
+            currentScreen = screenName;
+            document.getElementById(`screen-${screenName}`).classList.add('screen-active');
+            document.getElementById(`tab-${screenName === 'dialogs' ? 'chats' : screenName}`).classList.add('active');
+            
+            const leftBtn = document.getElementById('header-left-btn');
+            const rightBtn = document.getElementById('header-right-btn');
+            
+            rightBtn.style.visibility = "hidden";
+            leftBtn.innerText = "Выйти";
+            leftBtn.className = "ios-btn";
+
+            if (screenName === 'dialogs') {
+                document.getElementById('header-title').innerText = "Сообщения";
+                renderDialogs();
+            } else if (screenName === 'archive') {
+                document.getElementById('header-title').innerText = "Архив";
+                renderArchive();
+            } else if (screenName === 'settings') {
+                document.getElementById('header-title').innerText = "Настройки";
+            }
         }
 
-        let messages = [];
+        // --- ЛОГИКА ПОИСКА ПО ID ---
+        function searchUserById() {
+            const idInput = document.getElementById('search-id-input').value.trim();
+            if(!idInput.startsWith('#') || idInput.length < 5) {
+                return alert('Введите корректный ID в формате #XXXXXX');
+            }
+            if(idInput === myCustomId) return alert('Это твой собственный ID!');
 
-        function renderMessages(filterQuery = "") {
+            // Ищем, есть ли уже такой чат
+            let existing = chatsList.find(c => c.id === idInput);
+            if(existing) {
+                existing.archived = false; // Разархивируем если был в архиве
+                saveToLocalStorage();
+                openChat(existing.id, existing.username);
+                return;
+            }
+
+            // Создаем новый фейковый контакт для теста
+            let generatedName = "Юзер_" + idInput.replace('#','');
+            let newContact = {
+                id: idInput,
+                username: generatedName,
+                avatar: BUILTIN_AVATARS[3],
+                lastMessage: "Чат успешно создан по ID",
+                archived: false
+            };
+            
+            chatsList.push(newContact);
+            chatHistory[idInput] = [{ msgId: Date.now(), sender: "Система", text: "Вы добавили пользователя по ID. Начните переписку!", time: Date.now(), isSystem: true }];
+            
+            saveToLocalStorage();
+            renderDialogs();
+            openChat(idInput, generatedName);
+            document.getElementById('search-id-input').value = "";
+        }
+
+        // --- РЕНДЕРИНГ ДИАЛОГОВ И АРХИВА ---
+        function renderDialogs() {
+            const container = document.getElementById('dialogs-list');
+            container.innerHTML = '';
+            let activeChats = chatsList.filter(c => !c.archived);
+            
+            if(activeChats.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:30px; color:#999; font-size:14px;">Нет активных чатов.<br>Используй поиск по ID сверху!</div>';
+                return;
+            }
+
+            activeChats.forEach(c => {
+                const row = document.createElement('div');
+                row.className = 'table-view-cell';
+                row.innerHTML = `
+                    <div class="cell-main" onclick="openChat('${c.id}', '${c.username}')">
+                        <img class="avatar" src="${c.avatar}">
+                        <div class="contact-info">
+                            <span class="contact-name">${c.username} <span style="font-size:11px; font-weight:normal; color:#777;">${c.id}</span></span>
+                            <span class="last-msg">${c.lastMessage}</span>
+                        </div>
+                    </div>
+                    <div class="cell-actions">
+                        <button class="ios-btn" style="background:linear-gradient(#bbb,#999); border-color:#888;" onclick="toggleArchive('${c.id}', true)">В архив</button>
+                    </div>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        function renderArchive() {
+            const container = document.getElementById('archive-list');
+            container.innerHTML = '';
+            let archivedChats = chatsList.filter(c => c.archived);
+
+            if(archivedChats.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:30px; color:#999; font-size:14px;">Архив пуст</div>';
+                return;
+            }
+
+            archivedChats.forEach(c => {
+                const row = document.createElement('div');
+                row.className = 'table-view-cell';
+                row.innerHTML = `
+                    <div class="cell-main" onclick="openChat('${c.id}', '${c.username}')">
+                        <img class="avatar" src="${c.avatar}">
+                        <div class="contact-info">
+                            <span class="contact-name">${c.username}</span>
+                            <span class="last-msg">${c.lastMessage}</span>
+                        </div>
+                    </div>
+                    <div class="cell-actions">
+                        <button class="ios-btn ios-btn-action" onclick="toggleArchive('${c.id}', false)">Вернуть</button>
+                    </div>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        function toggleArchive(id, shouldArchive) {
+            let chat = chatsList.find(c => c.id === id);
+            if(chat) {
+                chat.archived = shouldArchive;
+                saveToLocalStorage();
+                renderDialogs();
+                renderArchive();
+            }
+        }
+
+        // --- ОКНО ЧАТА И ОТПРАВКА СООБЩЕНИЙ ---
+        function openChat(chatId, username) {
+            activeChatId = chatId;
+            document.getElementById('screen-dialogs').style.display = 'none';
+            document.getElementById('screen-archive').style.display = 'none';
+            document.getElementById('main-tab-bar').style.display = 'none';
+            
+            document.getElementById('screen-chat').classList.add('screen-active');
+            
+            const leftBtn = document.getElementById('header-left-btn');
+            leftBtn.innerText = "‹ Назад";
+            leftBtn.className = "ios-btn ios-btn-back";
+            
+            document.getElementById('header-title').innerText = username;
+            renderMessages();
+        }
+
+        function closeChat() {
+            activeChatId = null;
+            document.getElementById('screen-chat').classList.remove('screen-active');
+            document.getElementById('main-tab-bar').style.display = 'flex';
+            switchTab(currentScreen);
+        }
+
+        function renderMessages() {
             const area = document.getElementById('messages-area');
             area.innerHTML = '';
             
-            // Фильтруем сообщения по тексту или имени отправителя
-            const filtered = messages.filter(msg => {
-                const query = filterQuery.toLowerCase();
-                return msg.text.toLowerCase().includes(query) || msg.sender.toLowerCase().includes(query);
-            });
+            const history = chatHistory[activeChatId] || [];
             
-            filtered.forEach(msg => {
-                const isMe = msg.sender === userData.username;
-                const msgDiv = document.createElement('div');
-                msgDiv.className = `msg ${isMe ? 'msg-outbound' : 'msg-inbound'}`;
-                
-                msgDiv.innerHTML = `
-                    <span class="msg-author">${msg.sender}</span>
-                    <div>${msg.text}</div>
-                `;
-                area.appendChild(msgDiv);
-            });
-            
-            area.scrollTop = area.scrollHeight;
-        }
+            history.forEach(m => {
+                if(m.isSystem) {
+                    const sysDiv = document.createElement('div');
+                    sysDiv.className = 'msg msg-system';
+                    sysDiv.innerText = m.text;
+                    area.appendChild(sysDiv);
+                    return;
+                }
 
-        // Функция обработки ввода в поиск
-        function handleSearch() {
-            const query = document.getElementById('search-input').value;
-            renderMessages(query);
+                const isMe = m.sender === mySession.username;
+                const wrapper = document.createElement('div');
+                wrapper.className = `msg-wrapper ${isMe ? 'me' : 'other'}`;
+                
+                let msgContent = m.deleted ? '[Сообщение удалено]' : m.text;
+                let editTag = m.edited && !m.deleted ? '<span class="edited-tag">(изм.)</span>' : '';
+
+                wrapper.innerHTML = `
+                    <span class="msg-meta">${m.sender}</span>
+                    <div class="msg ${isMe ? 'msg-outbound' : 'msg-inbound'}" ${isMe && !m.deleted ? `onclick="openContextMenu(${m.msgId})"` : ''}>
+                        ${msgContent} ${editTag}
+                    </div>
+                `;
+                area.appendChild(wrapper);
+            });
+            area.scrollTop = area.scrollHeight;
         }
 
         function sendMessage() {
@@ -226,29 +450,120 @@
             if (!text) return;
 
             const newMsg = {
-                sender: userData.username,
+                msgId: Date.now(),
+                sender: mySession.username,
                 text: text,
-                time: Date.now()
+                time: Date.now(),
+                edited: false,
+                deleted: false
             };
 
-            messages.push(newMsg);
-            
-            // Сбрасываем поиск при отправке нового сообщения, чтобы увидеть его
-            document.getElementById('search-input').value = "";
+            if(!chatHistory[activeChatId]) chatHistory[activeChatId] = [];
+            chatHistory[activeChatId].push(newMsg);
+
+            let chat = chatsList.find(c => c.id === activeChatId);
+            if(chat) chat.lastMessage = text;
+
+            saveToLocalStorage();
             renderMessages();
-            
             input.value = '';
         }
 
-        function handleKeyPress(e) {
-            if (e.key === 'Enter') {
-                sendMessage();
+        // --- РЕДАКТИРОВАНИЕ И УДАЛЕНИЕ СООБЩЕНИЙ ---
+        function openContextMenu(msgId) {
+            selectedMsgId = msgId;
+            document.getElementById('msg-context-menu').style.display = 'flex';
+        }
+
+        function closeContextMenu() {
+            document.getElementById('msg-context-menu').style.display = 'none';
+            selectedMsgId = null;
+        }
+
+        function triggerEditMessage() {
+            let history = chatHistory[activeChatId];
+            let msg = history.find(m => m.msgId === selectedMsgId);
+            closeContextMenu();
+            
+            if(msg) {
+                let newText = prompt("Редактирование сообщения:", msg.text);
+                if(newText !== null && newText.trim() !== "") {
+                    msg.text = newText.trim();
+                    msg.edited = true;
+                    
+                    let chat = chatsList.find(c => c.id === activeChatId);
+                    if(chat) chat.lastMessage = msg.text;
+                    
+                    saveToLocalStorage();
+                    renderMessages();
+                }
             }
         }
 
-        function logout() {
-            localStorage.clear();
-            window.location.href = 'login.html';
+        function triggerDeleteMessage() {
+            let history = chatHistory[activeChatId];
+            let msg = history.find(m => m.msgId === selectedMsgId);
+            closeContextMenu();
+
+            if(msg && confirm("Удалить это сообщение?")) {
+                msg.deleted = true;
+                
+                let chat = chatsList.find(c => c.id === activeChatId);
+                if(chat) chat.lastMessage = "[Сообщение удалено]";
+                
+                saveToLocalStorage();
+                renderMessages();
+            }
+        }
+
+        // --- НАСТРОЙКИ ПРОФИЛЯ ---
+        function initProfileScreen() {
+            document.getElementById('profile-view-id').innerText = `Твой ID: ${myCustomId}`;
+            document.getElementById('set-username').value = mySession.username;
+            document.getElementById('set-name').value = myProfile.name;
+            document.getElementById('set-age').value = myProfile.age;
+            document.getElementById('set-about').value = myProfile.about;
+            document.getElementById('profile-view-avatar').src = myProfile.avatar;
+
+            const pickerContainer = document.getElementById('avatar-list-picker');
+            pickerContainer.innerHTML = '';
+            BUILTIN_AVATARS.forEach(av => {
+                const img = document.createElement('img');
+                img.className = `picker-img ${av === tempSelectedAvatar ? 'selected' : ''}`;
+                img.src = av;
+                img.onclick = function() {
+                    document.querySelectorAll('.picker-img').forEach(i => i.classList.remove('selected'));
+                    img.classList.add('selected');
+                    tempSelectedAvatar = av;
+                };
+                pickerContainer.appendChild(img);
+            });
+        }
+
+        function saveProfile() {
+            myProfile.name = document.getElementById('set-name').value.trim();
+            myProfile.age = document.getElementById('set-age').value.trim();
+            myProfile.about = document.getElementById('set-about').value.trim();
+            myProfile.avatar = tempSelectedAvatar;
+
+            localStorage.setItem('myProfile', JSON.stringify(myProfile));
+            document.getElementById('profile-view-avatar').src = myProfile.avatar;
+            alert("Профиль успешно сохранен!");
+        }
+
+        function handleHeaderLeft() {
+            if(activeChatId) {
+                closeChat();
+            } else {
+                localStorage.removeItem('userData');
+                window.location.href = 'login.html';
+            }
+        }
+
+        function handleKeyPress(e) { if (e.key === 'Enter') sendMessage(); }
+        function saveToLocalStorage() {
+            localStorage.setItem('chatsList', JSON.stringify(chatsList));
+            localStorage.setItem('chatHistory', JSON.stringify(chatHistory));
         }
     </script>
 </body>

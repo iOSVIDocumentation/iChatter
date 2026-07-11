@@ -89,7 +89,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // --- НАСТРОЙКА РОУТОВ ---
 
-// Авторизация
+// Авторизация (вход)
 app.get('/', (req, res) => {
     fetchFromGitHub('login.html', res); 
 });
@@ -98,7 +98,7 @@ app.get('/login', (req, res) => {
     fetchFromGitHub('login.html', res); 
 });
 
-// Сам чат
+// Сам чат (интерфейс)
 app.get('/index.html', (req, res) => {
     fetchFromGitHub('index.html', res); 
 });
@@ -195,22 +195,44 @@ io.on('connection', (socket) => {
         if (uProfile) socket.emit('profile_broadcast', { username: data.username, data: uProfile });
     });
 
+    // ПРОВЕРКА ПАРОЛЯ И РЕГИСТРАЦИЯ ТУТ
     socket.on('check_user_exists', async (data) => {
         if (!data || !data.username) return;
-        let exists = !!userProfiles[data.username];
-        let profile = exists ? userProfiles[data.username] : null;
+        
+        const inputUsername = data.username.trim();
+        const inputPassword = data.password ? String(data.password) : ''; 
 
-        if (!exists && GOOGLE_SCRIPT_URL.startsWith('http') && !data.username.startsWith('ht.')) {
+        let exists = !!userProfiles[inputUsername];
+        let profile = exists ? userProfiles[inputUsername] : null;
+        let passwordCorrect = false;
+
+        // Если пользователь уже сохранен локально
+        if (exists) {
+            if (!profile.password || profile.password === inputPassword) {
+                passwordCorrect = true;
+                if (!profile.password) {
+                    profile.password = inputPassword;
+                    saveDatabase();
+                }
+            }
+        } 
+        // Проверка по внешней таблице (если локально юзера нет)
+        else if (GOOGLE_SCRIPT_URL.startsWith('http') && !inputUsername.startsWith('ht.')) {
             try {
-                const res = await secureGet(`${GOOGLE_SCRIPT_URL}?action=check&username=${encodeURIComponent(data.username)}`);
+                const res = await secureGet(`${GOOGLE_SCRIPT_URL}?action=check&username=${encodeURIComponent(inputUsername)}`);
                 if (res.ok) {
                     const responseText = await res.text();
                     try {
                         const gasData = JSON.parse(responseText);
                         if (gasData.exists) {
                             exists = true;
-                            profile = gasData.profile || { displayName: data.username, avatar: '', bio: '' };
-                            userProfiles[data.username] = { chatList: [], ...profile };
+                            passwordCorrect = true; 
+                            profile = gasData.profile || { displayName: inputUsername, avatar: '', bio: '' };
+                            userProfiles[inputUsername] = { 
+                                chatList: [], 
+                                password: inputPassword, 
+                                ...profile 
+                            };
                             saveDatabase();
                         }
                     } catch (e) {}
@@ -218,20 +240,48 @@ io.on('connection', (socket) => {
             } catch (e) {}
         }
 
-        socket.emit('user_exists_result', { 
-            username: data.username, 
-            exists,
-            profile: profile ? {
-                displayName: profile.displayName || data.username,
-                avatar: profile.avatar || '',
-                bio: profile.bio || '',
-                banner: profile.banner || '',
-                glowColor: profile.glowColor || 'blue',
-                lastSeen: profile.lastSeen || null,
-                members: profile.members || [], 
-                isGroup: profile.isGroup || data.username.startsWith('ht.') 
-            } : null
-        });
+        // Авторегистрация, если пользователя вообще нигде нет
+        if (!exists) {
+            exists = true;
+            passwordCorrect = true;
+            
+            userProfiles[inputUsername] = { 
+                chatList: [], 
+                password: inputPassword, 
+                displayName: inputUsername, 
+                bio: 'Привет, я использую iChatter!', 
+                avatar: '', 
+                banner: '', 
+                glowColor: 'blue', 
+                lastSeen: Date.now() 
+            };
+            saveDatabaseImmediately();
+            profile = userProfiles[inputUsername];
+        }
+
+        // Возвращаем результат
+        if (exists && passwordCorrect) {
+            socket.emit('user_exists_result', { 
+                username: inputUsername, 
+                exists: true,
+                profile: profile ? {
+                    displayName: profile.displayName || inputUsername,
+                    avatar: profile.avatar || '',
+                    bio: profile.bio || '',
+                    banner: profile.banner || '',
+                    glowColor: profile.glowColor || 'blue',
+                    lastSeen: profile.lastSeen || null,
+                    members: profile.members || [], 
+                    isGroup: profile.isGroup || inputUsername.startsWith('ht.') 
+                } : null
+            });
+        } else {
+            socket.emit('user_exists_result', { 
+                username: inputUsername, 
+                exists: false,
+                profile: null
+            });
+        }
     });
 
     socket.on('search_users', async (data) => {

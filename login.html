@@ -2,71 +2,65 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>iChatter — Вход</title>
-    <!-- Подгружаем Socket.io с сервера -->
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        :root {
-            --bg-color: #cbd2d9; /* Льняная текстура iOS 6 */
-            --text-color: #000000;
-            --btn-bg: linear-gradient(to bottom, #7fa4c7 0%, #4673a3 100%);
-            --btn-border: 1px solid #3b618a;
-        }
-
         body {
             font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-            background-color: var(--bg-color);
             margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            color: var(--text-color);
+            padding: 0;
+            background-color: #cbd2d9;
+            /* Старые префиксы для текстуры ткани в iOS 6 WebKit */
+            background-image: -webkit-radial-gradient(#cbd2d9 15%, transparent 16%),
+                              -webkit-radial-gradient(#cbd2d9 15%, transparent 16%),
+                              -webkit-linear-gradient(45deg, rgba(0,0,0,0.02) 25%, transparent 25%, transparent 75%, rgba(0,0,0,0.02) 75%, rgba(0,0,0,0.02)),
+                              -webkit-linear-gradient(45deg, rgba(0,0,0,0.02) 25%, transparent 25%, transparent 75%, rgba(0,0,0,0.02) 75%, rgba(0,0,0,0.02));
+            background-size: 4px 4px, 4px 4px, 8px 8px, 8px 8px;
+            background-position: 0 0, 2px 2px, 0 0, 4px 4px;
+            text-align: center;
         }
 
         .login-container {
-            width: 100%;
-            max-width: 340px;
-            padding: 20px;
+            width: 290px;
+            margin: 40px auto 0 auto;
             box-sizing: border-box;
         }
 
-        .login-header {
-            text-align: center;
-            margin-bottom: 25px;
-        }
-
         .login-header h1 {
-            font-size: 32px;
-            margin: 0 0 5px 0;
+            font-size: 34px;
+            font-weight: bold;
+            letter-spacing: -1px;
+            margin: 0;
             color: #3b618a;
             text-shadow: 0 1px 0 #fff;
-            font-weight: bold;
         }
 
         .login-header p {
-            margin: 0;
+            margin: 5px 0 20px 0;
             font-size: 14px;
             color: #555;
             text-shadow: 0 1px 0 #fff;
         }
 
-        /* Таблица iOS 6 */
+        /* Таблица iOS 6 Grouped (на старом WebKit блоками) */
         .ios-group {
-            background: #fff;
+            background: #ffffff;
             border: 1px solid #ababab;
+            -webkit-border-radius: 10px;
             border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            -webkit-box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
             margin-bottom: 20px;
+            overflow: hidden;
+            text-align: left;
         }
 
         .ios-row {
-            display: flex;
-            align-items: center;
             padding: 12px 15px;
             border-bottom: 1px solid #e0e0e0;
+            clear: both;
+            height: 20px;
         }
 
         .ios-row:last-child {
@@ -74,47 +68,58 @@
         }
 
         .ios-row label {
-            width: 80px;
+            float: left;
+            width: 75px;
             font-weight: bold;
-            font-size: 15px;
-            color: #000;
+            font-size: 16px;
+            color: #4c566c;
+            text-shadow: 0 1px 0 #fff;
         }
 
         .ios-row input {
-            flex: 1;
+            float: left;
+            width: 170px;
             border: none;
             outline: none;
             font-size: 16px;
-            padding: 0;
+            color: #000;
             font-family: inherit;
+            background: transparent;
+            margin: 0;
+            padding: 0;
         }
 
-        /* Кнопка iOS 6 */
+        /* Старый глянцевый градиент iOS 6 кнопке */
         .ios-btn {
             width: 100%;
-            background: var(--btn-bg);
-            border: var(--btn-border);
-            border-radius: 6px;
+            background: -webkit-gradient(linear, left top, left bottom, from(#7fa4c7), color-stop(0.5, #537fa9), color-stop(0.51, #3a6795), to(#3b618a));
+            border: 1px solid #2d4b6b;
+            -webkit-border-radius: 7px;
+            border-radius: 7px;
             color: #fff;
             font-size: 18px;
             font-weight: bold;
-            padding: 12px;
+            padding: 10px;
             cursor: pointer;
-            text-shadow: 0 -1px 0 rgba(0,0,0,0.4);
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 1px 2px rgba(0,0,0,0.3);
+            text-shadow: 0 -1px 0 rgba(0,0,0,0.6);
+            -webkit-box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 1px 2px rgba(0,0,0,0.4);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 1px 2px rgba(0,0,0,0.4);
         }
 
         .ios-btn:active {
-            background: linear-gradient(to bottom, #4673a3 0%, #2b4f75 100%);
+            background: -webkit-gradient(linear, left top, left bottom, from(#4d6d8f), color-stop(0.5, #36587c), color-stop(0.51, #24466b), to(#223f61));
         }
 
         .error-msg {
-            color: #cc0000;
+            background: rgba(0, 0, 0, 0.75);
+            color: #fff;
             text-align: center;
-            font-size: 13px;
+            font-size: 14px;
+            padding: 8px;
+            -webkit-border-radius: 8px;
+            border-radius: 8px;
             margin-bottom: 15px;
             display: none;
-            text-shadow: 0 1px 0 #fff;
         }
     </style>
 </head>
@@ -128,42 +133,43 @@
 
     <div class="error-msg" id="errorBlock"></div>
 
-    <!-- Заменили тег <form> на <div>, чтобы полностью исключить скрытый сабмит формы браузером -->
-    <div id="loginFormContainer">
-        <div class="ios-group">
-            <div class="ios-row">
-                <label for="username">Логин</label>
-                <input type="text" id="username" placeholder="example" required autocomplete="username">
-            </div>
-            <div class="ios-row">
-                <label for="password">Пароль</label>
-                <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password">
-            </div>
+    <div class="ios-group">
+        <div class="ios-row">
+            <label for="username">Логин</label>
+            <input type="text" id="username" placeholder="Пример">
         </div>
-
-        <button type="button" id="loginBtn" class="ios-btn">Войти</button>
+        <div class="ios-row">
+            <label for="password">Пароль</label>
+            <input type="password" id="password" placeholder="••••••••">
+        </div>
     </div>
+
+    <button type="button" id="loginBtn" class="ios-btn">Войти</button>
 </div>
 
 <script>
-    // Подключение сокетов со случайным параметром для обхода агрессивного кэша
-    const socket = io({ query: { r: Date.now() } });
-    const errorBlock = document.getElementById('errorBlock');
-    const loginBtn = document.getElementById('loginBtn');
+    // Чистый ES5 синтаксис (без функций '=>' и 'const/let' для старого WebKit)
+    var currentUser = localStorage.getItem('chat_user');
+    if (currentUser && currentUser.trim() !== "") {
+        window.location.href = '/main';
+    }
 
-    socket.on('connect_error', () => {
+    var socket = io({ query: { r: Date.now() } });
+    var errorBlock = document.getElementById('errorBlock');
+    var loginBtn = document.getElementById('loginBtn');
+
+    socket.on('connect_error', function() {
         errorBlock.textContent = 'Сервер недоступен. Проверь Termux!';
         errorBlock.style.display = 'block';
     });
 
-    socket.on('connect', () => {
+    socket.on('connect', function() {
         errorBlock.style.display = 'none'; 
     });
 
-    // Функция сбора данных и отправки на сервер
     function handleLogin() {
-        const username = document.getElementById('username').value.trim();
-        const password = document.getElementById('password').value;
+        var username = document.getElementById('username').value.trim();
+        var password = document.getElementById('password').value;
 
         if (!username || !password) {
             errorBlock.textContent = 'Заполните все поля!';
@@ -171,30 +177,22 @@
             return;
         }
 
-        if (!socket.connected) {
-            errorBlock.textContent = 'Сервер недоступен. Проверь Termux!';
-            errorBlock.style.display = 'block';
-            return;
-        }
-
-        // Индикация загрузки
         loginBtn.textContent = 'Вход...';
         loginBtn.disabled = true;
 
-        // Отправка события авторизации/регистрации
         socket.emit('check_user_exists', { username: username, password: password });
     }
 
-    // Слушаем клик по кнопке
     loginBtn.addEventListener('click', handleLogin);
+    
+    document.getElementById('username').addEventListener('keypress', function(e) { 
+        if (e.key === 'Enter' || e.keyCode === 13) handleLogin(); 
+    });
+    document.getElementById('password').addEventListener('keypress', function(e) { 
+        if (e.key === 'Enter' || e.keyCode === 13) handleLogin(); 
+    });
 
-    // Слушаем Enter в полях ввода
-    document.getElementById('username').addEventListener('keypress', (e) => { if (e.key === 'Enter') handleLogin(); });
-    document.getElementById('password').addEventListener('keypress', (e) => { if (e.key === 'Enter') handleLogin(); });
-
-    // Обработка ответа от сервера
-    socket.on('user_exists_result', (data) => {
-        // Возвращаем кнопку в рабочее состояние
+    socket.on('user_exists_result', function(data) {
         loginBtn.textContent = 'Войти';
         loginBtn.disabled = false;
 
@@ -202,7 +200,7 @@
             localStorage.setItem('chat_user', data.username);
             window.location.href = '/main'; 
         } else {
-            errorBlock.textContent = 'Пользователь не найден или пароль неверен.';
+            errorBlock.textContent = 'Неверный логин или пароль.';
             errorBlock.style.display = 'block';
         }
     });

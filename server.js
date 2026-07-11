@@ -13,10 +13,8 @@ const PORT = process.env.PORT || 8080;
 const DB_FILE = path.join(__dirname, 'database.json');
 
 const ALLOW_VOICE_EFFECTS = false; 
-// Отключаем Google Script, чтобы избежать конфликтов с базой данных
 const GOOGLE_SCRIPT_URL = ""; 
 
-// ССЫЛКА НА ТВОЙ РЕПОЗИТОРИЙ ICHATTER
 const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/iOSVIDocumentation/iChatter/main/';
 
 let userProfiles = {};
@@ -69,7 +67,6 @@ function saveDatabaseImmediately() {
 
 loadDatabase();
 
-// Функция скачивания с GitHub с защитой от жесткого кэширования (?nocache=...)
 function fetchFromGitHub(fileName, res) {
     const url = GITHUB_RAW_BASE + fileName + '?nocache=' + Date.now();
     https.get(url, (gitRes) => {
@@ -87,11 +84,18 @@ function fetchFromGitHub(fileName, res) {
 app.use(express.static(path.join(__dirname)));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// --- РОУТЫ ---
-app.get('/', (req, res) => { fetchFromGitHub('login.html', res); });
-app.get('/login', (req, res) => { fetchFromGitHub('login.html', res); });
-app.get('/index.html', (req, res) => { fetchFromGitHub('index.html', res); });
-app.get('/main', (req, res) => { fetchFromGitHub('index.html', res); });
+// --- ОБНОВЛЕННЫЕ РОУТЫ С ПРОВЕРКОЙ ---
+app.get('/', (req, res) => { 
+    res.redirect('/login'); 
+});
+
+app.get('/login', (req, res) => { 
+    fetchFromGitHub('login.html', res); 
+});
+
+app.get(['/main', '/index.html'], (req, res) => {
+    fetchFromGitHub('index.html', res);
+});
 
 // Интервал проверки отложенных сообщений
 setInterval(() => {
@@ -171,7 +175,6 @@ io.on('connection', (socket) => {
         if (uProfile) socket.emit('profile_broadcast', { username: data.username, data: uProfile });
     });
 
-    // НАДЁЖНАЯ ЛОКАЛЬНАЯ АВТОРИЗАЦИЯ И РЕГИСТРАЦИЯ
     socket.on('check_user_exists', (data) => {
         if (!data || !data.username) return;
         
@@ -183,7 +186,6 @@ io.on('connection', (socket) => {
         let passwordCorrect = false;
 
         if (exists) {
-            // Если аккаунт найден, сверяем пароли
             if (!profile.password || profile.password === inputPassword) {
                 passwordCorrect = true;
                 if (!profile.password) {
@@ -192,7 +194,6 @@ io.on('connection', (socket) => {
                 }
             }
         } else {
-            // Если аккаунта нет в базе — автоматически РЕГИСТРИРУЕМ его
             exists = true;
             passwordCorrect = true;
             
@@ -226,7 +227,6 @@ io.on('connection', (socket) => {
                 }
             });
         } else {
-            // Возвращаем false только если пароль не подошел к существующему логину
             socket.emit('user_exists_result', { 
                 username: inputUsername, 
                 exists: false,

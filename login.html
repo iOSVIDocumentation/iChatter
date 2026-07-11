@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>iChatter — Вход</title>
-    <!-- Подключаем Socket.io клиент (сервер отдаст его автоматически) -->
+    <!-- Подгружаем Socket.io с сервера -->
     <script src="/socket.io/socket.io.js"></script>
     <style>
         :root {
@@ -52,7 +52,7 @@
             text-shadow: 0 1px 0 #fff;
         }
 
-        /* Стиль сгруппированной таблицы iOS 6 */
+        /* Таблица iOS 6 */
         .ios-group {
             background: #fff;
             border: 1px solid #ababab;
@@ -89,7 +89,7 @@
             font-family: inherit;
         }
 
-        /* Глянцевая кнопка iOS 6 */
+        /* Кнопка iOS 6 */
         .ios-btn {
             width: 100%;
             background: var(--btn-bg);
@@ -145,11 +145,10 @@
 </div>
 
 <script>
-    // Инициализируем сокеты
-    const socket = io();
+    // Подключение сокетов с запретом кэширования соединения
+    const socket = io({ query: { r: Date.now() } });
     const errorBlock = document.getElementById('errorBlock');
 
-    // Ошибка подключения к серверу
     socket.on('connect_error', () => {
         errorBlock.textContent = 'Сервер недоступен. Проверь Termux!';
         errorBlock.style.display = 'block';
@@ -162,7 +161,7 @@
     document.getElementById('loginForm').addEventListener('submit', (e) => {
         e.preventDefault();
         const username = document.getElementById('username').value.trim();
-        const password = document.getElementById('password').value; 
+        const password = document.getElementById('password').value;[cite: 2]
 
         if (!socket.connected) {
             errorBlock.textContent = 'Сервер недоступен. Проверь Termux!';
@@ -170,18 +169,15 @@
             return;
         }
 
-        // Отправляем и ник, и пароль на сервер[cite: 2]
+        // Отправляем данные на сервер[cite: 2]
         socket.emit('check_user_exists', { username: username, password: password });
     });
 
-    // Обработка ответа сервера
     socket.on('user_exists_result', (data) => {
         if (data.exists) {
-            // Если пароль подошел или аккаунт создался
             localStorage.setItem('chat_user', data.username);
             window.location.href = '/main'; 
         } else {
-            // Если пароль не подошел к существующему логину
             errorBlock.textContent = 'Пользователь не найден или пароль неверен.';
             errorBlock.style.display = 'block';
         }

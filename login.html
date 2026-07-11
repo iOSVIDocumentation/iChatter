@@ -130,15 +130,13 @@
 
     <form id="loginForm">
         <div class="ios-group">
-            <div class="ios-group">
-                <div class="ios-row">
-                    <label for="username">Логин</label>
-                    <input type="text" id="username" placeholder="example" required autocomplete="username">
-                </div>
-                <div class="ios-row">
-                    <label for="password">Пароль</label>
-                    <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password">
-                </div>
+            <div class="ios-row">
+                <label for="username">Логин</label>
+                <input type="text" id="username" placeholder="example" required autocomplete="username">
+            </div>
+            <div class="ios-row">
+                <label for="password">Пароль</label>
+                <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password">
             </div>
         </div>
 
@@ -147,24 +145,24 @@
 </div>
 
 <script>
-    // Подключаемся к сокет-серверу (автоматически использует текущий домен Cloudflare)
+    // Инициализируем сокеты
     const socket = io();
     const errorBlock = document.getElementById('errorBlock');
 
-    // Если сокет не может подключиться, выводим ошибку
+    // Ошибка подключения к серверу
     socket.on('connect_error', () => {
         errorBlock.textContent = 'Сервер недоступен. Проверь Termux!';
         errorBlock.style.display = 'block';
     });
 
     socket.on('connect', () => {
-        errorBlock.style.display = 'none'; // Убираем ошибку, если соединение восстановлено
+        errorBlock.style.display = 'none'; 
     });
 
     document.getElementById('loginForm').addEventListener('submit', (e) => {
         e.preventDefault();
         const username = document.getElementById('username').value.trim();
-        const errorBlock = document.getElementById('errorBlock');
+        const password = document.getElementById('password').value; 
 
         if (!socket.connected) {
             errorBlock.textContent = 'Сервер недоступен. Проверь Termux!';
@@ -172,17 +170,18 @@
             return;
         }
 
-        // Запрашиваем проверку существования профиля в бэкенде / Google Таблице
-        socket.emit('check_user_exists', { username: username });
+        // Отправляем и ник, и пароль на сервер[cite: 2]
+        socket.emit('check_user_exists', { username: username, password: password });
     });
 
-    // Обработка ответа от сервера
+    // Обработка ответа сервера
     socket.on('user_exists_result', (data) => {
         if (data.exists) {
-            // Сохраняем сессию и переходим в чат
+            // Если пароль подошел или аккаунт создался
             localStorage.setItem('chat_user', data.username);
             window.location.href = '/main'; 
         } else {
+            // Если пароль не подошел к существующему логину
             errorBlock.textContent = 'Пользователь не найден или пароль неверен.';
             errorBlock.style.display = 'block';
         }

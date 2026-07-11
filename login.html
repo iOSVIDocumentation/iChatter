@@ -25,7 +25,7 @@
             width: 100%; max-width: 400px; height: 100%;
             background: transparent; display: flex; flex-direction: column;
             box-shadow: 0 0 20px rgba(0,0,0,0.6); position: relative;
-            background-color: #384250; /* Дополнительный слой под текстуру */
+            background-color: #384250;
         }
 
         /* ГЛЯНЦЕВЫЙ НАВБАР (NAVIGATION BAR) */
@@ -41,12 +41,12 @@
             text-shadow: 0 -1px 0 rgba(0,0,0,0.6); text-align: center;
         }
 
-        /* ФОРМА ВХОДА (GROUPED TABLE VIEW) */
+        /* ФОРМА ВХОДА */
         .login-form {
             padding: 30px 20px; flex-grow: 1; display: flex; flex-direction: column; gap: 24px;
         }
 
-        /* СГРУППИРОВАННЫЙ БЛОК ПОЛЕЙ С ХАРАКТЕРНЫМИ СКРУГЛЕНИЯМИ */
+        /* СГРУППИРОВАННЫЙ БЛОК ПОЛЕЙ (GROUPED TABLE VIEW) */
         .input-group {
             background: #fff; border: 1px solid #ababab; border-radius: 10px;
             overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
@@ -67,7 +67,7 @@
             -webkit-user-select: text; user-select: text;
         }
 
-        /* КЛАССИЧЕСКАЯ СИНЯЯ ГЛЯНЦЕВАЯ КНОПКА ДЛЯ ВХОДА */
+        /* ГЛЯНЦЕВАЯ СИНЯЯ КНОПКА */
         .ios-btn-submit {
             background: linear-gradient(to bottom, #6fa5e2 0%, #2975cf 50%, #175ebb 51%, #1f6bc7 100%);
             border: 1px solid #124078; border-radius: 8px; color: white;
@@ -80,7 +80,6 @@
             background: linear-gradient(to bottom, #1f6bc7 0%, #175ebb 50%, #2975cf 51%, #6fa5e2 100%);
         }
 
-        /* ТЕКСТ ПОДСКАЗКИ СНИЗУ */
         .ios-footer-text {
             font-size: 14px; color: #b3bfc2; text-align: center;
             padding: 0 20px; line-height: 1.4; text-shadow: 0 -1px 0 rgba(0,0,0,0.5);
@@ -91,17 +90,16 @@
 <body>
 
     <div class="login-wrapper">
-        <!-- НАВБАР -->
         <div class="ios-header">
             <h1>Вход в iMessage</h1>
         </div>
 
-        <!-- ФОРМА АВТОРИЗАЦИИ -->
         <div class="login-form">
             <div class="input-group">
+                <!-- ВЕРНУЛ ПОЛЕ С ПОЧТОЙ -->
                 <div class="input-row">
-                    <label for="username">Логин</label>
-                    <input type="text" id="username" placeholder="example_dev" autocomplete="off" autocapitalize="none">
+                    <label for="email">Почта</label>
+                    <input type="email" id="email" placeholder="example@apple.com" autocomplete="off" autocapitalize="none">
                 </div>
                 <div class="input-row">
                     <label for="password">Пароль</label>
@@ -112,60 +110,33 @@
             <button class="ios-btn-submit" onclick="handleLogin()">Войти</button>
 
             <div class="ios-footer-text">
-                Введите имя пользователя для авторизации в локальном хранилище. Данные будут привязаны к вашей сессии.
+                Используйте ваш зарегистрированный E-mail для авторизации в системе сообщений iMessage.
             </div>
         </div>
     </div>
 
     <script>
         function handleLogin() {
-            const usernameInput = document.getElementById('username').value.trim();
+            const emailInput = document.getElementById('email').value.trim();
             const passwordInput = document.getElementById('password').value;
 
-            if (!usernameInput || !passwordInput) {
+            if (!emailInput || !passwordInput) {
                 alert('Пожалуйста, заполните все поля.');
                 return;
             }
 
-            // 1. ЛОКАЛЬНАЯ СХЕМА (работает без ошибок прямо сейчас)
-            // Достаем существующий профиль или создаем новый базовый
+            // Сохраняем почту в локальный профиль, чтобы index.html её видел
             let myProfile = JSON.parse(localStorage.getItem('myProfile')) || {
                 name: "", age: "", about: "", avatar: ""
             };
             
-            // Перезаписываем никнейм тем, что ввел пользователь
-            myProfile.username = usernameInput;
+            myProfile.email = emailInput;
             localStorage.setItem('myProfile', JSON.stringify(myProfile));
 
-            // Перенаправляем на главный экран чата
+            // Редирект на главный экран приложения
             window.location.href = 'index.html';
-
-            // 2. БУДУЩАЯ БЭКЕНД СХЕМА (раскомментируй, когда поднимешь сервер)
-            
-            fetch('/api/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: usernameInput, password: passwordInput })
-            })
-            .then(res => {
-                if(res.ok) return res.json();
-                throw new Error('Неверный логин или пароль');
-            })
-            .then(data => {
-                // Например, сохраняем токен авторизации и никнейм из БД
-                localStorage.setItem('token', data.token);
-                
-                let myProfile = JSON.parse(localStorage.getItem('myProfile')) || {};
-                myProfile.username = data.username;
-                localStorage.setItem('myProfile', JSON.stringify(myProfile));
-                
-                window.location.href = 'index.html';
-            })
-            .catch(err => alert(err.message));
-            
         }
 
-        // Позволяет отправлять форму по нажатию Enter на клавиатуре
         document.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') handleLogin();
         });

@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <title>iChatter - Вход</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         html, body { height: 100%; margin: 0; padding: 0; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; background: #cbd2d9; }
-        #auth-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; }
+        #auth-screen { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; height: 100%; }
+        
         .ios-navbar {
             width: 100%; height: 44px;
             background: linear-gradient(#768da5, #4c647f); border-bottom: 1px solid #2d3e52;
@@ -13,20 +15,47 @@
             box-shadow: inset 0 1px 0 rgba(255,255,255,0.3); color: #fff; font-weight: bold;
         }
         .ios-navbar h1 { font-size: 18px; margin: 0; text-shadow: 0 -1px 0 rgba(0,0,0,0.6); }
+        
+        .ios-group-title {
+            width: 90%; max-width: 400px; margin: 20px auto 5px auto;
+            color: #4c566c; font-size: 14px; font-weight: bold;
+            text-shadow: 0 1px 0 #fff; text-align: left;
+        }
+
         .ios-group {
             background: #fff; border: 1px solid #ababab; border-radius: 10px;
-            width: 90%; max-width: 400px; margin: 20px auto; overflow: hidden;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            width: 90%; max-width: 400px; margin: 0 auto 20px auto; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column;
         }
-        .ios-cell { padding: 12px; border-bottom: 1px solid #e0e0e0; display: flex; align-items: center; }
+        
+        .ios-cell { 
+            padding: 10px 15px; 
+            border-bottom: 1px solid #e0e0e0; 
+            display: flex; 
+            align-items: center;
+            background: #fff;
+        }
         .ios-cell:last-child { border-bottom: none; }
-        .ios-cell input { border: none; outline: none; font-size: 15px; width: 100%; background: transparent; padding: 6px 0; }
-        .ios-btn {
-            margin: 10px auto; padding: 7px 20px; font-size: 14px; font-weight: bold;
-            color: #fff; background: linear-gradient(#5a7494, #374e6c);
-            border: 1px solid #26384f; border-radius: 5px; cursor: pointer;
-            display: block; box-shadow: inset 0 1px 0 rgba(255,255,255,0.2);
+        
+        .ios-cell input { 
+            border: none; 
+            outline: none; 
+            font-size: 16px; 
+            width: 100%; 
+            background: transparent; 
+            padding: 4px 0;
+            color: #000;
         }
+        
+        .ios-btn {
+            width: 90%; max-width: 400px; margin: 15px auto; padding: 10px; 
+            font-size: 16px; font-weight: bold; color: #fff; 
+            background: linear-gradient(#5a7494, #374e6c);
+            border: 1px solid #26384f; border-radius: 8px; cursor: pointer;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.2), 0 1px 2px rgba(0,0,0,0.2);
+            text-shadow: 0 -1px 0 rgba(0,0,0,0.4);
+        }
+        .ios-btn:active { background: linear-gradient(#374e6c, #26384f); }
     </style>
 </head>
 <body>
@@ -36,20 +65,26 @@
         </div>
         
         <!-- Шаг 1: Ввод почты -->
-        <div class="ios-group" id="email-step">
-            <div class="ios-cell">
-                <input type="email" id="auth-email" placeholder="Введи свой Email...">
-            </div>
-            <div class="ios-cell">
-                <input type="text" id="auth-username" placeholder="Имя пользователя (для новых)">
+        <div id="email-step" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
+            <div class="ios-group-title">АВТОРИЗАЦИЯ</div>
+            <div class="ios-group">
+                <div class="ios-cell">
+                    <input type="email" id="auth-email" placeholder="Email (например, 1rol4k2@gmail.com)">
+                </div>
+                <div class="ios-cell">
+                    <input type="text" id="auth-username" placeholder="Имя пользователя (ник)">
+                </div>
             </div>
             <button class="ios-btn" onclick="sendEmailCode()">Получить код</button>
         </div>
 
         <!-- Шаг 2: Ввод проверочного кода -->
-        <div class="ios-group" id="code-step" style="display:none;">
-            <div class="ios-cell">
-                <input type="text" id="auth-code" placeholder="6-значный код из письма">
+        <div id="code-step" style="width: 100%; display: none; flex-direction: column; align-items: center;">
+            <div class="ios-group-title">ПОДТВЕРЖДЕНИЕ</div>
+            <div class="ios-group">
+                <div class="ios-cell">
+                    <input type="text" id="auth-code" placeholder="6-значный код из письма">
+                </div>
             </div>
             <button class="ios-btn" onclick="verifyCode()">Войти в систему</button>
         </div>
@@ -71,7 +106,7 @@
                 if(data.error) return alert(data.error);
                 alert("Код отправлен на вашу почту!");
                 document.getElementById('email-step').style.display = 'none';
-                document.getElementById('code-step').style.display = 'block';
+                document.getElementById('code-step').style.display = 'flex';
             })
             .catch(err => alert("Ошибка соединения с сервером"));
         }
@@ -89,12 +124,8 @@
             .then(res => res.json())
             .then(data => {
                 if(data.error) return alert(data.error);
-                
-                // Сохраняем сессию локально
                 localStorage.setItem('userId', data.user.id);
                 localStorage.setItem('userAuthData', JSON.stringify(data.user));
-                
-                // Перенаправляем на страницу чата
                 window.location.href = '/chat';
             })
             .catch(err => alert("Ошибка проверки кода"));

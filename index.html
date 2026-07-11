@@ -2,266 +2,489 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>iChatter — Чат</title>
-    <script>
-        var currentUser = localStorage.getItem('chat_user');
-        if (!currentUser || currentUser.trim() === "") {
-            window.location.href = '/login';
-        }
-    </script>
+    <title>iChatter</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        html, body {
-            height: 100%;
-            margin: 0;
-            padding: 0;
-            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-            background-color: #cbd2d9;
-            overflow: hidden;
+        /* Базовые скевоморфные стили iOS 6 */
+        body {
+            margin: 0; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+            background: #cbd2d9; color: #000; display: flex; height: 100vh;
         }
+        /* Тёмная тема */
+        body.dark-theme {
+            background: #1a1a1a; color: #fff;
+        }
+        body.dark-theme .ios-navbar { background: linear-gradient(#333, #111); }
+        body.dark-theme .sidebar { background: #222; border-right: 1px solid #333; }
+        body.dark-theme .chat-item { color: #eee; border-bottom: 1px solid #333; }
+        body.dark-theme #chat-area { background: #111; }
 
-        /* iOS 6 Navigation Bar (Старый градиент WebKit) */
+        /* Окна авторизации и чата */
+        #auth-screen, #chat-screen, #settings-screen { width: 100%; height: 100%; display: flex; }
+        #auth-screen { flex-direction: column; align-items: center; justify-content: center; background: #d6dee7; }
+
+        /* Навбар в стиле iOS 6 */
         .ios-navbar {
-            background: -webkit-gradient(linear, left top, left bottom, from(#7fa4c7), color-stop(0.5, #537fa9), color-stop(0.51, #3a6795), to(#3b618a));
-            border-bottom: 1px solid #2d4b6b;
-            color: white;
-            text-align: center;
-            height: 44px;
-            line-height: 44px;
-            font-weight: bold;
-            font-size: 20px;
-            text-shadow: 0 -1px 0 rgba(0,0,0,0.6);
-            -webkit-box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-            position: absolute;
-            top: 0; left: 0; right: 0;
-            z-index: 10;
+            width: 100%; height: 44px;
+            background: linear-gradient(#768da5, #4c647f);
+            border-bottom: 1px solid #2d3e52;
+            display: flex; align-items: center; justify-content: space-between;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.3); color: #fff; font-weight: bold;
+        }
+        .ios-navbar h1 { font-size: 18px; margin: 0; text-shadow: 0 -1px 0 rgba(0,0,0,0.6); }
+        .ios-btn {
+            margin: 0 8px; padding: 5px 10px; font-size: 12px; font-weight: bold;
+            color: #fff; background: linear-gradient(#5a7494, #374e6c);
+            border: 1px solid #26384f; border-radius: 5px; cursor: pointer;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.2);
         }
 
-        .nav-left {
-            position: absolute;
-            left: 8px;
-            top: 8px;
-            line-height: 1;
+        /* Формы авторизации iOS */
+        .ios-group {
+            background: #fff; border: 1px solid #ababab; border-radius: 10px;
+            width: 90%; max-width: 400px; margin: 15px auto; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); color: #000;
+        }
+        .ios-cell {
+            padding: 12px; border-bottom: 1px solid #e0e0e0; display: flex; align-items: center; justify-content: space-between;
+        }
+        .ios-cell:last-child { border-bottom: none; }
+        .ios-cell input, .ios-cell textarea, .ios-cell select {
+            border: none; outline: none; font-size: 15px; width: 100%; background: transparent; color: inherit;
         }
 
-        .ios-bar-btn {
-            background: -webkit-gradient(linear, left top, left bottom, from(#739bbd), color-stop(0.5, #4c77a3), color-stop(0.51, #345e8b), to(#365a83));
-            border: 1px solid #243f5c;
-            -webkit-border-radius: 5px;
-            border-radius: 5px;
-            color: white;
-            font-size: 12px;
-            font-weight: bold;
-            padding: 6px 10px;
-            cursor: pointer;
-            text-shadow: 0 -1px 0 rgba(0,0,0,0.5);
-        }
-
-        /* Абсолютное позиционирование вместо Flexbox для iOS 6 */
-        .chat-container {
-            position: absolute;
-            top: 44px;
-            bottom: 0;
-            left: 0; right: 0;
-        }
-
-        .sidebar {
-            width: 200px;
-            position: absolute;
-            top: 0; bottom: 0; left: 0;
-            background: #ffffff;
-            border-right: 1px solid #ababab;
-        }
-
-        .sidebar-header {
-            background: #f0f0f0;
-            padding: 8px 12px;
-            font-size: 13px;
-            font-weight: bold;
-            color: #4c566c;
-            text-shadow: 0 1px 0 #fff;
-            border-bottom: 1px solid #cbd2d9;
-        }
-
-        .chat-list {
-            position: absolute;
-            top: 32px; bottom: 0; left: 0; right: 0;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch; /* Плавный скролл на iOS */
-        }
-
+        /* Боковое меню списка чатов */
+        .sidebar { width: 260px; background: #f0f3f5; border-right: 1px solid #bbb; display: flex; flex-direction: column; }
+        .user-info-bar { padding: 10px; background: #d1d7dc; border-bottom: 1px solid #b5bbc1; font-size: 13px; font-weight: bold; }
+        .chat-list { flex: 1; overflow-y: auto; }
         .chat-item {
-            padding: 12px;
-            border-bottom: 1px solid #cbd2d9;
-            font-weight: bold;
-            font-size: 15px;
-            cursor: pointer;
-            background: #fff;
+            padding: 12px; border-bottom: 1px solid #d4d4d4; cursor: pointer;
+            display: flex; align-items: center; font-size: 14px; font-weight: bold;
         }
-        .chat-item.active {
-            background: -webkit-gradient(linear, left top, left bottom, from(#058cf5), to(#015de6)) !important;
-            color: #fff !important;
-        }
+        .chat-item.active { background: linear-gradient(#058cf5, #015de6); color: #fff; }
+        .chat-item img { border-radius: 5px; margin-right: 10px; background: #ccc; }
 
-        .main-chat {
-            position: absolute;
-            top: 0; bottom: 0; left: 200px; right: 0;
-            background-color: #e5e5e5;
-        }
+        /* Основная область чата */
+        #chat-area { flex: 1; display: flex; flex-direction: column; background: #e5e5e5; }
+        
+        /* Различные текстурные обои чата */
+        .chat-bg-classic { background: #e5e5e5 !important; }
+        .chat-bg-linen { background: #4f5359 url('https://www.transparenttextures.com/patterns/dark-linen.png') !important; }
+        .chat-bg-wood { background: #3a2212 url('https://www.transparenttextures.com/patterns/dark-wood.png') !important; }
 
-        .messages-box {
-            position: absolute;
-            top: 0; bottom: 44px; left: 0; right: 0;
-            padding: 12px;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
+        .messages-container { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; }
+        
+        /* Пузыри сообщений iOS 6 */
+        .msg-row { display: flex; margin-bottom: 10px; align-items: flex-end; }
+        .msg-row.my { justify-content: flex-end; }
+        .msg-avatar { width: 32px; height: 32px; border-radius: 4px; margin: 0 8px; }
+        
+        .bubble {
+            max-width: 60%; padding: 8px 14px; border-radius: 15px; font-size: 14px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2); position: relative; cursor: pointer;
         }
-
-        /* Облачка сообщений со старыми градиентами */
-        .message {
-            max-width: 75%;
-            padding: 8px 14px;
-            -webkit-border-radius: 14px;
-            border-radius: 14px;
-            font-size: 15px;
-            margin-bottom: 8px;
-            clear: both;
+        .msg-row.my .bubble {
+            background: linear-gradient(#b4f76c, #7fd613); color: #000;
+            border-bottom-right-radius: 3px;
         }
-
-        .message.received {
-            background: -webkit-gradient(linear, left top, left bottom, from(#f9f9f9), to(#e2e2e2));
-            border: 1px solid #c8c7cc;
-            float: left;
-            color: #000;
+        .msg-row.other .bubble {
+            background: linear-gradient(#ffffff, #e1e1e1); color: #000;
+            border-bottom-left-radius: 3px;
         }
+        .edited-lbl { font-size: 10px; opacity: 0.5; margin-left: 5px; }
 
-        .message.sent {
-            background: -webkit-gradient(linear, left top, left bottom, from(#bee96d), color-stop(0.5, #a7e243), color-stop(0.51, #92dc1a), to(#84d700));
-            border: 1px solid #63a600;
-            float: right;
-            color: #000;
-        }
-
-        /* Тулбар ввода */
+        /* Поле ввода сообщений */
         .input-bar {
-            background: -webkit-gradient(linear, left top, left bottom, from(#f4f4f4), to(#cbd2d9));
-            border-top: 1px solid #ababab;
-            height: 44px;
-            position: absolute;
-            bottom: 0; left: 0; right: 0;
-            box-sizing: border-box;
-            padding: 7px 8px;
+            padding: 8px; background: linear-gradient(#f4f4f4, #cbd2d9);
+            border-top: 1px solid #ababab; display: flex; align-items: center;
         }
-
-        .input-wrapper {
-            margin-right: 70px;
-        }
-
         .input-bar input {
-            width: 100%;
-            height: 30px;
-            border: 1px solid #abc;
-            -webkit-border-radius: 15px;
-            border-radius: 15px;
-            padding: 0 10px;
-            font-size: 14px;
-            outline: none;
-            background: #fff;
-            box-sizing: border-box;
+            flex: 1; padding: 6px 12px; border: 1px solid #abc; border-radius: 16px;
+            outline: none; font-size: 14px; background: #fff;
         }
 
-        .send-btn {
-            position: absolute;
-            right: 8px;
-            top: 7px;
-            width: 60px;
-            height: 30px;
-            background: -webkit-gradient(linear, left top, left bottom, from(#7fa4c7), color-stop(0.5, #537fa9), color-stop(0.51, #3a6795), to(#3b618a));
-            border: 1px solid #2d4b6b;
-            -webkit-border-radius: 15px;
-            border-radius: 15px;
-            color: white;
-            font-size: 13px;
-            font-weight: bold;
-            cursor: pointer;
-            text-shadow: 0 -1px 0 rgba(0,0,0,0.5);
+        /* Контекстное меню управления сообщениями */
+        #context-menu {
+            position: absolute; background: rgba(0,0,0,0.85); border-radius: 8px;
+            display: none; flex-direction: column; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
         }
+        #context-menu button {
+            background: none; border: none; color: white; padding: 10px 20px;
+            font-size: 13px; font-weight: bold; cursor: pointer; text-align: left;
+        }
+        #context-menu button:hover { background: rgba(255,255,255,0.1); }
+        #context-menu button:first-child { border-radius: 8px 8px 0 0; }
+        #context-menu button:last-child { border-radius: 0 0 8px 8px; border-top: 1px solid #444; }
+
+        /* Сетка выбора встроенных аватарок */
+        .avatar-grid img { width: 50px; height: 50px; margin: 5px; border-radius: 5px; cursor: pointer; border: 2px solid transparent; }
+        .avatar-grid img:hover { border-color: #015de6; }
     </style>
 </head>
 <body>
 
-    <div class="ios-navbar">
-        <div class="nav-left">
-            <button class="ios-bar-btn" id="logoutBtn">Выйти</button>
+    <!-- ЭКРАН 1: АВТОРИЗАЦИЯ И РЕГИСТРАЦИЯ ПО ПОЧТЕ -->
+    <div id="auth-screen">
+        <div class="ios-navbar">
+            <div></div><h1>iChatter Вход</h1><div></div>
         </div>
-        <span id="navTitle">iChatter</span>
-    </div>
-
-    <div class="chat-container">
-        <div class="sidebar">
-            <div class="sidebar-header">
-                Вы: <span id="myUsernameDisplay"></span>
-            </div>
-            <div class="chat-list" id="chatListContainer">
-                <div class="chat-item active">Общий чат</div>
-            </div>
-        </div>
-
-        <div class="main-chat">
-            <div class="messages-box" id="messagesBox">
-                <div class="message received">iChatter успешно запущен на iOS 6. Скевоморфизм активен!</div>
-            </div>
-            
-            <div class="input-bar">
-                <div class="input-wrapper">
-                    <input type="text" id="msgInput" placeholder="Сообщение">
-                </div>
-                <button class="send-btn" id="sendBtn">Отпр.</button>
-            </div>
-        </div>
-    </div>
-
-<script>
-    document.getElementById('myUsernameDisplay').textContent = currentUser;
-
-    var socket = io({ query: { r: Date.now() } });
-
-    socket.on('connect', function() {
-        socket.emit('online_ping', { username: currentUser });
-    });
-
-    document.getElementById('logoutBtn').addEventListener('click', function() {
-        localStorage.removeItem('chat_user');
-        window.location.href = '/login';
-    });
-
-    var msgInput = document.getElementById('msgInput');
-    var sendBtn = document.getElementById('sendBtn');
-    var messagesBox = document.getElementById('messagesBox');
-
-    function sendMessage() {
-        var text = msgInput.value.trim();
-        if(!text) return;
-
-        var msgDiv = document.createElement('div');
-        msgDiv.className = 'message sent';
-        msgDiv.textContent = text;
-        messagesBox.appendChild(msgDiv);
         
-        // Очистка float элементов для корректного скролла
-        var clearDiv = document.createElement('div');
-        clearDiv.style.clear = 'both';
-        messagesBox.appendChild(clearDiv);
+        <div class="ios-group" id="email-step">
+            <div class="ios-cell">
+                <input type="email" id="auth-email" placeholder="Введи свой Email...">
+            </div>
+            <div class="ios-cell">
+                <input type="text" id="auth-username" placeholder="Имя пользователя (для новых)">
+            </div>
+            <div class="ios-cell" style="justify-content: center;">
+                <button class="ios-btn" onclick="sendEmailCode()">Получить код</button>
+            </div>
+        </div>
 
-        messagesBox.scrollTop = messagesBox.scrollHeight;
-        msgInput.value = '';
-    }
+        <div class="ios-group" id="code-step" style="display:none;">
+            <div class="ios-cell">
+                <input type="text" id="auth-code" placeholder="6-значный код из письма">
+            </div>
+            <div class="ios-cell" style="justify-content: center;">
+                <button class="ios-btn" onclick="verifyCode()">Войти в систему</button>
+            </div>
+        </div>
+    </div>
 
-    sendBtn.addEventListener('click', sendMessage);
-    msgInput.addEventListener('keypress', function(e) { 
-        if(e.key === 'Enter' || e.keyCode === 13) sendMessage(); 
-    });
-</script>
+    <!-- ЭКРАН 2: ОСНОВНОЙ ЧАТЕР -->
+    <div id="chat-screen" style="display:none;">
+        <div class="sidebar">
+            <div class="user-info-bar">
+                <span id="lbl-my-name">Вы: ...</span><br>
+                <span id="lbl-my-id" style="font-size:11px; color:#555; font-weight:normal;">ID: ...</span>
+            </div>
+            <div class="input-bar" style="background: #bcbfc4; border-bottom: 1px solid #999;">
+                <input type="text" id="search-input" placeholder="Поиск по ID..." onkeypress="if(event.keyCode==13) findUser()">
+            </div>
+            <div class="chat-list" id="chats-target">
+                <!-- Категории списков чатов -->
+                <div class="chat-item active" onclick="switchTab('all')">💬 Общий чат</div>
+                <div class="chat-item" onclick="switchTab('archive')">📦 Архив чатов</div>
+            </div>
+            <button class="ios-btn" style="margin: 10px;" onclick="showSettings()">⚙ Настройки</button>
+        </div>
+
+        <div id="chat-area" class="chat-bg-classic">
+            <div class="ios-navbar">
+                <button class="ios-btn" onclick="logout()">Выйти</button>
+                <h1 id="chat-title">Общий чат</h1>
+                <button class="ios-btn" id="btn-archive-action" style="display:none;" onclick="toggleArchiveCurrentChat()">В архив</button>
+                <div id="nav-spacer" style="width:50px;"></div>
+            </div>
+            <div class="messages-container" id="msg-box"></div>
+            <div class="input-bar">
+                <input type="text" id="msg-input" placeholder="Сообщение..." onkeypress="if(event.keyCode==13) sendMessage()">
+                <button class="ios-btn" onclick="sendMessage()">Отпр.</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ЭКРАН 3: НАСТРОЙКИ (МЕНЮ iOS 6 ТИПА UITableView) -->
+    <div id="settings-screen" style="display:none; flex-direction: column; background: #cbd2d9;">
+        <div class="ios-navbar">
+            <button class="ios-btn" onclick="hideSettings()">Назад</button>
+            <h1>Настройки</h1>
+            <div></div>
+        </div>
+
+        <div style="overflow-y: auto; flex: 1;">
+            <!-- Настройки профиля -->
+            <h3 style="margin-left: 20px; color:#4c566c; font-size:15px; text-shadow: 0 1px 0 #fff;">ПРОФИЛЬ</h3>
+            <div class="ios-group">
+                <div class="ios-cell" style="flex-direction: column; align-items: center;">
+                    <div class="avatar-grid" id="avatar-selector">
+                        <!-- Встроенные аватарки -->
+                        <img src="https://robohash.org/set_set1/bgset_bg1/avatar1.png" id="av1" onclick="selectAvatar('avatar1.png')">
+                        <img src="https://robohash.org/set_set2/bgset_bg1/avatar2.png" id="av2" onclick="selectAvatar('avatar2.png')">
+                        <img src="https://robohash.org/set_set3/bgset_bg1/avatar3.png" id="av3" onclick="selectAvatar('avatar3.png')">
+                    </div>
+                </div>
+                <div class="ios-cell"><input type="text" id="set-name" placeholder="Имя"></div>
+                <div class="ios-cell"><input type="number" id="set-age" placeholder="Возраст"></div>
+                <div class="ios-cell"><textarea id="set-bio" placeholder="О себе..."></textarea></div>
+                <div class="ios-cell" style="justify-content: center;">
+                    <button class="ios-btn" onclick="saveProfileData()">Сохранить профиль</button>
+                </div>
+            </div>
+
+            <!-- Внешний вид -->
+            <h3 style="margin-left: 20px; color:#4c566c; font-size:15px; text-shadow: 0 1px 0 #fff;">ВНЕШНИЙ ВИД И ЯЗЫК</h3>
+            <div class="ios-group">
+                <div class="ios-cell">
+                    <span>Язык системы</span>
+                    <select id="set-lang" style="width: auto;">
+                        <option value="ru">Русский</option>
+                        <option value="en">English</option>
+                    </select>
+                </div>
+                <div class="ios-cell">
+                    <span>Тёмная тема</span>
+                    <input type="checkbox" id="set-theme" style="width:auto;" onchange="applyThemeToggle()">
+                </div>
+                <div class="ios-cell">
+                    <span>Обои чата</span>
+                    <select id="set-bg" style="width: auto;" onchange="applyWallpaperChange()">
+                        <option value="classic">Классические серые</option>
+                        <option value="linen">Серый лён</option>
+                        <option value="wood">Тёмное дерево</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Сессии устройств -->
+            <h3 style="margin-left: 20px; color:#4c566c; font-size:15px; text-shadow: 0 1px 0 #fff;">АКТИВНЫЕ СЕССИИ (УСТРОЙСТВА)</h3>
+            <div class="ios-group" id="sessions-box">
+                <!-- Сюда добавляются сессии сервера -->
+            </div>
+        </div>
+    </div>
+
+    <!-- КОНТЕКСТНОЕ МЕНЮ -->
+    <div id="context-menu">
+        <button onclick="triggerEditMsg()">Изменить сообщение</button>
+        <button onclick="triggerDeleteMsg()" style="color:#ff3b30;">Удалить</button>
+    </div>
+
+    <script>
+        const socket = io();
+        let currentUser = null;
+        let selectedAvatarFile = 'avatar1.png';
+        let activeTab = 'all'; // all, archive
+        let contextTargetMsgId = null;
+
+        // Элементы
+        const msgBox = document.getElementById('msg-box');
+        const msgInput = document.getElementById('msg-input');
+        const contextMenu = document.getElementById('context-menu');
+
+        // Скрыть меню кликом по экрану
+        document.addEventListener('click', () => contextMenu.style.display = 'none');
+
+        // --- ФУНКЦИИ АВТОРИЗАЦИИ (Шаг 1) ---
+        function sendEmailCode() {
+            const email = document.getElementById('auth-email').value;
+            const username = document.getElementById('auth-username').value;
+            if(!email) return alert('Введите почту!');
+
+            fetch('/api/auth/send-code', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.error) return alert(data.error);
+                alert(data.message);
+                document.getElementById('email-step').style.display = 'none';
+                document.getElementById('code-step').style.display = 'block';
+            });
+        }
+
+        function verifyCode() {
+            const email = document.getElementById('auth-email').value;
+            const code = document.getElementById('auth-code').value;
+            const username = document.getElementById('auth-username').value;
+
+            fetch('/api/auth/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, code, username })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.error) return alert(data.error);
+                currentUser = data.user;
+                initChatSession();
+            });
+        }
+
+        function initChatSession() {
+            document.getElementById('auth-screen').style.display = 'none';
+            document.getElementById('chat-screen').style.display = 'flex';
+            
+            document.getElementById('lbl-my-name').textContent = 'Вы: ' + currentUser.username;
+            document.getElementById('lbl-my-id').textContent = 'ID: ' + currentUser.id;
+
+            // Заполняем поля в настройках
+            document.getElementById('set-name').value = currentUser.profile.name;
+            document.getElementById('set-age').value = currentUser.profile.age;
+            document.getElementById('set-bio').value = currentUser.profile.bio;
+            
+            // Загружаем активные устройства сессий
+            const sBox = document.getElementById('sessions-box');
+            sBox.innerHTML = '';
+            currentUser.sessions.forEach(s => {
+                sBox.innerHTML += `<div class="ios-cell" style="font-size:12px;"><b>${s.device}</b> <span>${s.loginAt}</span></div>`;
+            });
+        }
+
+        // --- УПРАВЛЕНИЕ НАСТРОЙКАМИ И ВНЕШНИМ ВИДОМ (Шаг 2 и 5) ---
+        function showSettings() { document.getElementById('settings-screen').style.display = 'flex'; }
+        function hideSettings() { document.getElementById('settings-screen').style.display = 'none'; }
+        
+        function selectAvatar(av) {
+            selectedAvatarFile = av;
+            alert('Выбрана аватарка: ' + av);
+        }
+
+        function saveProfileData() {
+            const name = document.getElementById('set-name').value;
+            const age = document.getElementById('set-age').value;
+            const bio = document.getElementById('set-bio').value;
+
+            fetch('/api/users/update-profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: currentUser.id, name, age, bio, avatar: selectedAvatarFile })
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert(data.message);
+                currentUser.profile = data.profile;
+            });
+        }
+
+        function applyThemeToggle() {
+            const dark = document.getElementById('set-theme').checked;
+            document.body.className = dark ? 'dark-theme' : '';
+        }
+
+        function applyWallpaperChange() {
+            const wall = document.getElementById('set-bg').value;
+            document.getElementById('chat-area').className = 'chat-bg-' + wall;
+        }
+
+        // --- ПОИСК ЮЗЕРОВ ПО СЛУЧАЙНОМУ ID (Шаг 3) ---
+        function findUser() {
+            const id = document.getElementById('search-input').value;
+            if(!id) return;
+            fetch('/api/users/search?id=' + id)
+            .then(res => res.json())
+            .then(user => {
+                if(user.error) return alert(user.error);
+                document.getElementById('chat-title').textContent = `${user.profile.name} (${user.id})`;
+                document.getElementById('btn-archive-action').style.display = 'block';
+                document.getElementById('btn-archive-action').dataset.partnerId = user.id;
+            });
+        }
+
+        // --- АРХИВ ЧАТОВ (Шаг 4) ---
+        function switchTab(tab) {
+            activeTab = tab;
+            alert('Переключение на вкладку: ' + tab + '. (Здесь можно фильтровать вывод чатов)');
+        }
+
+        function toggleArchiveCurrentChat() {
+            const partnerId = document.getElementById('btn-archive-action').dataset.partnerId;
+            const isAlreadyArchived = currentUser.archivedChats.includes(partnerId);
+
+            fetch('/api/users/archive-chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: currentUser.id, chatPartnerId: partnerId, archive: !isAlreadyArchived })
+            })
+            .then(res => res.json())
+            .then(data => {
+                currentUser.archivedChats = data.archivedChats;
+                alert(!isAlreadyArchived ? 'Чат добавлен в архив' : 'Чат извлечен из архива');
+            });
+        }
+
+        // --- МЕХАНИКА ЧАТА И КАНАЛЫ SOCKET.IO (Шаг 6) ---
+        function sendMessage() {
+            const text = msgInput.value.trim();
+            if(!text) return;
+
+            socket.emit('chat message', {
+                text: text,
+                senderId: currentUser.id,
+                senderName: currentUser.username,
+                avatar: selectedAvatarFile
+            });
+            msgInput.value = '';
+        }
+
+        socket.on('chat history', (history) => {
+            msgBox.innerHTML = '';
+            history.forEach(appendMessage);
+        });
+
+        socket.on('chat message', (msg) => {
+            appendMessage(msg);
+        });
+
+        function appendMessage(msg) {
+            const isMy = msg.senderId === currentUser.id;
+            const row = document.createElement('div');
+            row.className = `msg-row ${isMy ? 'my' : 'other'}`;
+            row.id = msg.id;
+
+            // Конвертируем имя аватарки в картинку робохэша для наглядности
+            const avIndex = msg.avatar.replace('avatar', '').replace('.png', '');
+            const avUrl = `https://robohash.org/set_set${avIndex}/bgset_bg1/${msg.id}.png`;
+
+            row.innerHTML = `
+                ${!isMy ? `<img class="msg-avatar" src="${avUrl}">` : ''}
+                <div class="bubble" oncontextmenu="showMsgMenu(event, '${msg.id}', '${msg.senderId}')">
+                    <span style="font-size:11px; color:#666; display:block;">${msg.senderName}</span>
+                    <span class="text-content">${msg.text}</span>
+                    <span class="time-content" style="font-size:9px; float:right; margin-top:5px; margin-left:8px; opacity:0.6;">${msg.time}</span>
+                    ${msg.isEdited ? `<span class="edited-lbl">(изм.)</span>` : ''}
+                </div>
+                ${isMy ? `<img class="msg-avatar" src="${avUrl}">` : ''}
+            `;
+            msgBox.appendChild(row);
+            msgBox.scrollTop = msgBox.scrollHeight;
+        }
+
+        // Кастомное контекстное меню
+        function showMsgMenu(e, msgId, senderId) {
+            e.preventDefault();
+            if(senderId !== currentUser.id) return; // Управлять можно только своими сообщениями
+            
+            contextTargetMsgId = msgId;
+            contextMenu.style.left = e.pageX + 'pх';
+            contextMenu.style.top = e.pageY + 'px';
+            contextMenu.style.display = 'flex';
+        }
+
+        function triggerEditMsg() {
+            const newText = prompt("Введите измененный текст сообщения:");
+            if(newText) {
+                socket.emit('edit message', { msgId: contextTargetMsgId, userId: currentUser.id, newText });
+            }
+        }
+
+        function triggerDeleteMsg() {
+            if(confirm("Удалить это сообщение у всех участников?")) {
+                socket.emit('delete message', { msgId: contextTargetMsgId, userId: currentUser.id });
+            }
+        }
+
+        socket.on('message edited', (data) => {
+            const el = document.getElementById(data.msgId);
+            if(el) {
+                el.querySelector('.text-content').textContent = data.text;
+                if(!el.querySelector('.edited-lbl')) {
+                    const lbl = document.createElement('span');
+                    lbl.className = 'edited-lbl';
+                    lbl.textContent = ' (изм.)';
+                    el.querySelector('.bubble').appendChild(lbl);
+                }
+            }
+        });
+
+        socket.on('message deleted', (data) => {
+            const el = document.getElementById(data.msgId);
+            if(el) el.remove();
+        });
+
+        function logout() { window.location.reload(); }
+    </script>
 </body>
 </html>

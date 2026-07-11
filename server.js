@@ -1,184 +1,142 @@
 const express = require('express');
 const http = require('http');
-const { Server } = require('socket.io');
+const socketIo = require('socket.io');
 const nodemailer = require('nodemailer');
-const fs = require('fs');
 const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = socketIo(server);
 
+// Разрешаем Express отдавать HTML-файлы прямо из корня проекта, где они у тебя лежат
+app.use(express.static(__dirname));
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public'))); // Раздача фронтенда
 
-// Файлы-"базы данных"
-const USERS_FILE = path.join(__dirname, 'users.json');
-const MESSAGES_FILE = path.join(__dirname, 'messages.json');
+// Очередь для поиска собеседника (анонимный чат)
+let waitingUsers = [];
 
-// Загрузка данных из файлов при старте
-let users = fs.existsSync(USERS_FILE) ? JSON.parse(fs.readFileSync(USERS_FILE, 'utf8')) : {};
-let messages = fs.existsSync(MESSAGES_FILE) ? JSON.parse(fs.readFileSync(MESSAGES_FILE, 'utf8')) : [];
-let verificationCodes = {}; // Хранение кодов в памяти (email -> {code, expires})
+// Массив для хранения зарегистрированных или временных пользователей
+let users = {};
 
-function saveUsers() { fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2)); }
-function saveMessages() { fs.writeFileSync(MESSAGES_FILE, JSON.stringify(messages, null, 2)); }
-
-// Настройка отправки писем через Gmail (замени на свои данные)
+// Настройка почты (замени почту и пароль приложения на свои)
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: 'YOUR_EMAIL@gmail.com',
-        pass: 'YOUR_APP_PASSWORD' // Пароль приложений Google (не обычный пароль!)
+        user: 'твоя_почта@gmail.com', // Твоя почта Gmail
+        pass: 'abcd efgh ijkl mnop'   // Твой 16-значный ПАРОЛЬ ПРИЛОЖЕНИЯ
     }
 });
 
-// --- API НАСТРОЕК И РЕГИСТРАЦИИ ---
-
-// 1. Отправка кода на почту
-app.post('/api/auth/send-code', (req, res) => {
+// Роут для отправки кода подтверждения при регистрации/входе
+app.post('/api/send-code', (req, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ error: 'Email обязателен' });
 
+    // Генерируем 6-значный код
     const code = Math.floor(100000 + Math.random() * 900000).toString();
-    verificationCodes[email] = { code, expires: Date.now() + 600000 }; // Срок действия 10 минут
+    
+    // Сохраняем код для этого email временно в памяти сервера
+    users[email] = { code: code, verified: false };
 
     const mailOptions = {
-        from: 'iChatter <YOUR_EMAIL@gmail.com>',
+        from: 'твоя_почта@gmail.com',
         to: email,
-        subject: 'Код подтверждения iChatter',
-        text: `Ваш одноразовый код для входа в ретро-мессенджер iChatter: ${code}`
+        subject: 'iChatter - Код авторизации',
+        text: `Ваш проверочный код для входа в ретро-мессенджер iChatter: ${code}`
     };
 
-    transporter.sendMail(mailOptions, (err) => {
-        if (err) {
-            console.error(err);
-            return res.status(500).json({ error: 'Не удалось отправить письмо' });
+    transporter.sendMail(mailOptions, (error, info) => {
+        if (error) {
+            console.error('Ошибка отправки почты:', error);
+            return res.status(500).json({ error: 'Не удалось отправить код' });
         }
-        res.json({ message: 'Код успешно отправлен!' });
+        console.log('Код отправлен на:', email);
+        res.json({ success: true });
     });
 });
 
-// 2. Верификация кода и создание сессии
-app.post('/api/auth/verify', (req, res) => {
+// Роут для проверки введённого пользователем кода
+app.post('/api/verify-code', (req, res) => {
     const { email, code, username } = req.body;
-    const session = verificationCodes[email];
-
-    if (!session || session.code !== code || Date.now() > session.expires) {
-        return res.status(400).json({ error: 'Неверный или просроченный код' });
-    }
-
-    // Ищем, есть ли уже юзер с такой почтой
-    let user = Object.values(users).find(u => u.email === email);
     
-    if (!user) {
-        // Создаем нового юзера с рандомным ID вида id_XXXXXX
-        const userId = 'id_' + Math.floor(100000 + Math.random() * 900000);
-        user = {
-            id: userId,
-            email,
-            username: username || email.split('@')[0],
-            profile: { name: username || 'Пользователь', age: '', bio: '', avatar: 'avatar1.png' },
-            archivedChats: [],
-            sessions: []
-        };
-        users[userId] = user;
+    if (users[email] && users[email].code === code) {
+        users[email].verified = true;
+        users[email].username = username || email.split('@')[0];
+        return res.json({ success: true, username: users[email].username });
     }
-
-    // Добавляем текущую сессию (устройство)
-    const userAgent = req.headers['user-agent'] || 'Неизвестное устройство';
-    user.sessions.push({
-        device: userAgent.split(')')[0] + ')', // Обрезаем длинную строку юзерагента для красоты
-        loginAt: new Date().toLocaleString()
-    });
-
-    saveUsers();
-    delete verificationCodes[email];
-
-    res.json({ message: 'Вход выполнен', user });
+    
+    res.status(400).json({ error: 'Неверный код подтверждения' });
 });
 
-// Поиск участника по Рандомному ID
-app.get('/api/users/search', (req, res) => {
-    const { id } = req.query;
-    if (users[id]) {
-        res.json({ id: users[id].id, username: users[id].username, profile: users[id].profile });
-    } else {
-        res.status(404).json({ error: 'Пользователь с таким ID не найден' });
-    }
-});
-
-// Обновление профиля из настроек
-app.post('/api/users/update-profile', (req, res) => {
-    const { userId, name, age, bio, avatar } = req.body;
-    if (!users[userId]) return res.status(404).json({ error: 'Юзер не найден' });
-
-    users[userId].profile = { name, age, bio, avatar };
-    saveUsers();
-    res.json({ message: 'Профиль обновлен', profile: users[userId].profile });
-});
-
-// Управление архивом
-app.post('/api/users/archive-chat', (req, res) => {
-    const { userId, chatPartnerId, archive } = req.body;
-    if (!users[userId]) return res.status(404).json({ error: 'Юзер не найден' });
-
-    if (archive) {
-        if (!users[userId].archivedChats.includes(chatPartnerId)) {
-            users[userId].archivedChats.push(chatPartnerId);
-        }
-    } else {
-        users[userId].archivedChats = users[userId].archivedChats.filter(id => id !== chatPartnerId);
-    }
-    saveUsers();
-    res.json({ message: 'Статус архива изменен', archivedChats: users[userId].archivedChats });
-});
-
-// --- СВЯЗЬ ЧЕРЕЗ SOCKET.IO (СООБЩЕНИЯ) ---
+// Работа со встроенными сокетами (Socket.io) для чата
 io.on('connection', (socket) => {
-    console.log('Пользователь подключился к сокету');
+    console.log('Новое подключение к сокету:', socket.id);
 
-    // При подключении отдаем историю сообщений
-    socket.emit('chat history', messages);
-
-    // Новое сообщение
-    socket.on('chat message', (data) => {
-        const msg = {
-            id: 'msg_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
-            text: data.text,
-            senderId: data.senderId,
-            senderName: data.senderName,
-            avatar: data.avatar || 'avatar1.png',
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        };
-        messages.push(msg);
-        saveMessages();
-        io.emit('chat message', msg); // Рассылаем абсолютно всем вкладкам и устройствам
-    });
-
-    // Редактирование сообщения
-    socket.on('edit message', (data) => {
-        const msg = messages.find(m => m.id === data.msgId);
-        if (msg && msg.senderId === data.userId) { // Проверка автора сообщения
-            msg.text = data.newText;
-            msg.isEdited = true;
-            saveMessages();
-            io.emit('message edited', { msgId: data.msgId, text: data.newText });
+    // Вход в систему поиска анонимного собеседника
+    socket.on('search_partner', (username) => {
+        socket.username = username || 'Аноним';
+        
+        // Если кто-то уже ждёт, соединяем их
+        if (waitingUsers.length > 0) {
+            let partnerSocket = waitingUsers.shift();
+            
+            // Генерируем ID для комнаты чата
+            let roomId = socket.id + '#' + partnerSocket.id;
+            
+            socket.join(roomId);
+            partnerSocket.join(roomId);
+            
+            socket.roomId = roomId;
+            partnerSocket.roomId = roomId;
+            
+            socket.partner = partnerSocket;
+            partnerSocket.partner = socket;
+            
+            // Уведомляем обоих, что собеседник найден
+            socket.emit('chat_started', { partnerName: partnerSocket.username });
+            partnerSocket.emit('chat_started', { partnerName: socket.username });
+            
+            console.log(`Комната ${roomId} создана для ${socket.username} и ${partnerSocket.username}`);
+        } else {
+            // Если никого нет, добавляем в очередь ожидания
+            waitingUsers.push(socket);
+            socket.emit('waiting', 'Поиск собеседника...');
         }
     });
 
-    // Удаление сообщения
-    socket.on('delete message', (data) => {
-        const msgIndex = messages.findIndex(m => m.id === data.msgId);
-        if (msgIndex !== -1 && messages[msgIndex].senderId === data.userId) {
-            messages.splice(msgIndex, 1);
-            saveMessages();
-            io.emit('message deleted', { msgId: data.msgId });
+    // Получение сообщения и пересылка его в комнату
+    socket.on('send_message', (messageText) => {
+        if (socket.roomId) {
+            io.to(socket.roomId).emit('receive_message', {
+                sender: socket.username,
+                text: messageText,
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            });
+        }
+    });
+
+    // Обработка отключения пользователя
+    socket.on('disconnect', () => {
+        console.log('Пользователь отключился:', socket.id);
+        
+        // Удаляем из очереди, если он там был
+        waitingUsers = waitingUsers.filter(user => user.id !== socket.id);
+        
+        // Если был в чате, пишем его партнеру, что он вышел
+        if (socket.partner) {
+            socket.partner.emit('partner_disconnected', 'Собеседник покинул чат.');
+            socket.partner.leave(socket.roomId);
+            socket.partner.roomId = null;
+            socket.partner.partner = null;
         }
     });
 });
 
+// Запуск сервера на порту 8080
 const PORT = 8080;
-server.listen(PORT, () => {
-    console.log(`Сервер iChatter запущен на порту http://localhost:${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+    console.log(`\n==================================================`);
+    console.log(` iChatter сервер успешно запущен!`);
+    console.log(` Локальный адрес: http://localhost:${PORT}`);
+    console.log(`==================================================\n`);
 });

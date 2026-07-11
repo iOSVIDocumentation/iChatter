@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iChatter — Вход</title>
+    <style>
+        :root {
+            --bg-color: #cbd2d9; /* Льняная текстура iOS 6 */
+            --text-color: #000000;
+            --btn-bg: linear-gradient(to bottom, #7fa4c7 0%, #4673a3 100%);
+            --btn-border: 1px solid #3b618a;
+        }
+
+        body {
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: var(--text-color);
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 340px;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .login-header h1 {
+            font-size: 32px;
+            margin: 0 0 5px 0;
+            color: #3b618a;
+            text-shadow: 0 1px 0 #fff;
+            font-weight: bold;
+        }
+
+        .login-header p {
+            margin: 0;
+            font-size: 14px;
+            color: #555;
+            text-shadow: 0 1px 0 #fff;
+        }
+
+        /* Стиль сгруппированной таблицы iOS 6 */
+        .ios-group {
+            background: #fff;
+            border: 1px solid #ababab;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .ios-row {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .ios-row:last-child {
+            border-bottom: none;
+        }
+
+        .ios-row label {
+            width: 80px;
+            font-weight: bold;
+            font-size: 15px;
+            color: #000;
+        }
+
+        .ios-row input {
+            flex: 1;
+            border: none;
+            outline: none;
+            font-size: 16px;
+            padding: 0;
+            font-family: inherit;
+        }
+
+        /* Глянцевая кнопка iOS 6 */
+        .ios-btn {
+            width: 100%;
+            background: var(--btn-bg);
+            border: var(--btn-border);
+            border-radius: 6px;
+            color: #fff;
+            font-size: 18px;
+            font-weight: bold;
+            padding: 12px;
+            cursor: pointer;
+            text-shadow: 0 -1px 0 rgba(0,0,0,0.4);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 1px 2px rgba(0,0,0,0.3);
+        }
+
+        .ios-btn:active {
+            background: linear-gradient(to bottom, #4673a3 0%, #2b4f75 100%);
+        }
+
+        .error-msg {
+            color: #cc0000;
+            text-align: center;
+            font-size: 13px;
+            margin-bottom: 15px;
+            display: none;
+            text-shadow: 0 1px 0 #fff;
+        }
+    </style>
+</head>
+<body>
+
+<div class="login-container">
+    <div class="login-header">
+        <h1>iChatter</h1>
+        <p>Авторизация</p>
+    </div>
+
+    <div class="error-msg" id="errorBlock"></div>
+
+    <form id="loginForm">
+        <div class="ios-group">
+            <div class="ios-row">
+                <label for="username">Логин</label>
+                <input type="text" id="username" placeholder="example" required autocomplete="username">
+            </div>
+            <div class="ios-row">
+                <label for="password">Пароль</label>
+                <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password">
+            </div>
+        </div>
+
+        <button type="submit" class="ios-btn">Войти</button>
+    </form>
+</div>
+
+<script>
+    const SERVER_IP = '192.168.1.15'; // ПОМЕНЯЙ НА СВОЙ IP ИЗ TERMUX
+    
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        const errorBlock = document.getElementById('errorBlock');
+
+        try {
+            const response = await fetch(`http://${SERVER_IP}:3000/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Сохраняем сессию и переходим в чат
+                localStorage.setItem('chat_user', data.username);
+                window.location.href = 'index.html';
+            } else {
+                errorBlock.textContent = data.message;
+                errorBlock.style.display = 'block';
+            }
+        } catch (err) {
+            errorBlock.textContent = 'Сервер недоступен. Проверь Termux!';
+            errorBlock.style.display = 'block';
+        }
+    });
+</script>
+</body>
+</html>

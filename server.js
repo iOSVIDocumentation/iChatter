@@ -9,11 +9,12 @@ const app = express();
 const server = http.createServer(app);
 
 const io = new Server(server, { maxHttpBufferSize: 1e8 });
-const PORT = process.env.PORT || 8080; // Под твой туннель Cloudflare
+const PORT = process.env.PORT || 8080; 
 const DB_FILE = path.join(__dirname, 'database.json');
 
 const ALLOW_VOICE_EFFECTS = false; 
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyDPbd2dYEJmsECYI5Uc-lbwB9wL5ffM6zSkWcTOnPAhLaZUEP5C3Gbv_ui8MtaeLFcXQ/exec";
+// Отключаем Google Script, чтобы избежать конфликтов с базой данных
+const GOOGLE_SCRIPT_URL = ""; 
 
 // ССЫЛКА НА ТВОЙ РЕПОЗИТОРИЙ ICHATTER
 const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/iOSVIDocumentation/iChatter/main/';
@@ -68,9 +69,9 @@ function saveDatabaseImmediately() {
 
 loadDatabase();
 
-// Функция для динамического скачивания интерфейса с твоего GitHub
+// Функция скачивания с GitHub с защитой от жесткого кэширования (?nocache=...)
 function fetchFromGitHub(fileName, res) {
-    const url = GITHUB_RAW_BASE + fileName;
+    const url = GITHUB_RAW_BASE + fileName + '?nocache=' + Date.now();
     https.get(url, (gitRes) => {
         if (gitRes.statusCode !== 200) {
             res.status(gitRes.statusCode).send(`<h1>Ошибка загрузки ${fileName} с GitHub</h1>`);
@@ -83,39 +84,14 @@ function fetchFromGitHub(fileName, res) {
     });
 }
 
-// Статика для локальных ассетов, если они есть
 app.use(express.static(path.join(__dirname)));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// --- НАСТРОЙКА РОУТОВ ---
-
-// Авторизация (вход)
-app.get('/', (req, res) => {
-    fetchFromGitHub('login.html', res); 
-});
-
-app.get('/login', (req, res) => {
-    fetchFromGitHub('login.html', res); 
-});
-
-// Сам чат (интерфейс)
-app.get('/index.html', (req, res) => {
-    fetchFromGitHub('index.html', res); 
-});
-
-app.get('/main', (req, res) => {
-    fetchFromGitHub('index.html', res); 
-});
-
-function secureGet(url) {
-    return new Promise((resolve, reject) => {
-        https.get(url, (res) => {
-            let data = '';
-            res.on('data', (chunk) => data += chunk);
-            res.on('end', () => resolve({ ok: res.statusCode >= 200 && res.statusCode < 300, text: () => Promise.resolve(data) }));
-        }).on('error', (e) => reject(e));
-    });
-}
+// --- РОУТЫ ---
+app.get('/', (req, res) => { fetchFromGitHub('login.html', res); });
+app.get('/login', (req, res) => { fetchFromGitHub('login.html', res); });
+app.get('/index.html', (req, res) => { fetchFromGitHub('index.html', res); });
+app.get('/main', (req, res) => { fetchFromGitHub('index.html', res); });
 
 // Интервал проверки отложенных сообщений
 setInterval(() => {
@@ -195,8 +171,8 @@ io.on('connection', (socket) => {
         if (uProfile) socket.emit('profile_broadcast', { username: data.username, data: uProfile });
     });
 
-    // ПРОВЕРКА ПАРОЛЯ И РЕГИСТРАЦИЯ ТУТ
-    socket.on('check_user_exists', async (data) => {
+    // НАДЁЖНАЯ ЛОКАЛЬНАЯ АВТОРИЗАЦИЯ И РЕГИСТРАЦИЯ
+    socket.on('check_user_exists', (data) => {
         if (!data || !data.username) return;
         
         const inputUsername = data.username.trim();
@@ -206,8 +182,8 @@ io.on('connection', (socket) => {
         let profile = exists ? userProfiles[inputUsername] : null;
         let passwordCorrect = false;
 
-        // Если пользователь уже сохранен локально
         if (exists) {
+            // Если аккаунт найден, сверяем пароли
             if (!profile.password || profile.password === inputPassword) {
                 passwordCorrect = true;
                 if (!profile.password) {
@@ -215,33 +191,8 @@ io.on('connection', (socket) => {
                     saveDatabase();
                 }
             }
-        } 
-        // Проверка по внешней таблице (если локально юзера нет)
-        else if (GOOGLE_SCRIPT_URL.startsWith('http') && !inputUsername.startsWith('ht.')) {
-            try {
-                const res = await secureGet(`${GOOGLE_SCRIPT_URL}?action=check&username=${encodeURIComponent(inputUsername)}`);
-                if (res.ok) {
-                    const responseText = await res.text();
-                    try {
-                        const gasData = JSON.parse(responseText);
-                        if (gasData.exists) {
-                            exists = true;
-                            passwordCorrect = true; 
-                            profile = gasData.profile || { displayName: inputUsername, avatar: '', bio: '' };
-                            userProfiles[inputUsername] = { 
-                                chatList: [], 
-                                password: inputPassword, 
-                                ...profile 
-                            };
-                            saveDatabase();
-                        }
-                    } catch (e) {}
-                }
-            } catch (e) {}
-        }
-
-        // Авторегистрация, если пользователя вообще нигде нет
-        if (!exists) {
+        } else {
+            // Если аккаунта нет в базе — автоматически РЕГИСТРИРУЕМ его
             exists = true;
             passwordCorrect = true;
             
@@ -259,12 +210,11 @@ io.on('connection', (socket) => {
             profile = userProfiles[inputUsername];
         }
 
-        // Возвращаем результат
         if (exists && passwordCorrect) {
             socket.emit('user_exists_result', { 
                 username: inputUsername, 
                 exists: true,
-                profile: profile ? {
+                profile: {
                     displayName: profile.displayName || inputUsername,
                     avatar: profile.avatar || '',
                     bio: profile.bio || '',
@@ -273,9 +223,10 @@ io.on('connection', (socket) => {
                     lastSeen: profile.lastSeen || null,
                     members: profile.members || [], 
                     isGroup: profile.isGroup || inputUsername.startsWith('ht.') 
-                } : null
+                }
             });
         } else {
+            // Возвращаем false только если пароль не подошел к существующему логину
             socket.emit('user_exists_result', { 
                 username: inputUsername, 
                 exists: false,
@@ -284,19 +235,16 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('search_users', async (data) => {
+    socket.on('search_users', (data) => {
         if (!data || typeof data.query !== 'string') return;
         const query = data.query.toLowerCase().trim();
         if (!query) return;
 
         let results = [];
-        let foundUsernames = new Set();
-        
         Object.keys(userProfiles).forEach(username => {
             const p = userProfiles[username];
             if (!p) return; 
             if (String(username).toLowerCase().includes(query) || String(p.displayName || '').toLowerCase().includes(query)) {
-                foundUsernames.add(username);
                 results.push({
                     username: username,
                     displayName: p.displayName || username,
@@ -307,33 +255,6 @@ io.on('connection', (socket) => {
                 });
             }
         });
-
-        if (GOOGLE_SCRIPT_URL.startsWith('http')) {
-            try {
-                const response = await secureGet(`${GOOGLE_SCRIPT_URL}?action=search&query=${encodeURIComponent(query)}`);
-                if (response.ok) {
-                    const responseText = await response.text();
-                    try {
-                        const googleResults = JSON.parse(responseText);
-                        if (Array.isArray(googleResults)) {
-                            googleResults.forEach(gu => {
-                                if (!foundUsernames.has(gu.username)) {
-                                    results.push({
-                                        username: gu.username,
-                                        displayName: gu.displayName || gu.username,
-                                        avatar: gu.avatar || '',
-                                        bio: gu.bio || '',
-                                        banner: '',
-                                        glowColor: 'blue'
-                                    });
-                                    foundUsernames.add(gu.username);
-                                }
-                            });
-                        }
-                    } catch (e) {}
-                }
-            } catch (e) {}
-        }
         socket.emit('search_results', { query: data.query, results });
     });
 
@@ -495,13 +416,8 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('typing', (data) => {
-        if (data && data.room) socket.to(data.room).emit('typing', data);
-    });
-
-    socket.on('user_activity', (data) => {
-        if (data && data.room) socket.to(data.room).emit('user_activity', data);
-    });
+    socket.on('typing', (data) => { if (data && data.room) socket.to(data.room).emit('typing', data); });
+    socket.on('user_activity', (data) => { if (data && data.room) socket.to(data.room).emit('user_activity', data); });
 
     socket.on('sync_chat_list', (data) => {
         if (sessionUser && data && data.chatList) {
@@ -558,8 +474,6 @@ io.on('connection', (socket) => {
         } else if (data.action === 'add') {
             const activeMsg = data.msg || data.pinData;
             if (activeMsg && !messagesDatabase[pinnedKey].some(p => p.id === activeMsg.id)) messagesDatabase[pinnedKey].push(activeMsg);
-        } else if (data.pinned) {
-            messagesDatabase[pinnedKey] = data.pinned;
         }
 
         saveDatabase();
@@ -568,10 +482,7 @@ io.on('connection', (socket) => {
 
     socket.on('clear_chat_history', (data) => {
         if (!data || !data.room) return;
-        if (messagesDatabase[data.room]) {
-            messagesDatabase[data.room] = [];
-            saveDatabase();
-        }
+        if (messagesDatabase[data.room]) { messagesDatabase[data.room] = []; saveDatabase(); }
         io.to(data.room).emit('chat_history_cleared', { room: data.room });
     });
 
@@ -596,47 +507,6 @@ io.on('connection', (socket) => {
         });
         saveDatabase();
         io.emit('profile_broadcast', { username: gId, data: userProfiles[gId] });
-    });
-
-    socket.on('update_group', (data) => {
-        if (!data || !data.groupId) return;
-        const gId = data.groupId;
-        if (!userProfiles[gId]) userProfiles[gId] = { members: [sessionUser], isGroup: true };
-        
-        userProfiles[gId].displayName = data.displayName || data.name || userProfiles[gId].displayName || gId;
-        userProfiles[gId].bio = data.bio || data.description || userProfiles[gId].bio || '';
-        userProfiles[gId].avatar = data.avatar || userProfiles[gId].avatar || '';
-        userProfiles[gId].banner = data.banner || userProfiles[gId].banner || '';
-        userProfiles[gId].glowColor = data.glowColor || userProfiles[gId].glowColor || 'blue';
-        if (data.members && Array.isArray(data.members)) userProfiles[gId].members = data.members;
-
-        userProfiles[gId].members.forEach(member => {
-            if (!userProfiles[member]) userProfiles[member] = { chatList: [] };
-            if (!userProfiles[member].chatList) userProfiles[member].chatList = [];
-            if (!userProfiles[member].chatList.includes(gId)) userProfiles[member].chatList.push(gId);
-            const memberSocket = activeConnections[member];
-            if (memberSocket) io.to(memberSocket).emit('restore_chats', userProfiles[member].chatList);
-        });
-        saveDatabase();
-        io.emit('profile_broadcast', { username: gId, data: userProfiles[gId] });
-    });
-
-    socket.on('add_group_member', (data) => {
-        if (!data || !data.groupId || !data.username) return;
-        const gId = data.groupId;
-        const newMember = data.username;
-        if (!userProfiles[gId]) return;
-        if (!userProfiles[gId].members) userProfiles[gId].members = [];
-        if (!userProfiles[gId].members.includes(newMember)) userProfiles[gId].members.push(newMember);
-
-        if (!userProfiles[newMember]) userProfiles[newMember] = { chatList: [] };
-        if (!userProfiles[newMember].chatList) userProfiles[newMember].chatList = [];
-        if (!userProfiles[newMember].chatList.includes(gId)) userProfiles[newMember].chatList.push(gId);
-
-        saveDatabase();
-        io.emit('profile_broadcast', { username: gId, data: userProfiles[gId] });
-        const memberSocket = activeConnections[newMember];
-        if (memberSocket) io.to(memberSocket).emit('restore_chats', userProfiles[newMember].chatList);
     });
 
     socket.on('disconnect', () => {

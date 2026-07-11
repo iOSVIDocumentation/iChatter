@@ -3,254 +3,114 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>iChatter</title>
-    <style>
-        :root {
-            --bg-color: #cbd2d9; /* Льняной фон iOS 6 */
-            --sidebar-bg: #e1e5eb;
-            --chat-bg: #ecf0f5;
-            --text-color: #000000;
-            --text-muted: #555555;
-            
-            /* Навигационные панели (Сине-серый металлический градиент) */
-            --header-bg: linear-gradient(to bottom, #b5c4d6 0%, #7089a6 100%);
-            --header-text: #ffffff;
-
-            /* Пузыри сообщений */
-            --msg-in-bg: linear-gradient(to bottom, #ffffff 0%, #f1f1f1 100%);
-            --msg-out-bg: linear-gradient(to bottom, #e2f97a 0%, #b4df5b 100%); /* Зеленый SMS */
-
-            --btn-bg: linear-gradient(to bottom, #7fa4c7 0%, #4673a3 100%);
-            --btn-border: 1px solid #3b618a;
+    <title>iChatter — Чат</title>
+    <!-- Защитный скрипт: выполняется ДО загрузки всего интерфейса -->
+    <script>
+        const currentUser = localStorage.getItem('chat_user');
+        if (!currentUser || currentUser.trim() === "") {
+            window.location.href = '/login';
         }
-
+    </script>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        /* Твои оригинальные стили оформления интерфейса iChatter (iOS 6) */
         body {
             font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-            background-color: var(--bg-color);
+            background-color: #cbd2d9;
             margin: 0;
             padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
         }
-
-        .app-container {
-            display: flex;
-            width: 100%;
-            max-width: 1024px;
-            height: 100vh;
-            background: #fff;
-            box-shadow: 0 0 10px rgba(0,0,0,0.3);
-        }
-
-        /* Левая панель */
-        .sidebar {
-            width: 300px;
-            background: var(--sidebar-bg);
-            border-right: 1px solid #ababab;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .sidebar-header {
-            background: var(--header-bg);
-            color: var(--header-text);
-            padding: 15px;
+        .header {
+            background: linear-gradient(to bottom, #7fa4c7 0%, #4673a3 100%);
+            color: white;
             text-align: center;
+            padding: 10px;
             font-weight: bold;
-            font-size: 18px;
             text-shadow: 0 -1px 0 rgba(0,0,0,0.4);
-            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
         }
-
-        .user-info {
-            padding: 10px 15px;
-            background: rgba(255,255,255,0.5);
-            font-size: 14px;
-            border-bottom: 1px solid #bcbcbc;
-            font-weight: bold;
+        .chat-container {
+            display: flex;
+            height: calc(100vh - 40px);
         }
-
-        /* Основная зона чата */
-        .chat-area {
+        .sidebar {
+            width: 250px;
+            background: #fff;
+            border-right: 1px solid #ababab;
+        }
+        .main-chat {
             flex: 1;
             display: flex;
             flex-direction: column;
-            background: var(--chat-bg);
+            background: #e5e5e5;
         }
-
-        .chat-header {
-            background: var(--header-bg);
-            color: var(--header-text);
-            padding: 15px;
-            font-weight: bold;
-            font-size: 18px;
-            text-shadow: 0 -1px 0 rgba(0,0,0,0.4);
-            text-align: center;
-        }
-
-        .messages-container {
+        .messages {
             flex: 1;
             padding: 20px;
             overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
         }
-
-        /* Облака сообщений */
-        .message {
-            max-width: 70%;
-            padding: 10px 14px;
-            border-radius: 12px;
-            font-size: 15px;
-            position: relative;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.15);
-            line-height: 1.4;
-        }
-
-        .message.incoming {
-            background: var(--msg-in-bg);
-            align-self: flex-start;
-            border: 1px solid #d1d1d1;
-        }
-
-        .message.outgoing {
-            background: var(--msg-out-bg);
-            align-self: flex-end;
-            border: 1px solid #9dc44d;
-        }
-
-        .message .meta {
-            font-size: 11px;
-            color: #666;
-            margin-top: 5px;
-            text-align: right;
-            display: block;
-        }
-
-        .message .sender {
-            font-weight: bold;
-            font-size: 12px;
-            color: #3b618a;
-            margin-bottom: 3px;
-            display: block;
-        }
-
-        /* Форма отправки сообщения */
-        .input-panel {
+        .input-area {
             padding: 10px;
-            background: linear-gradient(to bottom, #e1e5eb 0%, #cbd2d9 100%);
+            background: #fff;
             border-top: 1px solid #ababab;
             display: flex;
-            gap: 10px;
         }
-
-        .input-panel input {
+        .input-area input {
             flex: 1;
-            padding: 10px;
-            border: 1px solid #abc;
-            border-radius: 16px;
-            font-size: 15px;
-            outline: none;
-            background: #fff;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
         }
-
-        .input-panel button {
-            background: var(--btn-bg);
-            border: var(--btn-border);
-            color: #fff;
-            padding: 0 18px;
-            border-radius: 14px;
-            font-weight: bold;
-            font-size: 14px;
+        .input-area button {
+            margin-left: 10px;
+            padding: 8px 15px;
+            background: #4673a3;
+            color: white;
+            border: none;
+            border-radius: 4px;
             cursor: pointer;
-            text-shadow: 0 -1px 0 rgba(0,0,0,0.3);
         }
     </style>
 </head>
 <body>
 
-<div class="app-container">
-    <!-- Боковая панель -->
-    <div class="sidebar">
-        <div class="sidebar-header">iChatter</div>
-        <div class="user-info" id="userDisplay">Вы зашли как: Гость</div>
-    </div>
+<div class="header">iChatter</div>
 
-    <!-- Основной чат -->
-    <div class="chat-area">
-        <div class="chat-header">Основная комната</div>
-        
-        <div class="messages-container" id="messagesContainer">
-            <!-- Сообщения будут падать сюда -->
+<div class="chat-container">
+    <div class="sidebar" id="sidebar">
+        <div style="padding: 10px; font-weight: bold; border-bottom: 1px solid #eee;">
+            Вы: <span id="myUsernameDisplay"></span>
         </div>
-
-        <form class="input-panel" id="messageForm">
-            <input type="text" id="messageInput" placeholder="Ваше сообщение..." required autocomplete="off">
-            <button type="submit">Отпр.</button>
-        </form>
+        <!-- Список чатов -->
+    </div>
+    <div class="main-chat">
+        <div class="messages" id="messagesBox">
+            <!-- Сообщения появятся тут -->
+        </div>
+        <div class="input-area">
+            <input type="text" id="msgInput" placeholder="Ваше сообщение...">
+            <button id="sendBtn">Отпр.</button>
+        </div>
     </div>
 </div>
 
 <script>
-    const SERVER_IP = '192.168.1.15'; // ПОМЕНЯЙ НА СВОЙ IP ИЗ TERMUX
-    
-    // Проверка авторизации
-    const currentUser = localStorage.getItem('chat_user');
-    if (!currentUser) {
-        window.location.href = 'login.html';
-    } else {
-        document.getElementById('userDisplay').textContent = `Вы: ${currentUser}`;
-    }
+    // Основная логика работы мессенджера iChatter через Socket.io
+    document.getElementById('myUsernameDisplay').textContent = currentUser;
 
-    // Подключение к WebSocket-серверу
-    const ws = new WebSocket(`ws://${SERVER_IP}:3000`);
-    const container = document.getElementById('messagesContainer');
+    const socket = io({ query: { r: Date.now() } });
 
-    ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        
-        const msgDiv = document.createElement('div');
-        msgDiv.classList.add('message');
-        
-        // Свое или чужое сообщение
-        if (data.sender === currentUser) {
-            msgDiv.classList.add('outgoing');
-        } else {
-            msgDiv.classList.add('incoming');
-        }
-
-        msgDiv.innerHTML = `
-            ${data.sender !== currentUser ? `<span class="sender">${data.sender}</span>` : ''}
-            <div class="text">${data.text}</div>
-            <span class="meta">${data.timestamp}</span>
-        `;
-        
-        container.appendChild(msgDiv);
-        container.scrollTop = container.scrollHeight; // Скролл вниз
-    };
-
-    // Отправка сообщения
-    document.getElementById('messageForm').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const input = document.getElementById('messageInput');
-        
-        if (input.value.trim() === '') return;
-
-        const messageData = {
-            sender: currentUser,
-            text: input.value
-        };
-
-        ws.send(JSON.stringify(messageData));
-        input.value = '';
+    socket.on('connect', () => {
+        console.log('Подключено к серверу!');
+        // Отправляем пинг для синхронизации онлайна
+        socket.emit('online_ping', { username: currentUser });
     });
 
-    ws.onerror = () => {
+    socket.on('connect_error', () => {
         alert('Ошибка связи с WebSocket сервером.');
-    };
+    });
+
+    // Твоя остальная логика обработки событий чата:
+    // (socket.on('chat_message'), socket.on('restore_chats') и т.д.)
 </script>
 </body>
 </html>

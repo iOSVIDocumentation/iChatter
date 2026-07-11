@@ -2,144 +2,200 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Вход — iOS 6 Messages</title>
+    <title>iChatter - Вход</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <style>
-        /* ТЕКСТУРИРОВАННЫЙ ТЕМНО-СЕРЫЙ ФОН LINEN ИЗ iOS 6 */
-        html, body {
-            height: 100%; margin: 0; padding: 0;
-            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-            background-color: #2d343d;
-            background-image: radial-gradient(rgba(255,255,255,0.08) 15%, transparent 16%),
-                              radial-gradient(rgba(255,255,255,0.08) 15%, transparent 16%);
-            background-size: 16px 16px;
-            background-position: 0 0, 8px 8px;
-            display: flex; align-items: center; justify-content: center;
-            -webkit-user-select: none; user-select: none;
+        html, body { 
+            height: 100%; 
+            margin: 0; 
+            padding: 0; 
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; 
+            background-color: #cbd2d9; 
         }
-
-        /* КОНТЕЙНЕР ПРИЛОЖЕНИЯ */
-        .login-wrapper {
-            width: 100%; max-width: 400px; height: 100%;
-            background: transparent; display: flex; flex-direction: column;
-            box-shadow: 0 0 20px rgba(0,0,0,0.6); position: relative;
-            background-color: #384250;
-        }
-
-        /* ГЛЯНЦЕВЫЙ НАВБАР (NAVIGATION BAR) */
-        .ios-header {
-            height: 44px;
-            background: linear-gradient(to bottom, #b0bfc7 0%, #7d93a1 50%, #61798d 51%, #6d8296 100%);
-            border-bottom: 1px solid #2d3e52; display: flex; align-items: center;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 1px 2px rgba(0,0,0,0.3);
-            color: #fff; flex-shrink: 0;
-        }
-        .ios-header h1 {
-            font-size: 19px; margin: 0 auto; font-weight: bold;
-            text-shadow: 0 -1px 0 rgba(0,0,0,0.6); text-align: center;
-        }
-
-        /* ФОРМА ВХОДА */
-        .login-form {
-            padding: 30px 20px; flex-grow: 1; display: flex; flex-direction: column; gap: 24px;
-        }
-
-        /* СГРУППИРОВАННЫЙ БЛОК ПОЛЕЙ (GROUPED TABLE VIEW) */
-        .input-group {
-            background: #fff; border: 1px solid #ababab; border-radius: 10px;
-            overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        .input-row {
-            padding: 12px 14px; border-bottom: 1px solid #e0e0e0;
-            display: flex; align-items: center; gap: 10px; background: #fff;
-        }
-        .input-row:last-child { border-bottom: none; }
         
-        .input-row label {
-            font-size: 16px; font-weight: bold; color: #4c566c; width: 80px;
-            text-shadow: 0 1px 0 #fff;
+        #auth-container { 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: flex-start; 
+            height: 100%; 
         }
-        .input-row input {
-            border: none; outline: none; font-size: 16px; width: 100%;
-            background: transparent; color: #000;
-            -webkit-user-select: text; user-select: text;
+        
+        .ios-header {
+            width: 100%; 
+            height: 44px;
+            background: linear-gradient(#768da5, #4c647f); 
+            border-bottom: 1px solid #2d3e52;
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.3); 
+            color: #fff; 
+        }
+        .ios-header h1 { 
+            font-size: 19px; 
+            margin: 0; 
+            font-weight: bold;
+            text-shadow: 0 -1px 0 rgba(0,0,0,0.6); 
+        }
+        
+        .ios-section-title {
+            width: 90%; 
+            max-width: 420px; 
+            margin: 25px auto 6px auto;
+            color: #4c566c; 
+            font-size: 14px; 
+            font-weight: bold;
+            text-shadow: 0 1px 0 #fff; 
+            text-align: left;
+            box-sizing: border-box;
+            padding-left: 10px;
         }
 
-        /* ГЛЯНЦЕВАЯ СИНЯЯ КНОПКА */
-        .ios-btn-submit {
-            background: linear-gradient(to bottom, #6fa5e2 0%, #2975cf 50%, #175ebb 51%, #1f6bc7 100%);
-            border: 1px solid #124078; border-radius: 8px; color: white;
-            padding: 12px; font-size: 18px; font-weight: bold; cursor: pointer;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 1px 3px rgba(0,0,0,0.4);
-            text-shadow: 0 -1px 0 rgba(0,0,0,0.6); text-align: center;
-            transition: opacity 0.1s;
+        .ios-table-view {
+            background: #ffffff; 
+            border: 1px solid #ababab; 
+            border-radius: 10px;
+            width: 90%; 
+            max-width: 420px; 
+            margin: 0 auto; 
+            overflow: hidden;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1); 
+            display: flex; 
+            flex-direction: column;
+            box-sizing: border-box;
         }
-        .ios-btn-submit:active {
-            background: linear-gradient(to bottom, #1f6bc7 0%, #175ebb 50%, #2975cf 51%, #6fa5e2 100%);
+        
+        .ios-input-cell { 
+            padding: 12px 15px; 
+            border-bottom: 1px solid #cccccc; 
+            display: flex; 
+            align-items: center;
+            background: #ffffff;
         }
-
-        .ios-footer-text {
-            font-size: 14px; color: #b3bfc2; text-align: center;
-            padding: 0 20px; line-height: 1.4; text-shadow: 0 -1px 0 rgba(0,0,0,0.5);
-            margin-top: auto; margin-bottom: 20px;
+        .ios-input-cell:last-child { 
+            border-bottom: none; 
+        }
+        
+        .ios-input-cell input { 
+            border: none; 
+            outline: none; 
+            font-size: 16px; 
+            width: 100%; 
+            background: transparent; 
+            color: #000000;
+        }
+        
+        .ios-action-btn {
+            width: 90%; 
+            max-width: 420px; 
+            margin: 20px auto; 
+            padding: 12px; 
+            font-size: 17px; 
+            font-weight: bold; 
+            color: #ffffff; 
+            background: linear-gradient(#5a7494, #374e6c);
+            border: 1px solid #26384f; 
+            border-radius: 8px; 
+            cursor: pointer;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 1px 2px rgba(0,0,0,0.2);
+            text-shadow: 0 -1px 0 rgba(0,0,0,0.5);
+            box-sizing: border-box;
+        }
+        .ios-action-btn:active { 
+            background: linear-gradient(#374e6c, #26384f); 
         }
     </style>
 </head>
 <body>
 
-    <div class="login-wrapper">
+    <div id="auth-container">
         <div class="ios-header">
-            <h1>Вход в iMessage</h1>
+            <h1>iChatter Вход</h1>
+        </div>
+        
+        <div id="step-email-block" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
+            <div class="ios-section-title">АВТОРИЗАЦИЯ</div>
+            <div class="ios-table-view">
+                <div class="ios-input-cell">
+                    <input type="email" id="email-field" placeholder="Email (например, name@mail.com)">
+                </div>
+                <div class="ios-input-cell">
+                    <input type="text" id="username-field" placeholder="Имя пользователя (никнейм)">
+                </div>
+                <div class="ios-input-cell">
+                    <!-- Новое поле для постоянного пароля -->
+                    <input type="password" id="password-field" placeholder="Пароль доступа">
+                </div>
+            </div>
+            <button class="ios-action-btn" onclick="requestVerificationCode()">Получить код на почту</button>
         </div>
 
-        <div class="login-form">
-            <div class="input-group">
-                <!-- ВЕРНУЛ ПОЛЕ С ПОЧТОЙ -->
-                <div class="input-row">
-                    <label for="email">Почта</label>
-                    <input type="email" id="email" placeholder="example@apple.com" autocomplete="off" autocapitalize="none">
-                </div>
-                <div class="input-row">
-                    <label for="password">Пароль</label>
-                    <input type="password" id="password" placeholder="••••••••">
+        <div id="step-code-block" style="width: 100%; display: none; flex-direction: column; align-items: center;">
+            <div class="ios-section-title">ПОДТВЕРЖДЕНИЕ ПОЧТЫ</div>
+            <div class="ios-table-view">
+                <div class="ios-input-cell">
+                    <input type="text" id="code-field" placeholder="Введите 6-значный код">
                 </div>
             </div>
-
-            <button class="ios-btn-submit" onclick="handleLogin()">Войти</button>
-
-            <div class="ios-footer-text">
-                Используйте ваш зарегистрированный E-mail для авторизации в системе сообщений iMessage.
-            </div>
+            <button class="ios-action-btn" onclick="submitVerificationCode()">Войти в мессенджер</button>
         </div>
     </div>
 
     <script>
-        function handleLogin() {
-            const emailInput = document.getElementById('email').value.trim();
-            const passwordInput = document.getElementById('password').value;
-
-            if (!emailInput || !passwordInput) {
-                alert('Пожалуйста, заполните все поля.');
-                return;
-            }
-
-            // Сохраняем почту в локальный профиль, чтобы index.html её видел
-            let myProfile = JSON.parse(localStorage.getItem('myProfile')) || {
-                name: "", age: "", about: "", avatar: ""
-            };
+        function requestVerificationCode() {
+            const email = document.getElementById('email-field').value.trim();
+            const username = document.getElementById('username-field').value.trim();
+            const password = document.getElementById('password-field').value;
             
-            myProfile.email = emailInput;
-            localStorage.setItem('myProfile', JSON.stringify(myProfile));
+            if (!email) return alert('Пожалуйста, заполните поле Email!');
+            if (!username) return alert('Пожалуйста, введите никнейм!');
+            if (!password) return alert('Пожалуйста, введите пароль!');
 
-            // Редирект на главный экран приложения
-            window.location.href = 'index.html';
+            fetch('/api/send-code', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, username, password })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) return alert(data.error);
+                
+                alert("Пароль верен! Код отправлен на ваш почтовый ящик.");
+                document.getElementById('step-email-block').style.display = 'none';
+                document.getElementById('step-code-block').style.display = 'flex';
+            })
+            .catch(err => {
+                alert("Ошибка: Сервер не отвечает.");
+            });
         }
 
-        document.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') handleLogin();
-        });
+        function submitVerificationCode() {
+            const email = document.getElementById('email-field').value.trim();
+            const code = document.getElementById('code-field').value.trim();
+            const username = document.getElementById('username-field').value.trim();
+
+            if (!code) return alert('Введите код авторизации!');
+
+            fetch('/api/verify-code', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, code, username })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) return alert(data.error);
+                
+                localStorage.setItem('userId', data.user.id);
+                localStorage.setItem('userData', JSON.stringify(data.user));
+                
+                alert("Вход успешно выполнен!");
+                window.location.href = '/chat';
+            })
+            .catch(err => {
+                alert("Ошибка обработки подтверждения кода.");
+            });
+        }
     </script>
 </body>
 </html>

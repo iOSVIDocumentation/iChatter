@@ -2,208 +2,103 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>iChatter — Вход</title>
-    <script src="/socket.io/socket.io.js"></script>
+    <title>iChatter - Вход</title>
     <style>
-        body {
-            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #cbd2d9;
-            /* Старые префиксы для текстуры ткани в iOS 6 WebKit */
-            background-image: -webkit-radial-gradient(#cbd2d9 15%, transparent 16%),
-                              -webkit-radial-gradient(#cbd2d9 15%, transparent 16%),
-                              -webkit-linear-gradient(45deg, rgba(0,0,0,0.02) 25%, transparent 25%, transparent 75%, rgba(0,0,0,0.02) 75%, rgba(0,0,0,0.02)),
-                              -webkit-linear-gradient(45deg, rgba(0,0,0,0.02) 25%, transparent 25%, transparent 75%, rgba(0,0,0,0.02) 75%, rgba(0,0,0,0.02));
-            background-size: 4px 4px, 4px 4px, 8px 8px, 8px 8px;
-            background-position: 0 0, 2px 2px, 0 0, 4px 4px;
-            text-align: center;
+        html, body { height: 100%; margin: 0; padding: 0; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; background: #cbd2d9; }
+        #auth-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; }
+        .ios-navbar {
+            width: 100%; height: 44px;
+            background: linear-gradient(#768da5, #4c647f); border-bottom: 1px solid #2d3e52;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.3); color: #fff; font-weight: bold;
         }
-
-        .login-container {
-            width: 290px;
-            margin: 40px auto 0 auto;
-            box-sizing: border-box;
-        }
-
-        .login-header h1 {
-            font-size: 34px;
-            font-weight: bold;
-            letter-spacing: -1px;
-            margin: 0;
-            color: #3b618a;
-            text-shadow: 0 1px 0 #fff;
-        }
-
-        .login-header p {
-            margin: 5px 0 20px 0;
-            font-size: 14px;
-            color: #555;
-            text-shadow: 0 1px 0 #fff;
-        }
-
-        /* Таблица iOS 6 Grouped (на старом WebKit блоками) */
+        .ios-navbar h1 { font-size: 18px; margin: 0; text-shadow: 0 -1px 0 rgba(0,0,0,0.6); }
         .ios-group {
-            background: #ffffff;
-            border: 1px solid #ababab;
-            -webkit-border-radius: 10px;
-            border-radius: 10px;
-            -webkit-box-shadow: 0 1px 3px rgba(0,0,0,0.15);
-            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
-            margin-bottom: 20px;
-            overflow: hidden;
-            text-align: left;
+            background: #fff; border: 1px solid #ababab; border-radius: 10px;
+            width: 90%; max-width: 400px; margin: 20px auto; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
-
-        .ios-row {
-            padding: 12px 15px;
-            border-bottom: 1px solid #e0e0e0;
-            clear: both;
-            height: 20px;
-        }
-
-        .ios-row:last-child {
-            border-bottom: none;
-        }
-
-        .ios-row label {
-            float: left;
-            width: 75px;
-            font-weight: bold;
-            font-size: 16px;
-            color: #4c566c;
-            text-shadow: 0 1px 0 #fff;
-        }
-
-        .ios-row input {
-            float: left;
-            width: 170px;
-            border: none;
-            outline: none;
-            font-size: 16px;
-            color: #000;
-            font-family: inherit;
-            background: transparent;
-            margin: 0;
-            padding: 0;
-        }
-
-        /* Старый глянцевый градиент iOS 6 кнопке */
+        .ios-cell { padding: 12px; border-bottom: 1px solid #e0e0e0; display: flex; align-items: center; }
+        .ios-cell:last-child { border-bottom: none; }
+        .ios-cell input { border: none; outline: none; font-size: 15px; width: 100%; background: transparent; padding: 6px 0; }
         .ios-btn {
-            width: 100%;
-            background: -webkit-gradient(linear, left top, left bottom, from(#7fa4c7), color-stop(0.5, #537fa9), color-stop(0.51, #3a6795), to(#3b618a));
-            border: 1px solid #2d4b6b;
-            -webkit-border-radius: 7px;
-            border-radius: 7px;
-            color: #fff;
-            font-size: 18px;
-            font-weight: bold;
-            padding: 10px;
-            cursor: pointer;
-            text-shadow: 0 -1px 0 rgba(0,0,0,0.6);
-            -webkit-box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 1px 2px rgba(0,0,0,0.4);
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 1px 2px rgba(0,0,0,0.4);
-        }
-
-        .ios-btn:active {
-            background: -webkit-gradient(linear, left top, left bottom, from(#4d6d8f), color-stop(0.5, #36587c), color-stop(0.51, #24466b), to(#223f61));
-        }
-
-        .error-msg {
-            background: rgba(0, 0, 0, 0.75);
-            color: #fff;
-            text-align: center;
-            font-size: 14px;
-            padding: 8px;
-            -webkit-border-radius: 8px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            display: none;
+            margin: 10px auto; padding: 7px 20px; font-size: 14px; font-weight: bold;
+            color: #fff; background: linear-gradient(#5a7494, #374e6c);
+            border: 1px solid #26384f; border-radius: 5px; cursor: pointer;
+            display: block; box-shadow: inset 0 1px 0 rgba(255,255,255,0.2);
         }
     </style>
 </head>
 <body>
+    <div id="auth-screen">
+        <div class="ios-navbar">
+            <h1>iChatter Вход</h1>
+        </div>
+        
+        <!-- Шаг 1: Ввод почты -->
+        <div class="ios-group" id="email-step">
+            <div class="ios-cell">
+                <input type="email" id="auth-email" placeholder="Введи свой Email...">
+            </div>
+            <div class="ios-cell">
+                <input type="text" id="auth-username" placeholder="Имя пользователя (для новых)">
+            </div>
+            <button class="ios-btn" onclick="sendEmailCode()">Получить код</button>
+        </div>
 
-<div class="login-container">
-    <div class="login-header">
-        <h1>iChatter</h1>
-        <p>Авторизация</p>
+        <!-- Шаг 2: Ввод проверочного кода -->
+        <div class="ios-group" id="code-step" style="display:none;">
+            <div class="ios-cell">
+                <input type="text" id="auth-code" placeholder="6-значный код из письма">
+            </div>
+            <button class="ios-btn" onclick="verifyCode()">Войти в систему</button>
+        </div>
     </div>
 
-    <div class="error-msg" id="errorBlock"></div>
+    <script>
+        function sendEmailCode() {
+            const email = document.getElementById('auth-email').value.trim();
+            const username = document.getElementById('auth-username').value.trim();
+            if(!email) return alert('Введите почту!');
 
-    <div class="ios-group">
-        <div class="ios-row">
-            <label for="username">Логин</label>
-            <input type="text" id="username" placeholder="Пример">
-        </div>
-        <div class="ios-row">
-            <label for="password">Пароль</label>
-            <input type="password" id="password" placeholder="••••••••">
-        </div>
-    </div>
-
-    <button type="button" id="loginBtn" class="ios-btn">Войти</button>
-</div>
-
-<script>
-    // Чистый ES5 синтаксис (без функций '=>' и 'const/let' для старого WebKit)
-    var currentUser = localStorage.getItem('chat_user');
-    if (currentUser && currentUser.trim() !== "") {
-        window.location.href = '/main';
-    }
-
-    var socket = io({ query: { r: Date.now() } });
-    var errorBlock = document.getElementById('errorBlock');
-    var loginBtn = document.getElementById('loginBtn');
-
-    socket.on('connect_error', function() {
-        errorBlock.textContent = 'Сервер недоступен. Проверь Termux!';
-        errorBlock.style.display = 'block';
-    });
-
-    socket.on('connect', function() {
-        errorBlock.style.display = 'none'; 
-    });
-
-    function handleLogin() {
-        var username = document.getElementById('username').value.trim();
-        var password = document.getElementById('password').value;
-
-        if (!username || !password) {
-            errorBlock.textContent = 'Заполните все поля!';
-            errorBlock.style.display = 'block';
-            return;
+            fetch('/api/send-code', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, username })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.error) return alert(data.error);
+                alert("Код отправлен на вашу почту!");
+                document.getElementById('email-step').style.display = 'none';
+                document.getElementById('code-step').style.display = 'block';
+            })
+            .catch(err => alert("Ошибка соединения с сервером"));
         }
 
-        loginBtn.textContent = 'Вход...';
-        loginBtn.disabled = true;
+        function verifyCode() {
+            const email = document.getElementById('auth-email').value.trim();
+            const code = document.getElementById('auth-code').value.trim();
+            const username = document.getElementById('auth-username').value.trim();
 
-        socket.emit('check_user_exists', { username: username, password: password });
-    }
-
-    loginBtn.addEventListener('click', handleLogin);
-    
-    document.getElementById('username').addEventListener('keypress', function(e) { 
-        if (e.key === 'Enter' || e.keyCode === 13) handleLogin(); 
-    });
-    document.getElementById('password').addEventListener('keypress', function(e) { 
-        if (e.key === 'Enter' || e.keyCode === 13) handleLogin(); 
-    });
-
-    socket.on('user_exists_result', function(data) {
-        loginBtn.textContent = 'Войти';
-        loginBtn.disabled = false;
-
-        if (data.exists) {
-            localStorage.setItem('chat_user', data.username);
-            window.location.href = '/main'; 
-        } else {
-            errorBlock.textContent = 'Неверный логин или пароль.';
-            errorBlock.style.display = 'block';
+            fetch('/api/verify-code', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, code, username })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.error) return alert(data.error);
+                
+                // Сохраняем сессию локально
+                localStorage.setItem('userId', data.user.id);
+                localStorage.setItem('userAuthData', JSON.stringify(data.user));
+                
+                // Перенаправляем на страницу чата
+                window.location.href = '/chat';
+            })
+            .catch(err => alert("Ошибка проверки кода"));
         }
-    });
-</script>
+    </script>
 </body>
 </html>

@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>iChatter — Вход</title>
+    <!-- Подключаем Socket.io клиент (сервер отдаст его автоматически) -->
+    <script src="/socket.io/socket.io.js"></script>
     <style>
         :root {
             --bg-color: #cbd2d9; /* Льняная текстура iOS 6 */
@@ -128,13 +130,15 @@
 
     <form id="loginForm">
         <div class="ios-group">
-            <div class="ios-row">
-                <label for="username">Логин</label>
-                <input type="text" id="username" placeholder="example" required autocomplete="username">
-            </div>
-            <div class="ios-row">
-                <label for="password">Пароль</label>
-                <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password">
+            <div class="ios-group">
+                <div class="ios-row">
+                    <label for="username">Логин</label>
+                    <input type="text" id="username" placeholder="example" required autocomplete="username">
+                </div>
+                <div class="ios-row">
+                    <label for="password">Пароль</label>
+                    <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password">
+                </div>
             </div>
         </div>
 
@@ -143,33 +147,43 @@
 </div>
 
 <script>
-    const SERVER_IP = '192.168.1.15'; // ПОМЕНЯЙ НА СВОЙ IP ИЗ TERMUX
-    
-    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    // Подключаемся к сокет-серверу (автоматически использует текущий домен Cloudflare)
+    const socket = io();
+    const errorBlock = document.getElementById('errorBlock');
+
+    // Если сокет не может подключиться, выводим ошибку
+    socket.on('connect_error', () => {
+        errorBlock.textContent = 'Сервер недоступен. Проверь Termux!';
+        errorBlock.style.display = 'block';
+    });
+
+    socket.on('connect', () => {
+        errorBlock.style.display = 'none'; // Убираем ошибку, если соединение восстановлено
+    });
+
+    document.getElementById('loginForm').addEventListener('submit', (e) => {
         e.preventDefault();
-        const username = document.getElementById('username').value;
-        const password = document.getElementById('password').value;
+        const username = document.getElementById('username').value.trim();
         const errorBlock = document.getElementById('errorBlock');
 
-        try {
-            const response = await fetch(`http://${SERVER_IP}:3000/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                // Сохраняем сессию и переходим в чат
-                localStorage.setItem('chat_user', data.username);
-                window.location.href = 'index.html';
-            } else {
-                errorBlock.textContent = data.message;
-                errorBlock.style.display = 'block';
-            }
-        } catch (err) {
+        if (!socket.connected) {
             errorBlock.textContent = 'Сервер недоступен. Проверь Termux!';
+            errorBlock.style.display = 'block';
+            return;
+        }
+
+        // Запрашиваем проверку существования профиля в бэкенде / Google Таблице
+        socket.emit('check_user_exists', { username: username });
+    });
+
+    // Обработка ответа от сервера
+    socket.on('user_exists_result', (data) => {
+        if (data.exists) {
+            // Сохраняем сессию и переходим в чат
+            localStorage.setItem('chat_user', data.username);
+            window.location.href = '/main'; 
+        } else {
+            errorBlock.textContent = 'Пользователь не найден или пароль неверен.';
             errorBlock.style.display = 'block';
         }
     });

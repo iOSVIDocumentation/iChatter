@@ -2,144 +2,98 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>iChatter - Чат</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>iChatter</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <style>
-        /* Стиль как в login.html */
-        body {
-            background-color: #4A525A !important;
-            margin: 0;
-            padding: 0;
-            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif !important;
-            color: #FFFFFF !important;
-            display: -webkit-box;
-            height: 100vh;
-        }
-
-        #sidebar {
-            width: 300px;
-            background-color: #383E44 !important;
-            border-right: 1px solid #2B3035 !important;
-            display: -webkit-box;
-            -webkit-box-orient: vertical;
-        }
-
-        #chat-area {
-            -webkit-box-flex: 1;
-            background-color: #4A525A !important;
-            display: none;
-            -webkit-box-orient: vertical;
-        }
-
-        .chat-item {
-            padding: 15px;
-            border-bottom: 1px solid #2B3035 !important;
-            cursor: pointer;
-            background-color: #383E44 !important;
-        }
-
-        .chat-item.active {
-            background-color: #5B646E !important;
-        }
-
-        #messages {
-            -webkit-box-flex: 1;
-            overflow-y: scroll;
-            list-style: none;
-            padding: 10px;
-        }
-
-        .my-msg {
-            background-color: #1F2D3D !important;
-            padding: 10px;
-            border-radius: 6px;
-            margin: 5px;
-            color: #FFFFFF !important;
-        }
-
-        input {
-            background-color: #5B646E !important;
-            border: 1px solid #3A4045 !important;
-            color: #FFFFFF !important;
-            padding: 10px;
-            border-radius: 4px;
-        }
-
-        button {
-            background-color: #1F2D3D !important;
-            color: #A4B3C6 !important;
-            border: 1px solid #141D27 !important;
-            padding: 10px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
+        body { background-color: #4A525A; font-family: "Helvetica Neue", sans-serif; color: #fff; margin: 0; display: flex; height: 100vh; }
+        .light-theme { background-color: #f0f0f0 !important; color: #000 !important; }
+        
+        #sidebar { width: 300px; background-color: #383E44; border-right: 1px solid #2B3035; display: flex; flex-direction: column; }
+        .chat-item { padding: 15px; border-bottom: 1px solid #2B3035; cursor: pointer; }
+        
+        #chat-area { flex: 1; display: none; flex-direction: column; }
+        .my-msg { background-color: #1F2D3D; padding: 10px; border-radius: 6px; margin: 5px; color: #fff; }
+        
+        /* Стили для всех модальных окон */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; }
+        .modal-box { margin: 100px auto; width: 300px; background: #383E44; padding: 20px; border-radius: 12px; color: #fff; text-align: center; }
+        input, select, textarea { width: 100%; margin-bottom: 10px; padding: 10px; box-sizing: border-box; background: #5B646E; border: none; color: #fff; border-radius: 5px; }
+        button { padding: 10px 20px; cursor: pointer; background: #1F2D3D; color: #fff; border: none; border-radius: 5px; }
     </style>
 </head>
-<body id="main-body">
+<body>
 
-    <!-- Сайдбар -->
-    <div id="sidebar">
-        <div style="padding: 10px;">
-            <button id="search-toggle-btn">🔍</button>
-            <button id="settings-toggle-btn">⚙️</button>
-        </div>
-        <div id="chats-list"></div>
+<div id="sidebar">
+    <div style="padding:10px;">
+        <button onclick="openSettings()">⚙️</button>
+        <button onclick="showCustomPrompt()">🔍 ID</button>
     </div>
+    <div id="chats-list"></div>
+</div>
 
-    <!-- Окно чата -->
-    <div id="chat-area">
-        <div id="chat-title" style="padding: 10px; font-weight: bold;"></div>
-        <ul id="messages"></ul>
-        <form id="form" style="padding: 10px;">
-            <input type="text" id="input" placeholder="Сообщение...">
-            <button type="submit">Отправить</button>
-        </form>
+<div id="chat-area">
+    <div id="chat-title" style="padding:10px; font-weight:bold;"></div>
+    <ul id="messages" style="list-style: none; padding: 0;"></ul>
+    <form id="form" style="padding:10px;">
+        <input type="text" id="input" placeholder="Сообщение...">
+        <button type="submit">Отправить</button>
+    </form>
+</div>
+
+<!-- Универсальное модальное окно для ввода (вместо prompt) -->
+<div id="custom-prompt-modal" class="modal-overlay">
+    <div class="modal-box">
+        <p>Введите ID пользователя:</p>
+        <input type="text" id="prompt-input">
+        <button onclick="submitPrompt()">OK</button>
+        <button onclick="hideModal('custom-prompt-modal')">Отмена</button>
     </div>
+</div>
 
-    <!-- Заглушка если чат не выбран -->
-    <div id="no-chat-placeholder" style="margin: auto;">Выберите чат</div>
+<!-- Окно настроек -->
+<div id="settings-modal" class="modal-overlay">
+    <div class="modal-box">
+        <h3>Настройки</h3>
+        <p>Ваш ID: <strong id="display-my-id"></strong></p>
+        <input type="text" id="profile-name" placeholder="Имя">
+        <select id="theme-select" onchange="toggleTheme()">
+            <option value="dark">Темная тема</option>
+            <option value="light">Светлая тема</option>
+        </select>
+        <button onclick="saveSettings()">Сохранить</button>
+        <button onclick="hideModal('settings-modal')">Закрыть</button>
+    </div>
+</div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
-    <script>
-        var socket = io("https://colour-slowly-complications-trade.trycloudflare.com");
-        var myUsername = localStorage.getItem('ichatter_username') || "User";
-        var activeDialogs = [];
+<script>
+    let myUserID = localStorage.getItem('userId') || Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('userId', myUserID);
 
-        document.getElementById('search-toggle-btn').onclick = function() {
-            var name = prompt("Имя собеседника:");
-            if (name) {
-                activeDialogs.push(name);
-                renderChats();
-            }
-        };
+    // Функции окон
+    function showCustomPrompt() { document.getElementById('custom-prompt-modal').style.display = 'block'; }
+    function openSettings() { 
+        document.getElementById('settings-modal').style.display = 'block'; 
+        document.getElementById('display-my-id').innerText = myUserID;
+    }
+    function hideModal(id) { document.getElementById(id).style.display = 'none'; }
 
-        function renderChats() {
-            var list = document.getElementById('chats-list');
-            list.innerHTML = "";
-            activeDialogs.forEach(function(name) {
-                var div = document.createElement('div');
-                div.className = 'chat-item';
-                div.innerText = name;
-                div.onclick = function() { startChat(name); };
-                list.appendChild(div);
-            });
-        }
+    function submitPrompt() {
+        let id = document.getElementById('prompt-input').value;
+        if (id) alert("Поиск ID: " + id);
+        hideModal('custom-prompt-modal');
+    }
 
-        function startChat(name) {
-            document.getElementById('no-chat-placeholder').style.display = 'none';
-            document.getElementById('chat-area').style.display = '-webkit-box';
-            document.getElementById('chat-title').innerText = name;
-        }
+    function saveSettings() {
+        localStorage.setItem('username', document.getElementById('profile-name').value);
+        alert("Сохранено!");
+        hideModal('settings-modal');
+    }
 
-        document.getElementById('form').onsubmit = function(e) {
-            e.preventDefault();
-            var input = document.getElementById('input');
-            var li = document.createElement('li');
-            li.className = 'my-msg';
-            li.innerText = input.value;
-            document.getElementById('messages').appendChild(li);
-            input.value = '';
-        };
-    </script>
+    function toggleTheme() {
+        let theme = document.getElementById('theme-select').value;
+        document.body.className = (theme === 'light') ? 'light-theme' : '';
+    }
+</script>
+
 </body>
 </html>

@@ -3,14 +3,12 @@
 <head>
     <meta charset="utf-8">
     <title>iChatter - Вход</title>
-    <!-- Правильные мета-теги для старых iPhone/iPad, чтобы не зумило экран -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     
     <style>
-        /* Старые стили, которые гарантированно понимает WebKit в iOS 6 */
         body {
-            background-color: #4A525A; /* Тот самый темно-серый фон */
+            background-color: #4A525A;
             margin: 0;
             padding: 0;
             font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -29,26 +27,23 @@
             text-align: left;
         }
 
-        /* Олдскульные инпуты, похожие на твои */
         input[type="text"], input[type="password"] {
             width: 100%;
             padding: 12px 8px;
             background-color: #5B646E;
             border: 1px solid #3A4045;
             color: #FFFFFF;
-            font-size: 16px; /* 16px предотвращает авто-зум на iOS */
+            font-size: 16px;
             border-radius: 4px;
-            -webkit-border-radius: 4px; /* Для iOS 6 */
+            -webkit-border-radius: 4px;
             box-sizing: border-box;
             -webkit-box-sizing: border-box;
         }
 
-        /* Стилизация плейсхолдеров для старого WebKit */
         input::-webkit-input-placeholder {
             color: #A0A5AA;
         }
 
-        /* Кнопка отправки */
         .btn-submit {
             width: 100%;
             padding: 12px;
@@ -67,17 +62,21 @@
             background-color: #141D27;
         }
 
-        /* Блок для вывода ошибок БЕЗ alert() */
         #status-message {
             margin-top: 15px;
             font-size: 14px;
-            color: #FF6B6B; /* Красный для ошибок */
+            color: #FF6B6B;
             font-weight: bold;
-            display: none; /* Изначально скрыт */
+            display: none;
         }
         
         #status-message.success {
-            color: #2ECC71; /* Зеленый для успеха */
+            color: #2ECC71;
+        }
+
+        /* Блок ввода кода изначально скрыт средствами CSS */
+        #verification-stage {
+            display: none;
         }
     </style>
 </head>
@@ -85,33 +84,46 @@
 
     <div class="login-container">
         
-        <!-- Поля ввода -->
-        <div class="input-group">
-            <input type="text" id="username" placeholder="Имя пользователя">
+        <!-- СТАДИЯ 1: Регистрация / Запрос кода -->
+        <div id="register-stage">
+            <div class="input-group">
+                <input type="text" id="username" placeholder="Имя пользователя">
+            </div>
+
+            <div class="input-group">
+                <input type="text" id="email" placeholder="1rol4k2@gmail.com">
+            </div>
+
+            <div class="input-group">
+                <input type="password" id="password" placeholder="••••••••••••">
+            </div>
+
+            <button type="button" class="btn-submit" id="btn-send">Получить код на почту</button>
         </div>
 
-        <div class="input-group">
-            <input type="text" id="email" placeholder="example@mail.name">
+        <!-- СТАДИЯ 2: Ввод проверочного кода -->
+        <div id="verification-stage">
+            <div class="input-group">
+                <input type="text" id="verify-code" placeholder="Введите 6-значный код">
+            </div>
+            <button type="button" class="btn-submit" id="btn-verify">Войти в iChatter</button>
         </div>
 
-        <div class="input-group">
-            <input type="password" id="password" placeholder="••••••••••••">
-        </div>
-
-        <!-- Кнопка -->
-        <button type="button" class="btn-submit" id="btn-send">Получить код на почту</button>
-
-        <!-- Текстовое уведомление вместо всплывашек -->
+        <!-- Статусные сообщения -->
         <div id="status-message"></div>
 
     </div>
 
     <script>
-        // Старый добрый JavaScript без стрелочных функций (=>), которые ломают iOS 6
         var btnSend = document.getElementById('btn-send');
+        var btnVerify = document.getElementById('btn-verify');
+        var registerStage = document.getElementById('register-stage');
+        var verificationStage = document.getElementById('verification-stage');
         var statusMessage = document.getElementById('status-message');
 
-        // Функция показа сообщений прямо на экране
+        // Глобальная переменная для сохранения почты между запросами
+        var currentEmail = '';
+
         function showStatus(text, isSuccess) {
             statusMessage.innerText = text;
             statusMessage.style.display = 'block';
@@ -122,6 +134,7 @@
             }
         }
 
+        // 1. НАЖАТИЕ: ПОЛУЧИТЬ КОД
         btnSend.onclick = function() {
             var usernameVal = document.getElementById('username').value;
             var emailVal = document.getElementById('email').value;
@@ -132,12 +145,10 @@
                 return;
             }
 
+            currentEmail = emailVal; // Запоминаем почту для следующего шага
             showStatus('Отправка запроса...', true);
 
-            // Используем стандартный XMLHttpRequest, так как fetch на iOS 6 не существует!
             var xhr = new XMLHttpRequest();
-            
-            // Здесь автоматически подхватится адрес воркера/сервера
             xhr.open('POST', window.location.origin + '/api/send-code', true);
             xhr.setRequestHeader('Content-Type', 'application/json');
 
@@ -147,8 +158,10 @@
                         var response = JSON.parse(xhr.responseText);
                         if (xhr.status === 200 && response.success) {
                             showStatus('Код успешно отправлен на почту!', true);
-                            // Здесь можешь добавить переход на страницу ввода кода через пару секунд, если нужно:
-                            // setTimeout(function() { window.location.href = 'verify.html'; }, 2000);
+                            
+                            // Переключаем интерфейс: скрываем регистрацию, показываем ввод кода
+                            registerStage.style.display = 'none';
+                            verificationStage.style.display = 'block';
                         } else {
                             showStatus(response.error || 'Ошибка сервера', false);
                         }
@@ -162,6 +175,54 @@
                 username: usernameVal,
                 email: emailVal,
                 password: passwordVal
+            });
+
+            xhr.send(data);
+        };
+
+        // 2. НАЖАТИЕ: ПОДТВЕРДИТЬ КОД
+        btnVerify.onclick = function() {
+            var codeVal = document.getElementById('verify-code').value;
+
+            if (!codeVal) {
+                showStatus('Введите полученный код!', false);
+                return;
+            }
+
+            showStatus('Проверка кода...', true);
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', window.location.origin + '/api/verify-code', true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    try {
+                        var response = JSON.parse(xhr.responseText);
+                        if (xhr.status === 200 && response.success) {
+                            showStatus('Успешная авторизация! Входим...', true);
+                            
+                            // Сохраняем сессию (работает и на старых WebKit)
+                            if (window.localStorage) {
+                                localStorage.setItem('userSession', JSON.stringify(response.user));
+                            }
+                            
+                            // Перенаправление в сам чат после успешного входа
+                            setTimeout(function() {
+                                window.location.href = 'chat.html';
+                            }, 1500);
+                        } else {
+                            showStatus(response.error || 'Неверный код доступа', false);
+                        }
+                    } catch(e) {
+                        showStatus('Ошибка проверки кода', false);
+                    }
+                }
+            };
+
+            var data = JSON.stringify({
+                email: currentEmail,
+                code: codeVal
             });
 
             xhr.send(data);

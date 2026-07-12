@@ -616,11 +616,13 @@
 
 <div class="context-menu" id="global-context-menu"></div>
 
-<script src="/socket.io/socket.io.js"></script>
+<!-- Подключаем Socket.io из глобального CDN, чтобы избежать 404 ошибок воркера -->
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 
 <script>
     window.addEventListener('DOMContentLoaded', function() {
-        var SERVER_URL = 'http://192.168.1.15:3000';
+        // Динамически подставляем домен твоего Воркера
+        var SERVER_URL = window.location.origin;
         
         var originalFetch = window.fetch;
         if (originalFetch) {

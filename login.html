@@ -129,7 +129,6 @@
         
         <!-- СТАДИЯ 1: Поля ввода -->
         <div id="forms-stage">
-            <!-- Блок имени пользователя (скрыт при Входе, виден при Регистрации) -->
             <div class="input-group" id="username-group" style="display: none;">
                 <input type="text" id="username" placeholder="Имя пользователя">
             </div>
@@ -142,7 +141,7 @@
                 <input type="password" id="password" placeholder="••••••••••••">
             </div>
 
-            <button type="button" class="btn-submit" id="btn-send">Получить код на почту</button>
+            <button type="button" class="btn-submit" id="btn-send">Войти и получить код</button>
         </div>
 
         <!-- СТАДИЯ 2: Ввод проверочного кода -->
@@ -170,11 +169,12 @@
         var tabRegister = document.getElementById('tab-register');
         var usernameGroup = document.getElementById('username-group');
 
-        // Переменная текущего режима ('login' или 'register')
         var currentMode = 'login'; 
         var currentEmail = '';
+        
+        // Прямой URL твоего туннеля Node.js на телефоне
+        var API_BASE = 'https://colour-slowly-complications-trade.trycloudflare.com';
 
-        // Переключение на вкладку ВХОД
         tabLogin.onclick = function() {
             currentMode = 'login';
             tabLogin.className = 'tab-button active';
@@ -184,7 +184,6 @@
             statusMessage.style.display = 'none';
         };
 
-        // Переключение на вкладку РЕГИСТРАЦИЯ
         tabRegister.onclick = function() {
             currentMode = 'register';
             tabRegister.className = 'tab-button active';
@@ -204,7 +203,7 @@
             }
         }
 
-        // 1. НАЖАТИЕ: ОТПРАВИТЬ ЗАПРОС КОДА / РЕГИСТРАЦИЯ
+        // 1. НАЖАТИЕ: ОТПРАВИТЬ ЗАПРОС КОДА
         btnSend.onclick = function() {
             var usernameVal = document.getElementById('username').value;
             var emailVal = document.getElementById('email').value;
@@ -227,7 +226,7 @@
             showStatus('Отправка запроса...', true);
 
             var xhr = new XMLHttpRequest();
-            xhr.open('POST', window.location.origin + '/api/send-code', true);
+            xhr.open('POST', API_BASE + '/api/send-code', true);
             xhr.setRequestHeader('Content-Type', 'application/json');
 
             xhr.onreadystatechange = function() {
@@ -237,13 +236,13 @@
                         if (xhr.status === 200 && response.success) {
                             showStatus('Код подтверждения отправлен на почту!', true);
                             formsStage.style.display = 'none';
-                            tabsBar.style.display = 'none'; // Прячем вкладки на этапе ввода кода
+                            tabsBar.style.display = 'none'; 
                             verificationStage.style.display = 'block';
                         } else {
                             showStatus(response.error || 'Ошибка сервера', false);
                         }
                     } catch(e) {
-                        showStatus('Ошибка ответа сервера', false);
+                        showStatus('Ошибка ответа бэкенда. Проверь туннель!', false);
                     }
                 }
             };
@@ -252,7 +251,7 @@
                 username: usernameVal,
                 email: emailVal,
                 password: passwordVal,
-                mode: currentMode // Отправляем режим (login/register) на бэк
+                mode: currentMode
             });
 
             xhr.send(data);
@@ -270,7 +269,7 @@
             showStatus('Проверка кода...', true);
 
             var xhr = new XMLHttpRequest();
-            xhr.open('POST', window.location.origin + '/api/verify-code', true);
+            xhr.open('POST', API_BASE + '/api/verify-code', true);
             xhr.setRequestHeader('Content-Type', 'application/json');
 
             xhr.onreadystatechange = function() {

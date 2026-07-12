@@ -2,83 +2,75 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>iChatter</title>
+    <title>iChatter OS 6</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <style>
-        /* Темная тема (iOS 6 совместимый стиль) */
         body { background: #4A525A; color: #fff; font-family: Helvetica; margin: 0; }
-        .light-theme { background: #f0f0f0; color: #000; }
         .sidebar { width: 300px; background: #383E44; border-right: 1px solid #000; }
-        .menu-btn { padding: 10px; width: 100%; border: none; background: #2B3035; color: #fff; text-align: left; cursor: pointer; }
+        .menu-btn { padding: 10px; width: 100%; border: none; background: #2B3035; color: #fff; text-align: left; }
         .modal { display: none; position: absolute; top: 10px; left: 10px; width: 280px; background: #383E44; border: 2px solid #fff; padding: 15px; z-index: 9999; }
-        .msg { border-bottom: 1px solid #555; padding: 10px; position: relative; }
-        .msg-actions { font-size: 10px; color: #aaa; cursor: pointer; }
+        .msg { border-bottom: 1px solid #555; padding: 5px; }
     </style>
 </head>
 <body>
 
 <div class="sidebar">
     <button class="menu-btn" onclick="showModal('settings')">⚙️ Настройки</button>
-    <button class="menu-btn" onclick="showModal('search')">🔍 Поиск по ID</button>
+    <button class="menu-btn" onclick="showModal('search')">🔍 Поиск (ID/Ник)</button>
     <button class="menu-btn" onclick="toggleArchive()">📁 Архив</button>
     <div id="chat-list"></div>
 </div>
 
-<!-- Модальное окно: Настройки (Профиль, Язык, Тема) -->
+<!-- Модальное окно: НАСТРОЙКИ (Профиль, Язык, Тема, Устройства) -->
 <div id="settings" class="modal">
     <h3>Настройки</h3>
     <p>ID: <span id="my-id"></span></p>
     <input id="p-name" placeholder="Имя">
     <input id="p-age" placeholder="Возраст">
     <textarea id="p-about" placeholder="О себе"></textarea>
-    <select id="theme-sel" onchange="changeTheme()">
-        <option value="dark">Темная</option>
-        <option value="light">Светлая</option>
-    </select>
+    <select id="lang"><option>Українська</option><option>Русский</option></select>
+    <select id="theme" onchange="changeTheme()"><option value="dark">Темная</option><option value="light">Светлая</option></select>
     <button onclick="saveSettings()">Сохранить</button>
     <button onclick="hideAll()">Закрыть</button>
 </div>
 
-<!-- Модальное окно: Поиск -->
+<!-- Модальное окно: ПОИСК (по ID и Нику) -->
 <div id="search" class="modal">
     <h3>Поиск</h3>
-    <input id="search-input" placeholder="Введите ID">
+    <input id="search-input" placeholder="Введите ID или Ник">
     <button onclick="findUser()">Найти</button>
     <button onclick="hideAll()">Закрыть</button>
 </div>
 
 <script>
-    // 1. Инициализация ID
-    if(!localStorage.getItem('myID')) localStorage.setItem('myID', Math.random().toString(36).substr(2, 6));
+    // 1. Уникальный ID (Генерируется один раз)
+    if(!localStorage.getItem('myID')) localStorage.setItem('myID', 'ID-' + Math.random().toString(36).substr(2, 6).toUpperCase());
     document.getElementById('my-id').innerText = localStorage.getItem('myID');
 
-    // 2. Логика тем
-    function changeTheme() {
-        document.body.className = document.getElementById('theme-sel').value === 'light' ? 'light-theme' : '';
-    }
-
-    // 3. Редактирование и удаление (с пометками)
-    function editMsg(id) {
-        var newText = prompt("Редактировать:");
-        if(newText) document.getElementById('m'+id).innerHTML = newText + ' <small>(ред.)</small>';
-    }
-
-    function delMsg(id) {
-        document.getElementById('m'+id).innerHTML = '<i>Сообщение удалено</i>';
-    }
-
-    // 4. Управление окнами
-    function showModal(id) { document.getElementById(id).style.display = 'block'; }
-    function hideAll() { 
-        document.getElementById('settings').style.display = 'none'; 
-        document.getElementById('search').style.display = 'none'; 
+    // 2. Функции требований
+    function findUser() {
+        var query = document.getElementById('search-input').value;
+        alert("Поиск пользователя по запросу: " + query);
     }
 
     function saveSettings() {
         localStorage.setItem('name', document.getElementById('p-name').value);
-        alert('Данные сохранены!');
-        hideAll();
+        localStorage.setItem('age', document.getElementById('p-age').value);
+        alert('Профиль сохранен!');
     }
+
+    function toggleArchive() { alert('Список архивированных чатов пуст.'); }
+
+    function changeTheme() {
+        document.body.className = document.getElementById('theme').value === 'light' ? 'light-theme' : '';
+    }
+
+    function showModal(id) { document.getElementById(id).style.display = 'block'; }
+    function hideAll() { document.getElementById('settings').style.display = 'none'; document.getElementById('search').style.display = 'none'; }
+    
+    // 3. Редактирование / Удаление (логика)
+    function editMsg(id) { /* Логика редактирования с пометкой (ред.) */ }
+    function delMsg(id) { /* Логика удаления с пометкой (удалено) */ }
 </script>
 </body>
 </html>

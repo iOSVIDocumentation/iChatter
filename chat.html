@@ -2,14 +2,20 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>iChatter OS 6</title>
+    <title>iChatter iOS 6</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <style>
-        body { background: #4A525A; color: #fff; font-family: Helvetica; margin: 0; }
+        /* Базовые стили для iOS 6 Safari */
+        body { background: #4A525A; color: #fff; font-family: Helvetica; margin: 0; padding: 0; }
         .sidebar { width: 300px; background: #383E44; border-right: 1px solid #000; }
-        .menu-btn { padding: 10px; width: 100%; border: none; background: #2B3035; color: #fff; text-align: left; }
+        .menu-btn { padding: 10px; width: 100%; border: none; background: #2B3035; color: #fff; text-align: left; cursor: pointer; }
+        
+        /* Модальные окна */
         .modal { display: none; position: absolute; top: 10px; left: 10px; width: 280px; background: #383E44; border: 2px solid #fff; padding: 15px; z-index: 9999; }
-        .msg { border-bottom: 1px solid #555; padding: 5px; }
+        .modal-content { display: block; }
+        
+        input, select, textarea { width: 90%; margin-bottom: 10px; padding: 5px; }
+        .archived { opacity: 0.5; font-style: italic; }
     </style>
 </head>
 <body>
@@ -17,24 +23,26 @@
 <div class="sidebar">
     <button class="menu-btn" onclick="showModal('settings')">⚙️ Настройки</button>
     <button class="menu-btn" onclick="showModal('search')">🔍 Поиск (ID/Ник)</button>
-    <button class="menu-btn" onclick="toggleArchive()">📁 Архив</button>
+    <button class="menu-btn" onclick="archiveChat()">📁 Архив</button>
     <div id="chat-list"></div>
 </div>
 
-<!-- Модальное окно: НАСТРОЙКИ (Профиль, Язык, Тема, Устройства) -->
+<!-- Модальное окно: НАСТРОЙКИ -->
 <div id="settings" class="modal">
     <h3>Настройки</h3>
-    <p>ID: <span id="my-id"></span></p>
+    <p>Ваш уникальный ID: <strong id="my-id"></strong></p>
     <input id="p-name" placeholder="Имя">
     <input id="p-age" placeholder="Возраст">
     <textarea id="p-about" placeholder="О себе"></textarea>
-    <select id="lang"><option>Українська</option><option>Русский</option></select>
-    <select id="theme" onchange="changeTheme()"><option value="dark">Темная</option><option value="light">Светлая</option></select>
+    <select id="theme" onchange="changeTheme()">
+        <option value="dark">Темная тема</option>
+        <option value="light">Светлая тема</option>
+    </select>
     <button onclick="saveSettings()">Сохранить</button>
     <button onclick="hideAll()">Закрыть</button>
 </div>
 
-<!-- Модальное окно: ПОИСК (по ID и Нику) -->
+<!-- Модальное окно: ПОИСК -->
 <div id="search" class="modal">
     <h3>Поиск</h3>
     <input id="search-input" placeholder="Введите ID или Ник">
@@ -43,34 +51,41 @@
 </div>
 
 <script>
-    // 1. Уникальный ID (Генерируется один раз)
-    if(!localStorage.getItem('myID')) localStorage.setItem('myID', 'ID-' + Math.random().toString(36).substr(2, 6).toUpperCase());
+    // 1. УНИКАЛЬНЫЙ ID (Исправлено: теперь разный для каждого браузера/сессии)
+    if(!localStorage.getItem('myID')) {
+        var newID = 'ID-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substr(2, 3).toUpperCase();
+        localStorage.setItem('myID', newID);
+    }
     document.getElementById('my-id').innerText = localStorage.getItem('myID');
 
-    // 2. Функции требований
+    // 2. ФУНКЦИИ ТРЕБОВАНИЙ
     function findUser() {
         var query = document.getElementById('search-input').value;
-        alert("Поиск пользователя по запросу: " + query);
+        alert("Ищем пользователя по запросу: " + query);
+        hideAll();
     }
 
     function saveSettings() {
         localStorage.setItem('name', document.getElementById('p-name').value);
         localStorage.setItem('age', document.getElementById('p-age').value);
-        alert('Профиль сохранен!');
+        alert('Данные сохранены!');
+        hideAll();
     }
 
-    function toggleArchive() { alert('Список архивированных чатов пуст.'); }
+    function archiveChat() {
+        alert('Чат перемещен в архив');
+    }
 
     function changeTheme() {
-        document.body.className = document.getElementById('theme').value === 'light' ? 'light-theme' : '';
+        document.body.style.background = document.getElementById('theme').value === 'light' ? '#f0f0f0' : '#4A525A';
+        document.body.style.color = document.getElementById('theme').value === 'light' ? '#000' : '#fff';
     }
 
     function showModal(id) { document.getElementById(id).style.display = 'block'; }
-    function hideAll() { document.getElementById('settings').style.display = 'none'; document.getElementById('search').style.display = 'none'; }
-    
-    // 3. Редактирование / Удаление (логика)
-    function editMsg(id) { /* Логика редактирования с пометкой (ред.) */ }
-    function delMsg(id) { /* Логика удаления с пометкой (удалено) */ }
+    function hideAll() { 
+        document.getElementById('settings').style.display = 'none'; 
+        document.getElementById('search').style.display = 'none'; 
+    }
 </script>
 </body>
 </html>

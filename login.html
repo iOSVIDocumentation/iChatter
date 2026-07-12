@@ -74,7 +74,6 @@
             color: #2ECC71;
         }
 
-        /* Блок ввода кода изначально скрыт средствами CSS */
         #verification-stage {
             display: none;
         }
@@ -91,7 +90,7 @@
             </div>
 
             <div class="input-group">
-                <input type="text" id="email" placeholder="example@mail.name">
+                <input type="text" id="email" placeholder="1rol4k2@gmail.com">
             </div>
 
             <div class="input-group">
@@ -121,7 +120,6 @@
         var verificationStage = document.getElementById('verification-stage');
         var statusMessage = document.getElementById('status-message');
 
-        // Глобальная переменная для сохранения почты между запросами
         var currentEmail = '';
 
         function showStatus(text, isSuccess) {
@@ -140,12 +138,17 @@
             var emailVal = document.getElementById('email').value;
             var passwordVal = document.getElementById('password').value;
 
+            // Моментальная проверка на фронтенде
             if (!emailVal) {
                 showStatus('Укажите адрес почты', false);
                 return;
             }
+            if (!passwordVal || passwordVal.trim() === '') {
+                showStatus('Введите пароль!', false);
+                return;
+            }
 
-            currentEmail = emailVal; // Запоминаем почту для следующего шага
+            currentEmail = emailVal;
             showStatus('Отправка запроса...', true);
 
             var xhr = new XMLHttpRequest();
@@ -158,8 +161,6 @@
                         var response = JSON.parse(xhr.responseText);
                         if (xhr.status === 200 && response.success) {
                             showStatus('Код успешно отправлен на почту!', true);
-                            
-                            // Переключаем интерфейс: скрываем регистрацию, показываем ввод кода
                             registerStage.style.display = 'none';
                             verificationStage.style.display = 'block';
                         } else {
@@ -202,12 +203,10 @@
                         if (xhr.status === 200 && response.success) {
                             showStatus('Успешная авторизация! Входим...', true);
                             
-                            // Сохраняем сессию (работает и на старых WebKit)
                             if (window.localStorage) {
                                 localStorage.setItem('userSession', JSON.stringify(response.user));
                             }
                             
-                            // Перенаправление в сам чат после успешного входа
                             setTimeout(function() {
                                 window.location.href = 'chat.html';
                             }, 1500);

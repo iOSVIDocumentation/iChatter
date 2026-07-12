@@ -18,8 +18,46 @@
 
         .login-container {
             width: 280px;
-            margin: 50px auto 0 auto;
+            margin: 30px auto 0 auto;
             padding: 20px;
+        }
+
+        /* Панель вкладок (Табы) */
+        .tab-container {
+            display: block;
+            width: 100%;
+            margin-bottom: 25px;
+            background-color: #383E44;
+            border-radius: 6px;
+            -webkit-border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid #2B3035;
+        }
+        
+        .tab-button {
+            display: inline-block;
+            width: 50%;
+            padding: 10px 0;
+            font-size: 15px;
+            font-weight: bold;
+            color: #A0A5AA;
+            background-color: #383E44;
+            border: none;
+            cursor: pointer;
+            float: left;
+            box-sizing: border-box;
+        }
+        
+        .tab-button.active {
+            background-color: #5B646E;
+            color: #FFFFFF;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.4);
+        }
+        
+        .clearfix::after {
+            content: "";
+            clear: both;
+            display: table;
         }
 
         .input-group {
@@ -83,14 +121,21 @@
 
     <div class="login-container">
         
-        <!-- СТАДИЯ 1: Регистрация / Запрос кода -->
-        <div id="register-stage">
-            <div class="input-group">
+        <!-- Вкладки переключения -->
+        <div class="tab-container clearfix" id="tabs-bar">
+            <button type="button" class="tab-button active" id="tab-login">Вход</button>
+            <button type="button" class="tab-button" id="tab-register">Регистрация</button>
+        </div>
+        
+        <!-- СТАДИЯ 1: Поля ввода -->
+        <div id="forms-stage">
+            <!-- Блок имени пользователя (скрыт при Входе, виден при Регистрации) -->
+            <div class="input-group" id="username-group" style="display: none;">
                 <input type="text" id="username" placeholder="Имя пользователя">
             </div>
 
             <div class="input-group">
-                <input type="text" id="email" placeholder="1rol4k2@gmail.com">
+                <input type="text" id="email" placeholder="example@mail.name">
             </div>
 
             <div class="input-group">
@@ -116,11 +161,38 @@
     <script>
         var btnSend = document.getElementById('btn-send');
         var btnVerify = document.getElementById('btn-verify');
-        var registerStage = document.getElementById('register-stage');
+        var formsStage = document.getElementById('forms-stage');
         var verificationStage = document.getElementById('verification-stage');
         var statusMessage = document.getElementById('status-message');
+        var tabsBar = document.getElementById('tabs-bar');
+        
+        var tabLogin = document.getElementById('tab-login');
+        var tabRegister = document.getElementById('tab-register');
+        var usernameGroup = document.getElementById('username-group');
 
+        // Переменная текущего режима ('login' или 'register')
+        var currentMode = 'login'; 
         var currentEmail = '';
+
+        // Переключение на вкладку ВХОД
+        tabLogin.onclick = function() {
+            currentMode = 'login';
+            tabLogin.className = 'tab-button active';
+            tabRegister.className = 'tab-button';
+            usernameGroup.style.display = 'none';
+            btnSend.innerText = 'Войти и получить код';
+            statusMessage.style.display = 'none';
+        };
+
+        // Переключение на вкладку РЕГИСТРАЦИЯ
+        tabRegister.onclick = function() {
+            currentMode = 'register';
+            tabRegister.className = 'tab-button active';
+            tabLogin.className = 'tab-button';
+            usernameGroup.style.display = 'block';
+            btnSend.innerText = 'Зарегистрироваться';
+            statusMessage.style.display = 'none';
+        };
 
         function showStatus(text, isSuccess) {
             statusMessage.innerText = text;
@@ -132,13 +204,16 @@
             }
         }
 
-        // 1. НАЖАТИЕ: ПОЛУЧИТЬ КОД
+        // 1. НАЖАТИЕ: ОТПРАВИТЬ ЗАПРОС КОДА / РЕГИСТРАЦИЯ
         btnSend.onclick = function() {
             var usernameVal = document.getElementById('username').value;
             var emailVal = document.getElementById('email').value;
             var passwordVal = document.getElementById('password').value;
 
-            // Моментальная проверка на фронтенде
+            if (currentMode === 'register' && (!usernameVal || usernameVal.trim() === '')) {
+                showStatus('Введите имя пользователя!', false);
+                return;
+            }
             if (!emailVal) {
                 showStatus('Укажите адрес почты', false);
                 return;
@@ -160,8 +235,9 @@
                     try {
                         var response = JSON.parse(xhr.responseText);
                         if (xhr.status === 200 && response.success) {
-                            showStatus('Код успешно отправлен на почту!', true);
-                            registerStage.style.display = 'none';
+                            showStatus('Код подтверждения отправлен на почту!', true);
+                            formsStage.style.display = 'none';
+                            tabsBar.style.display = 'none'; // Прячем вкладки на этапе ввода кода
                             verificationStage.style.display = 'block';
                         } else {
                             showStatus(response.error || 'Ошибка сервера', false);
@@ -175,13 +251,14 @@
             var data = JSON.stringify({
                 username: usernameVal,
                 email: emailVal,
-                password: passwordVal
+                password: passwordVal,
+                mode: currentMode // Отправляем режим (login/register) на бэк
             });
 
             xhr.send(data);
         };
 
-        // 2. НАЖАТИЕ: ПОДТВЕРДИТЬ КОД
+        // 2. НАЖАТИЕ: ПОДТВЕРДИТЬ КОД И ВОЙТИ
         btnVerify.onclick = function() {
             var codeVal = document.getElementById('verify-code').value;
 

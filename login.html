@@ -1,201 +1,172 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html>
 <head>
-    <meta charset="UTF-8">
+    <meta charset="utf-8">
     <title>iChatter - Вход</title>
+    <!-- Правильные мета-теги для старых iPhone/iPad, чтобы не зумило экран -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    
     <style>
-        html, body { 
-            height: 100%; 
-            margin: 0; 
-            padding: 0; 
-            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; 
-            background-color: #cbd2d9; 
-        }
-        
-        #auth-container { 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: flex-start; 
-            height: 100%; 
-        }
-        
-        .ios-header {
-            width: 100%; 
-            height: 44px;
-            background: linear-gradient(#768da5, #4c647f); 
-            border-bottom: 1px solid #2d3e52;
-            display: flex; 
-            align-items: center; 
-            justify-content: center;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.3); 
-            color: #fff; 
-        }
-        .ios-header h1 { 
-            font-size: 19px; 
-            margin: 0; 
-            font-weight: bold;
-            text-shadow: 0 -1px 0 rgba(0,0,0,0.6); 
-        }
-        
-        .ios-section-title {
-            width: 90%; 
-            max-width: 420px; 
-            margin: 25px auto 6px auto;
-            color: #4c566c; 
-            font-size: 14px; 
-            font-weight: bold;
-            text-shadow: 0 1px 0 #fff; 
-            text-align: left;
-            box-sizing: border-box;
-            padding-left: 10px;
+        /* Старые стили, которые гарантированно понимает WebKit в iOS 6 */
+        body {
+            background-color: #4A525A; /* Тот самый темно-серый фон */
+            margin: 0;
+            padding: 0;
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+            color: #FFFFFF;
+            text-align: center;
         }
 
-        .ios-table-view {
-            background: #ffffff; 
-            border: 1px solid #ababab; 
-            border-radius: 10px;
-            width: 90%; 
-            max-width: 420px; 
-            margin: 0 auto; 
-            overflow: hidden;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.1); 
-            display: flex; 
-            flex-direction: column;
+        .login-container {
+            width: 280px;
+            margin: 50px auto 0 auto;
+            padding: 20px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+
+        /* Олдскульные инпуты, похожие на твои */
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 12px 8px;
+            background-color: #5B646E;
+            border: 1px solid #3A4045;
+            color: #FFFFFF;
+            font-size: 16px; /* 16px предотвращает авто-зум на iOS */
+            border-radius: 4px;
+            -webkit-border-radius: 4px; /* Для iOS 6 */
             box-sizing: border-box;
+            -webkit-box-sizing: border-box;
         }
-        
-        .ios-input-cell { 
-            padding: 12px 15px; 
-            border-bottom: 1px solid #cccccc; 
-            display: flex; 
-            align-items: center;
-            background: #ffffff;
+
+        /* Стилизация плейсхолдеров для старого WebKit */
+        input::-webkit-input-placeholder {
+            color: #A0A5AA;
         }
-        .ios-input-cell:last-child { 
-            border-bottom: none; 
-        }
-        
-        .ios-input-cell input { 
-            border: none; 
-            outline: none; 
-            font-size: 16px; 
-            width: 100%; 
-            background: transparent; 
-            color: #000000;
-        }
-        
-        .ios-action-btn {
-            width: 90%; 
-            max-width: 420px; 
-            margin: 20px auto; 
-            padding: 12px; 
-            font-size: 17px; 
-            font-weight: bold; 
-            color: #ffffff; 
-            background: linear-gradient(#5a7494, #374e6c);
-            border: 1px solid #26384f; 
-            border-radius: 8px; 
+
+        /* Кнопка отправки */
+        .btn-submit {
+            width: 100%;
+            padding: 12px;
+            background-color: #1F2D3D;
+            border: 1px solid #141D27;
+            color: #A4B3C6;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 4px;
+            -webkit-border-radius: 4px;
             cursor: pointer;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 1px 2px rgba(0,0,0,0.2);
-            text-shadow: 0 -1px 0 rgba(0,0,0,0.5);
-            box-sizing: border-box;
+            margin-top: 10px;
         }
-        .ios-action-btn:active { 
-            background: linear-gradient(#374e6c, #26384f); 
+
+        .btn-submit:active {
+            background-color: #141D27;
+        }
+
+        /* Блок для вывода ошибок БЕЗ alert() */
+        #status-message {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #FF6B6B; /* Красный для ошибок */
+            font-weight: bold;
+            display: none; /* Изначально скрыт */
+        }
+        
+        #status-message.success {
+            color: #2ECC71; /* Зеленый для успеха */
         }
     </style>
 </head>
 <body>
 
-    <div id="auth-container">
-        <div class="ios-header">
-            <h1>iChatter Вход</h1>
-        </div>
+    <div class="login-container">
         
-        <div id="step-email-block" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
-            <div class="ios-section-title">АВТОРИЗАЦИЯ</div>
-            <div class="ios-table-view">
-                <div class="ios-input-cell">
-                    <input type="email" id="email-field" placeholder="Email (например, name@mail.com)">
-                </div>
-                <div class="ios-input-cell">
-                    <input type="text" id="username-field" placeholder="Имя пользователя (никнейм)">
-                </div>
-                <div class="ios-input-cell">
-                    <!-- Новое поле для постоянного пароля -->
-                    <input type="password" id="password-field" placeholder="Пароль доступа">
-                </div>
-            </div>
-            <button class="ios-action-btn" onclick="requestVerificationCode()">Получить код на почту</button>
+        <!-- Поля ввода -->
+        <div class="input-group">
+            <input type="text" id="username" placeholder="Имя пользователя">
         </div>
 
-        <div id="step-code-block" style="width: 100%; display: none; flex-direction: column; align-items: center;">
-            <div class="ios-section-title">ПОДТВЕРЖДЕНИЕ ПОЧТЫ</div>
-            <div class="ios-table-view">
-                <div class="ios-input-cell">
-                    <input type="text" id="code-field" placeholder="Введите 6-значный код">
-                </div>
-            </div>
-            <button class="ios-action-btn" onclick="submitVerificationCode()">Войти в мессенджер</button>
+        <div class="input-group">
+            <input type="text" id="email" placeholder="example@mail.name">
         </div>
+
+        <div class="input-group">
+            <input type="password" id="password" placeholder="••••••••••••">
+        </div>
+
+        <!-- Кнопка -->
+        <button type="button" class="btn-submit" id="btn-send">Получить код на почту</button>
+
+        <!-- Текстовое уведомление вместо всплывашек -->
+        <div id="status-message"></div>
+
     </div>
 
     <script>
-        function requestVerificationCode() {
-            const email = document.getElementById('email-field').value.trim();
-            const username = document.getElementById('username-field').value.trim();
-            const password = document.getElementById('password-field').value;
+        // Старый добрый JavaScript без стрелочных функций (=>), которые ломают iOS 6
+        var btnSend = document.getElementById('btn-send');
+        var statusMessage = document.getElementById('status-message');
+
+        // Функция показа сообщений прямо на экране
+        function showStatus(text, isSuccess) {
+            statusMessage.innerText = text;
+            statusMessage.style.display = 'block';
+            if (isSuccess) {
+                statusMessage.className = 'success';
+            } else {
+                statusMessage.className = '';
+            }
+        }
+
+        btnSend.onclick = function() {
+            var usernameVal = document.getElementById('username').value;
+            var emailVal = document.getElementById('email').value;
+            var passwordVal = document.getElementById('password').value;
+
+            if (!emailVal) {
+                showStatus('Укажите адрес почты', false);
+                return;
+            }
+
+            showStatus('Отправка запроса...', true);
+
+            // Используем стандартный XMLHttpRequest, так как fetch на iOS 6 не существует!
+            var xhr = new XMLHttpRequest();
             
-            if (!email) return alert('Пожалуйста, заполните поле Email!');
-            if (!username) return alert('Пожалуйста, введите никнейм!');
-            if (!password) return alert('Пожалуйста, введите пароль!');
+            // Здесь автоматически подхватится адрес воркера/сервера
+            xhr.open('POST', window.location.origin + '/api/send-code', true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
 
-            fetch('/api/send-code', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, username, password })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.error) return alert(data.error);
-                
-                alert("Пароль верен! Код отправлен на ваш почтовый ящик.");
-                document.getElementById('step-email-block').style.display = 'none';
-                document.getElementById('step-code-block').style.display = 'flex';
-            })
-            .catch(err => {
-                alert("Ошибка: Сервер не отвечает.");
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    try {
+                        var response = JSON.parse(xhr.responseText);
+                        if (xhr.status === 200 && response.success) {
+                            showStatus('Код успешно отправлен на почту!', true);
+                            // Здесь можешь добавить переход на страницу ввода кода через пару секунд, если нужно:
+                            // setTimeout(function() { window.location.href = 'verify.html'; }, 2000);
+                        } else {
+                            showStatus(response.error || 'Ошибка сервера', false);
+                        }
+                    } catch(e) {
+                        showStatus('Ошибка ответа сервера', false);
+                    }
+                }
+            };
+
+            var data = JSON.stringify({
+                username: usernameVal,
+                email: emailVal,
+                password: passwordVal
             });
-        }
 
-        function submitVerificationCode() {
-            const email = document.getElementById('email-field').value.trim();
-            const code = document.getElementById('code-field').value.trim();
-            const username = document.getElementById('username-field').value.trim();
-
-            if (!code) return alert('Введите код авторизации!');
-
-            fetch('/api/verify-code', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, code, username })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.error) return alert(data.error);
-                
-                localStorage.setItem('userId', data.user.id);
-                localStorage.setItem('userData', JSON.stringify(data.user));
-                
-                alert("Вход успешно выполнен!");
-                window.location.href = '/chat';
-            })
-            .catch(err => {
-                alert("Ошибка обработки подтверждения кода.");
-            });
-        }
+            xhr.send(data);
+        };
     </script>
+
 </body>
 </html>

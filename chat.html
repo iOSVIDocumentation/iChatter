@@ -343,7 +343,8 @@
         }
     </style>
 </head>
-<body id="main-body" class="theme-vintage" style="display: none;">
+<!-- Принудительно возвращаем display: flex для отображения контента -->
+<body id="main-body" class="theme-vintage" style="display: flex;">
 
 <div id="sidebar">
     <div class="sidebar-header">
@@ -616,12 +617,11 @@
 
 <div class="context-menu" id="global-context-menu"></div>
 
-<!-- Подключаем Socket.io из глобального CDN, чтобы избежать 404 ошибок воркера -->
-<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<!-- ПРЯМОЕ ПОДКЛЮЧЕНИЕ ЧЕРЕЗ БЭКЕНД: обходим капризную политику CSP воркера -->
+<script src="https://colour-slowly-complications-trade.trycloudflare.com/socket.io/socket.io.js"></script>
 
 <script>
     window.addEventListener('DOMContentLoaded', function() {
-        // Динамически подставляем домен твоего Воркера
         var SERVER_URL = window.location.origin;
         
         var originalFetch = window.fetch;

@@ -3,77 +3,82 @@
 <head>
     <meta charset="utf-8">
     <title>iChatter</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <style>
-        /* CSS для iOS 6 */
-        html, body { height: 100%; margin: 0; padding: 0; background-color: #4A525A; color: #fff; font-family: Helvetica; }
-        
-        #container { display: -webkit-box; width: 100%; height: 100%; }
-        #sidebar { width: 300px; background-color: #383E44; border-right: 1px solid #2B3035; }
-        
-        /* Кнопки */
-        .btn-ios { padding: 10px; margin: 5px; background: #1F2D3D; color: #fff; border: 1px solid #000; cursor: pointer; display: inline-block; }
-        
-        /* Модальные окна (старый метод) */
-        .modal { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999; background: rgba(0,0,0,0.5); }
-        .modal-box { margin: 50px auto; width: 250px; background: #383E44; padding: 20px; border-radius: 10px; border: 1px solid #fff; }
-        
-        input { width: 230px; margin-bottom: 10px; padding: 8px; }
+        /* Темная тема (iOS 6 совместимый стиль) */
+        body { background: #4A525A; color: #fff; font-family: Helvetica; margin: 0; }
+        .light-theme { background: #f0f0f0; color: #000; }
+        .sidebar { width: 300px; background: #383E44; border-right: 1px solid #000; }
+        .menu-btn { padding: 10px; width: 100%; border: none; background: #2B3035; color: #fff; text-align: left; cursor: pointer; }
+        .modal { display: none; position: absolute; top: 10px; left: 10px; width: 280px; background: #383E44; border: 2px solid #fff; padding: 15px; z-index: 9999; }
+        .msg { border-bottom: 1px solid #555; padding: 10px; position: relative; }
+        .msg-actions { font-size: 10px; color: #aaa; cursor: pointer; }
     </style>
 </head>
 <body>
 
-<div id="container">
-    <div id="sidebar">
-        <div style="padding:10px;">
-            <button class="btn-ios" id="btn-settings">⚙️</button>
-            <button class="btn-ios" id="btn-id">🔍 ID</button>
-        </div>
-        <div id="chats-list"></div>
-    </div>
+<div class="sidebar">
+    <button class="menu-btn" onclick="showModal('settings')">⚙️ Настройки</button>
+    <button class="menu-btn" onclick="showModal('search')">🔍 Поиск по ID</button>
+    <button class="menu-btn" onclick="toggleArchive()">📁 Архив</button>
+    <div id="chat-list"></div>
 </div>
 
-<!-- Модальные окна -->
-<div id="settings-modal" class="modal">
-    <div class="modal-box">
-        <h3>Настройки</h3>
-        <p>Ваш ID: <span id="my-id-text"></span></p>
-        <input type="text" id="input-name" placeholder="Имя">
-        <button class="btn-ios" id="btn-save">Сохранить</button>
-        <button class="btn-ios" id="btn-close-set">Закрыть</button>
-    </div>
+<!-- Модальное окно: Настройки (Профиль, Язык, Тема) -->
+<div id="settings" class="modal">
+    <h3>Настройки</h3>
+    <p>ID: <span id="my-id"></span></p>
+    <input id="p-name" placeholder="Имя">
+    <input id="p-age" placeholder="Возраст">
+    <textarea id="p-about" placeholder="О себе"></textarea>
+    <select id="theme-sel" onchange="changeTheme()">
+        <option value="dark">Темная</option>
+        <option value="light">Светлая</option>
+    </select>
+    <button onclick="saveSettings()">Сохранить</button>
+    <button onclick="hideAll()">Закрыть</button>
+</div>
+
+<!-- Модальное окно: Поиск -->
+<div id="search" class="modal">
+    <h3>Поиск</h3>
+    <input id="search-input" placeholder="Введите ID">
+    <button onclick="findUser()">Найти</button>
+    <button onclick="hideAll()">Закрыть</button>
 </div>
 
 <script>
-    // 1. Генерируем уникальный ID для каждого пользователя
-    var myUserID = localStorage.getItem('userId');
-    if (!myUserID) {
-        myUserID = 'User_' + Math.floor(Math.random() * 10000);
-        localStorage.setItem('userId', myUserID);
+    // 1. Инициализация ID
+    if(!localStorage.getItem('myID')) localStorage.setItem('myID', Math.random().toString(36).substr(2, 6));
+    document.getElementById('my-id').innerText = localStorage.getItem('myID');
+
+    // 2. Логика тем
+    function changeTheme() {
+        document.body.className = document.getElementById('theme-sel').value === 'light' ? 'light-theme' : '';
     }
 
-    // 2. Обработчики событий (iOS 6 любит старый синтаксис)
-    document.getElementById('btn-settings').onclick = function() {
-        document.getElementById('settings-modal').style.display = 'block';
-        document.getElementById('my-id-text').innerHTML = myUserID;
-    };
+    // 3. Редактирование и удаление (с пометками)
+    function editMsg(id) {
+        var newText = prompt("Редактировать:");
+        if(newText) document.getElementById('m'+id).innerHTML = newText + ' <small>(ред.)</small>';
+    }
 
-    document.getElementById('btn-close-set').onclick = function() {
-        document.getElementById('settings-modal').style.display = 'none';
-    };
+    function delMsg(id) {
+        document.getElementById('m'+id).innerHTML = '<i>Сообщение удалено</i>';
+    }
 
-    document.getElementById('btn-id').onclick = function() {
-        var id = prompt("Введите ID пользователя:");
-        if (id) alert("Поиск ID: " + id);
-    };
+    // 4. Управление окнами
+    function showModal(id) { document.getElementById(id).style.display = 'block'; }
+    function hideAll() { 
+        document.getElementById('settings').style.display = 'none'; 
+        document.getElementById('search').style.display = 'none'; 
+    }
 
-    document.getElementById('btn-save').onclick = function() {
-        var name = document.getElementById('input-name').value;
-        localStorage.setItem('username', name);
-        alert("Сохранено!");
-        document.getElementById('settings-modal').style.display = 'none';
-    };
+    function saveSettings() {
+        localStorage.setItem('name', document.getElementById('p-name').value);
+        alert('Данные сохранены!');
+        hideAll();
+    }
 </script>
-
 </body>
 </html>

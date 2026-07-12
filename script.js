@@ -1,4 +1,4 @@
-// Конфигурация бэкенда (адрес твоего туннеля)
+// Конфигурация бэкенда (адрес твоего туннеля Cloudflare)
 var BACKEND_URL = "https://colour-slowly-complications-trade.trycloudflare.com";
 
 var socket;
@@ -6,6 +6,7 @@ var currentActiveChatPartner = null;
 var currentRoom = null;
 var myUsername = localStorage.getItem('ichatter_username') || "User_" + Math.floor(Math.random() * 1000);
 var chatSettings = {};
+var activeDialogs = []; // Список чатов изначально пуст, как при регистрации!
 
 try {
     if (localStorage.getItem('ichatter_settings')) {
@@ -15,7 +16,7 @@ try {
     console.log("Ошибка загрузки настроек");
 }
 
-// Безопасный запуск после загрузки страницы для iOS 6
+// Безопасная инициализация для iOS 6 Safari
 if (document.addEventListener) {
     document.addEventListener("DOMContentLoaded", function() {
         initApp();
@@ -27,25 +28,33 @@ if (document.addEventListener) {
 }
 
 function initApp() {
-    // Показываем основной блок чата и задаем ему базовые свойства, если флексы не сработают
+    // Чиним отображение главного body для старого WebKit
     var mainBody = document.getElementById("main-body");
     if (mainBody) {
-        mainBody.style.display = "block"; 
         mainBody.style.display = "-webkit-box";
         mainBody.style.display = "-webkit-flex";
         mainBody.style.display = "flex";
     }
 
-    // Обновляем имя профиля на кнопке (если элемент есть)
+    // Чиним контейнер сайдбара
+    var sidebar = document.getElementById("sidebar");
+    if (sidebar) {
+        sidebar.style.display = "-webkit-box";
+        sidebar.style.display = "-webkit-flex";
+        sidebar.style.display = "flex";
+        sidebar.style.webkitBoxOrient = "vertical";
+    }
+
+    // Выводим имя пользователя в профиль (верхний левый угол)
     var profileNameBtn = document.getElementById("my-profile-name");
     if (profileNameBtn) {
         profileNameBtn.innerText = myUsername;
     }
 
-    // Запускаем сокеты
+    // Подключаем сокеты
     initSocket();
 
-    // Навешиваем обработчик на форму отправки сообщений
+    // Обработчик отправки сообщений из формы
     var form = document.getElementById("form");
     if (form) {
         form.addEventListener("submit", function(e) {
@@ -54,16 +63,16 @@ function initApp() {
         });
     }
 
-    // Привязываем поиск и настройки к твоим кнопкам-иконкам
+    // Оживляем кнопки поиска и настроек из твоего HTML
     initSearchAndSettings();
 
-    // Загружаем список чатов
+    // Отрендерить пустой список диалогов
     renderChatsList();
 }
 
 function initSocket() {
     if (typeof io === "undefined") {
-        console.log("Socket.io не найден! Проверь подключение скрипта бэкенда.");
+        console.log("Socket.io не найден!");
         return;
     }
 
@@ -72,7 +81,7 @@ function initSocket() {
     });
 
     socket.on("connect", function() {
-        console.log("Успешно подключено к бэкенду чата!");
+        console.log("Успешно подключено к бэкенду!");
         socket.emit("user_join", { username: myUsername });
     });
 
@@ -83,71 +92,111 @@ function initSocket() {
     });
 }
 
+// Рендеринг списка чатов под дизайн окон авторизации/регистрации
 function renderChatsList() {
     var chatsList = document.getElementById("chats-list");
     if (!chatsList) return;
 
     chatsList.innerHTML = "";
     
-    // Список контактов (демо-данные)
-    var demoChats = ["Ostap", "Friend_Germany", "Developer"];
+    // Если чатов нет (как после регистрации)
+    if (activeDialogs.length === 0) {
+        var emptyNotice = document.createElement("div");
+        emptyNotice.style.padding = "30px 15px";
+        emptyNotice.style.color = "#555555";
+        emptyNotice.style.textAlign = "center";
+        emptyNotice.style.fontSize = "13px";
+        emptyNotice.style.fontFamily = "Helvetica Neue, Arial, sans-serif";
+        emptyNotice.style.textShadow = "0 1px 0 rgba(255,255,255,0.6)";
+        emptyNotice.innerText = "Нет активных диалогов.\nНажмите 🔍 чтобы найти собеседника.";
+        chatsList.appendChild(emptyNotice);
+        return;
+    }
     
-    for (var i = 0; i < demoChats.length; i++) {
+    // Если чаты есть, строим их по структуре твоего HTML
+    for (var i = 0; i < activeDialogs.length; i++) {
         (function(user) {
             var item = document.createElement("div");
+            
+            // Задаем классы из твоего файла стилей
             item.className = "chat-item";
             if (currentActiveChatPartner === user) {
                 item.className += " active";
             }
             
-            item.innerHTML = '<div class="chat-info-block" style="display:-webkit-box; display:flex; -webkit-box-align:center; align-items:center; padding:10px; cursor:pointer;">' +
-                '<div class="avatar-placeholder" style="background:#4a6c9b; width:35px; height:35px; border-radius:50%; color:#fff; text-align:center; line-height:35px; margin-right:10px; font-weight:bold;">' + user[0] + '</div>' +
-                '<strong style="color:#000; font-size:16px;">' + user + '</strong>' +
-            '</div>';
+            // Добавляем ретро-флекс для iOS 6, чтобы элементы не сжимались
+            item.style.display = "-webkit-box";
+            item.style.display = "-webkit-flex";
+            item.style.display = "flex";
+            item.style.webkitBoxAlign = "center";
+            item.style.alignItems = "center";
+
+            // Внутренний блок диалога с глянцевой круглой аватаркой в стиле iOS
+            item.innerHTML = 
+                '<div class="chat-info-block" style="display:-webkit-box; display:flex; -webkit-box-align:center; align-items:center; gap:12px;">' +
+                    '<div class="avatar-placeholder" style="' +
+                        'background: -webkit-linear-gradient(top, #7abcff 0%, #4096ee 100%); ' +
+                        'background: linear-gradient(to bottom, #7abcff 0%, #4096ee 100%); ' +
+                        'width: 40px; height: 40px; border-radius: 50%; color: #fff; ' +
+                        'display: -webkit-box; display: flex; -webkit-box-pack: center; justify-content: center; ' +
+                        '-webkit-box-align: center; align-items: center; ' +
+                        'font-weight: bold; border: 1px solid #286096; box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 1px 2px rgba(0,0,0,0.3);">' + 
+                        user[0].toUpperCase() + 
+                    '</div>' +
+                    '<div style="-webkit-box-flex: 1; flex-grow: 1;">' +
+                        '<strong style="color: var(--text-main); font-size: 15px; font-family: Helvetica Neue, Arial;">' + user + '</strong>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="status-dot online" style="margin-top:0; margin-left:auto;">●</div>';
             
             item.onclick = function() {
                 startChatWithUser(user);
             };
+            
             chatsList.appendChild(item);
-        })(demoChats[i]);
+        })(activeDialogs[i]);
     }
 }
 
+// Привязка к точным ID элементов из твоего HTML
 function initSearchAndSettings() {
-    // 1. Привязка к кнопке-шестерёнке (Настройки)
-    // Ищет элементы по классам или картинкам внутри кнопок верхнего бара
-    var settingsBtns = document.querySelectorAll(".settings-btn, [class*='gear'], [class*='settings']");
-    
-    // Если по классам не нашлось, вешаем клик на вторую круглую кнопку вверху (судя по твоему скриншоту)
-    if (settingsBtns.length === 0) {
-        var allButtons = document.getElementsByTagName("button");
-        if (allButtons.length >= 2) {
-            // Предполагаем, что первая лупа, вторая шестеренка
-            allButtons[1].onclick = function() { openMyProfile(); };
-        }
-    } else {
-        for (var i = 0; i < settingsBtns.length; i++) {
-            settingsBtns[i].onclick = function() {
-                openMyProfile();
-            };
-        }
-    }
-
-    // 2. Привязка к кнопке-лупе (Поиск / Создание чата через prompt)
-    var searchBtns = document.querySelectorAll(".search-btn, [class*='search']");
-    if (searchBtns.length === 0 && document.getElementsByTagName("button").length > 0) {
-        document.getElementsByTagName("button")[0].onclick = function() {
-            triggerSearchPrompt();
+    // Кнопка Лупы (Поиск)
+    var searchToggleBtn = document.getElementById("search-toggle-btn");
+    if (searchToggleBtn) {
+        searchToggleBtn.onclick = function() {
+            // Переключаем видимость встроенной панели поиска, если она нужна
+            var searchFrame = document.getElementById("search-frame");
+            if (searchFrame) {
+                if (searchFrame.className.indexOf("active") !== -1) {
+                    searchFrame.className = searchFrame.className.replace(" active", "");
+                } else {
+                    searchFrame.className += " active";
+                    var srcInput = document.getElementById("search-input");
+                    if (srcInput) srcInput.focus();
+                }
+            }
+            
+            // Альтернативный надежный ввод имени для iOS 6 через prompt
+            var person = prompt("Введите имя пользователя для начала чата:", "");
+            if (person && person.trim() !== "") {
+                var cleanName = person.trim();
+                if (activeDialogs.indexOf(cleanName) === -1) {
+                    activeDialogs.push(cleanName);
+                }
+                startChatWithUser(cleanName);
+            }
         };
-    } else {
-        for (var j = 0; j < searchBtns.length; j++) {
-            searchBtns[j].onclick = function() {
-                triggerSearchPrompt();
-            };
-        }
     }
 
-    // 3. Кнопка закрытия модалки настроек
+    // Кнопка Шестерёнки (Настройки)
+    var settingsToggleBtn = document.getElementById("settings-toggle-btn");
+    if (settingsToggleBtn) {
+        settingsToggleBtn.onclick = function() {
+            openMyProfile();
+        };
+    }
+
+    // Крестик закрытия модалки настроек
     var closeSettingsBtn = document.getElementById("settings-close-btn");
     if (closeSettingsBtn) {
         closeSettingsBtn.onclick = function() {
@@ -158,7 +207,7 @@ function initSearchAndSettings() {
         };
     }
 
-    // 4. Кнопка "Назад" для мобильной версии/узких экранов iPad
+    // Кнопка возврата Назад (для iPad в портретном/мобильном режиме)
     var backBtn = document.getElementById("btn-back");
     if (backBtn) {
         backBtn.onclick = function() {
@@ -167,32 +216,28 @@ function initSearchAndSettings() {
     }
 }
 
-// Функция вызова ретро-окна поиска, которая на 100% сработает везде
-function triggerSearchPrompt() {
-    var person = prompt("Введите имя пользователя для поиска или начала диалога:", "");
-    if (person && person.trim() !== "") {
-        startChatWithUser(person.trim());
-    }
-}
-
+// Открытие чата с пользователем
 function startChatWithUser(username) {
     currentActiveChatPartner = username;
     currentRoom = [myUsername, username].sort().join("_");
     
+    // Скрываем заглушку "Выберите чат"
     var placeholder = document.getElementById("no-chat-placeholder");
     if (placeholder) placeholder.style.display = "none";
     
+    // Показываем и разворачиваем область чата через префиксы WebKit
     var chatArea = document.getElementById("chat-area");
     if (chatArea) {
-        chatArea.style.display = "block";
         chatArea.style.display = "-webkit-box";
         chatArea.style.display = "-webkit-flex";
         chatArea.style.display = "flex";
     }
     
+    // Меняем заголовок чата на имя собеседника
     var titleText = document.getElementById("chat-title-text");
     if (titleText) titleText.innerText = username;
     
+    // Очищаем окно сообщений перед загрузкой новых
     var messagesUl = document.getElementById("messages");
     if (messagesUl) messagesUl.innerHTML = "";
     
@@ -200,6 +245,7 @@ function startChatWithUser(username) {
         socket.emit("join_room", { room: currentRoom });
     }
     
+    // Перерендерить список, чтобы подсветить активный чат
     renderChatsList();
     
     if (document.body.className.indexOf("chat-opened") === -1) {
@@ -231,6 +277,7 @@ function displayNewMessage(data) {
     if (!messagesUl) return;
 
     var isMy = data.sender === myUsername;
+    
     var container = document.createElement("div");
     container.className = "msg-container" + (isMy ? " my-wrapper" : "");
 
@@ -244,7 +291,35 @@ function displayNewMessage(data) {
 
     container.appendChild(li);
     messagesUl.appendChild(container);
+    
+    // Автоскролл вниз
     messagesUl.scrollTop = messagesUl.scrollHeight;
+}
+
+function openMyProfile() {
+    var modal = document.getElementById("settings-modal");
+    if (modal) {
+        if (modal.className.indexOf("active") === -1) {
+            modal.className += " active";
+        }
+        
+        // Заполняем поле инпута в настройках текущим ником
+        var nameInput = document.getElementById("profile-display-name");
+        if (nameInput) nameInput.value = myUsername;
+        
+        var infoNick = document.getElementById("info-nick");
+        if (infoNick) infoNick.innerText = "@" + myUsername.toLowerCase();
+    }
+}
+
+// Функция сохранения имени из модалки настроек
+function saveMyDisplayName(val) {
+    if (val && val.trim() !== "") {
+        myUsername = val.trim();
+        localStorage.setItem('ichatter_username', myUsername);
+        var profileNameBtn = document.getElementById("my-profile-name");
+        if (profileNameBtn) profileNameBtn.innerText = myUsername;
+    }
 }
 
 function toggleAttachmentMenu() {
@@ -254,25 +329,6 @@ function toggleAttachmentMenu() {
             bubble.className = bubble.className.replace(" active", "");
         } else {
             bubble.className += " active";
-        }
-    }
-}
-
-function openMyProfile() {
-    var modal = document.getElementById("settings-modal");
-    if (modal) {
-        if (modal.className.indexOf("active") === -1) {
-            modal.className += " active";
-        }
-    } else {
-        // Если модалки нет в HTML, просто даем сменить ник через prompt
-        var newName = prompt("Ваш текущий ник: " + myUsername + "\nВведите новый ник:", myUsername);
-        if (newName && newName.trim() !== "") {
-            myUsername = newName.trim();
-            localStorage.setItem('ichatter_username', myUsername);
-            var profileNameBtn = document.getElementById("my-profile-name");
-            if (profileNameBtn) profileNameBtn.innerText = myUsername;
-            if (socket) socket.emit("user_join", { username: myUsername });
         }
     }
 }

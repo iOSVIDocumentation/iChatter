@@ -3,96 +3,76 @@
 <head>
     <meta charset="utf-8">
     <title>iChatter</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
-        body { background-color: #4A525A; font-family: "Helvetica Neue", sans-serif; color: #fff; margin: 0; display: flex; height: 100vh; }
-        .light-theme { background-color: #f0f0f0 !important; color: #000 !important; }
+        /* CSS для iOS 6 */
+        html, body { height: 100%; margin: 0; padding: 0; background-color: #4A525A; color: #fff; font-family: Helvetica; }
         
-        #sidebar { width: 300px; background-color: #383E44; border-right: 1px solid #2B3035; display: flex; flex-direction: column; }
-        .chat-item { padding: 15px; border-bottom: 1px solid #2B3035; cursor: pointer; }
+        #container { display: -webkit-box; width: 100%; height: 100%; }
+        #sidebar { width: 300px; background-color: #383E44; border-right: 1px solid #2B3035; }
         
-        #chat-area { flex: 1; display: none; flex-direction: column; }
-        .my-msg { background-color: #1F2D3D; padding: 10px; border-radius: 6px; margin: 5px; color: #fff; }
+        /* Кнопки */
+        .btn-ios { padding: 10px; margin: 5px; background: #1F2D3D; color: #fff; border: 1px solid #000; cursor: pointer; display: inline-block; }
         
-        /* Стили для всех модальных окон */
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; }
-        .modal-box { margin: 100px auto; width: 300px; background: #383E44; padding: 20px; border-radius: 12px; color: #fff; text-align: center; }
-        input, select, textarea { width: 100%; margin-bottom: 10px; padding: 10px; box-sizing: border-box; background: #5B646E; border: none; color: #fff; border-radius: 5px; }
-        button { padding: 10px 20px; cursor: pointer; background: #1F2D3D; color: #fff; border: none; border-radius: 5px; }
+        /* Модальные окна (старый метод) */
+        .modal { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999; background: rgba(0,0,0,0.5); }
+        .modal-box { margin: 50px auto; width: 250px; background: #383E44; padding: 20px; border-radius: 10px; border: 1px solid #fff; }
+        
+        input { width: 230px; margin-bottom: 10px; padding: 8px; }
     </style>
 </head>
 <body>
 
-<div id="sidebar">
-    <div style="padding:10px;">
-        <button onclick="openSettings()">⚙️</button>
-        <button onclick="showCustomPrompt()">🔍 ID</button>
-    </div>
-    <div id="chats-list"></div>
-</div>
-
-<div id="chat-area">
-    <div id="chat-title" style="padding:10px; font-weight:bold;"></div>
-    <ul id="messages" style="list-style: none; padding: 0;"></ul>
-    <form id="form" style="padding:10px;">
-        <input type="text" id="input" placeholder="Сообщение...">
-        <button type="submit">Отправить</button>
-    </form>
-</div>
-
-<!-- Универсальное модальное окно для ввода (вместо prompt) -->
-<div id="custom-prompt-modal" class="modal-overlay">
-    <div class="modal-box">
-        <p>Введите ID пользователя:</p>
-        <input type="text" id="prompt-input">
-        <button onclick="submitPrompt()">OK</button>
-        <button onclick="hideModal('custom-prompt-modal')">Отмена</button>
+<div id="container">
+    <div id="sidebar">
+        <div style="padding:10px;">
+            <button class="btn-ios" id="btn-settings">⚙️</button>
+            <button class="btn-ios" id="btn-id">🔍 ID</button>
+        </div>
+        <div id="chats-list"></div>
     </div>
 </div>
 
-<!-- Окно настроек -->
-<div id="settings-modal" class="modal-overlay">
+<!-- Модальные окна -->
+<div id="settings-modal" class="modal">
     <div class="modal-box">
         <h3>Настройки</h3>
-        <p>Ваш ID: <strong id="display-my-id"></strong></p>
-        <input type="text" id="profile-name" placeholder="Имя">
-        <select id="theme-select" onchange="toggleTheme()">
-            <option value="dark">Темная тема</option>
-            <option value="light">Светлая тема</option>
-        </select>
-        <button onclick="saveSettings()">Сохранить</button>
-        <button onclick="hideModal('settings-modal')">Закрыть</button>
+        <p>Ваш ID: <span id="my-id-text"></span></p>
+        <input type="text" id="input-name" placeholder="Имя">
+        <button class="btn-ios" id="btn-save">Сохранить</button>
+        <button class="btn-ios" id="btn-close-set">Закрыть</button>
     </div>
 </div>
 
 <script>
-    let myUserID = localStorage.getItem('userId') || Math.random().toString(36).substr(2, 9);
-    localStorage.setItem('userId', myUserID);
-
-    // Функции окон
-    function showCustomPrompt() { document.getElementById('custom-prompt-modal').style.display = 'block'; }
-    function openSettings() { 
-        document.getElementById('settings-modal').style.display = 'block'; 
-        document.getElementById('display-my-id').innerText = myUserID;
+    // 1. Генерируем уникальный ID для каждого пользователя
+    var myUserID = localStorage.getItem('userId');
+    if (!myUserID) {
+        myUserID = 'User_' + Math.floor(Math.random() * 10000);
+        localStorage.setItem('userId', myUserID);
     }
-    function hideModal(id) { document.getElementById(id).style.display = 'none'; }
 
-    function submitPrompt() {
-        let id = document.getElementById('prompt-input').value;
+    // 2. Обработчики событий (iOS 6 любит старый синтаксис)
+    document.getElementById('btn-settings').onclick = function() {
+        document.getElementById('settings-modal').style.display = 'block';
+        document.getElementById('my-id-text').innerHTML = myUserID;
+    };
+
+    document.getElementById('btn-close-set').onclick = function() {
+        document.getElementById('settings-modal').style.display = 'none';
+    };
+
+    document.getElementById('btn-id').onclick = function() {
+        var id = prompt("Введите ID пользователя:");
         if (id) alert("Поиск ID: " + id);
-        hideModal('custom-prompt-modal');
-    }
+    };
 
-    function saveSettings() {
-        localStorage.setItem('username', document.getElementById('profile-name').value);
+    document.getElementById('btn-save').onclick = function() {
+        var name = document.getElementById('input-name').value;
+        localStorage.setItem('username', name);
         alert("Сохранено!");
-        hideModal('settings-modal');
-    }
-
-    function toggleTheme() {
-        let theme = document.getElementById('theme-select').value;
-        document.body.className = (theme === 'light') ? 'light-theme' : '';
-    }
+        document.getElementById('settings-modal').style.display = 'none';
+    };
 </script>
 
 </body>

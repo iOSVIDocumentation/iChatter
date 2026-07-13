@@ -5,24 +5,25 @@
     <title>iChatter OS 6</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <style>
-        /* Базовые стили, совместимые с iOS 6 Safari */
         body { background: #4A525A; color: #fff; font-family: Helvetica, sans-serif; margin: 0; padding: 0; }
         .sidebar { width: 300px; background: #383E44; border-right: 1px solid #000; position: absolute; top: 0; left: 0; bottom: 0; }
         .main-chat { margin-left: 300px; padding: 15px; }
         .menu-btn { padding: 12px; width: 100%; border: none; background: #2B3035; color: #fff; text-align: left; cursor: pointer; border-bottom: 1px solid #222; }
-        
-        /* Окна (модалки) */
         .modal { display: none; position: absolute; top: 20px; left: 20px; width: 280px; background: #383E44; border: 2px solid #aaa; padding: 15px; z-index: 9999; box-shadow: 0 0 10px #000; }
-        
         input, select, textarea { width: 90%; margin-bottom: 10px; padding: 8px; font-size: 14px; }
         button { padding: 8px; background: #555; color: #fff; border: 1px solid #777; cursor: pointer; margin-top: 5px; }
-        .msg { border-bottom: 1px solid #555; padding: 10px 0; }
+        
+        /* Стиль для отображения твоего текущего ника */
+        .user-status { padding: 15px; background: #23272B; font-weight: bold; color: #5ea4ff; border-bottom: 1px solid #000; font-size: 14px; }
     </style>
 </head>
 <body>
 
 <!-- Боковое меню -->
 <div class="sidebar">
+    <!-- Тут будет красиво выводиться твой ник после входа -->
+    <div id="my-nick-display" class="user-status">👤 Загрузка...</div>
+
     <button class="menu-btn" onclick="showModal('settings')">⚙️ Настройки</button>
     <button class="menu-btn" onclick="showModal('search')">🔍 Поиск по нику</button>
     <button class="menu-btn" onclick="archiveChat()">📁 Архив</button>
@@ -35,7 +36,7 @@
     <p>Выберите чат слева.</p>
 </div>
 
-<!-- Окно 1: ВХОД / РЕГИСТРАЦИЯ (Теперь скрыто по умолчанию) -->
+<!-- Окно 1: ВХОД / РЕГИСТРАЦИЯ -->
 <div id="auth-modal" class="modal" style="display: none; left: 50%; margin-left: -155px; top: 100px;">
     <h3>Авторизация</h3>
     <select id="auth-mode">
@@ -54,14 +55,15 @@
     <button onclick="verifyCode()">Войти в аккаунт</button>
 </div>
 
-<!-- Окно 2: НАСТРОЙКИ (Профиль, Тема) -->
+<!-- Окно 2: НАСТРОЙКИ -->
 <div id="settings" class="modal">
     <h3>Настройки профиля</h3>
+    <p style="font-size: 12px; margin: 0 0 5px 0;">Ваш ник:</p>
     <input id="p-name" placeholder="Ваш ник">
     <input id="p-age" placeholder="Возраст">
     <textarea id="p-about" placeholder="О себе"></textarea>
     
-    <p style="font-size: 12px;">Тема оформления:</p>
+    <p style="font-size: 12px; margin: 10px 0 5px 0;">Тема оформления:</p>
     <select id="theme" onchange="changeTheme()">
         <option value="dark">Темная</option>
         <option value="light">Светлая</option>
@@ -80,14 +82,12 @@
 </div>
 
 <script>
-    // === НАСТРОЙКА СЕРВЕРА ===
-    // Впиши сюда IP адрес твоего телефона с запущенным server.js
+    // === АКТУАЛЬНЫЙ АДРЕС ТВОЕГО СЕРВЕРА НА REDMI ===
     var SERVER_URL = "http://192.168.1.15:8080"; 
 
-    // Автоматическая загрузка сохраненных настроек, если они есть
+    // Загружаем данные при старте страницы
     loadSettings();
 
-    // === 1. ЛОГИКА АВТОРИЗАЦИИ ===
     function sendAuthCode() {
         var data = {
             email: document.getElementById('auth-email').value,
@@ -125,10 +125,14 @@
             if(xhr.readyState === 4) {
                 var res = JSON.parse(xhr.responseText || "{}");
                 if (xhr.status === 200 && res.success) {
+                    // Сохраняем в localStorage данные, пришедшие с сервера
                     localStorage.setItem('session_email', res.user.email);
                     localStorage.setItem('username', res.user.username);
-                    alert("Успешный вход! Добро пожаловать, " + res.user.username);
+                    
+                    alert("УСПЕХ! Добро пожаловать, " + res.user.username);
                     document.getElementById('auth-modal').style.display = 'none';
+                    
+                    // Перерисовываем ник везде
                     loadSettings();
                 } else {
                     alert("Ошибка: " + (res.error || "Неверный код"));
@@ -138,10 +142,18 @@
         xhr.send(JSON.stringify(data));
     }
 
-    // === 2. НАСТРОЙКИ, ТЕМА И ПРОФИЛЬ ===
     function loadSettings() {
         var savedName = localStorage.getItem('username');
-        if (savedName) document.getElementById('p-name').value = savedName;
+        
+        if (savedName) {
+            // Ставим ник в инпут настроек
+            document.getElementById('p-name').value = savedName;
+            // Ставим ник в статус бокового меню
+            document.getElementById('my-nick-display').innerText = "👤 " + savedName;
+        } else {
+            document.getElementById('my-nick-display').innerText = "👤 Гость (Войдите)";
+        }
+        
         if (localStorage.getItem('age')) document.getElementById('p-age').value = localStorage.getItem('age');
         if (localStorage.getItem('about')) document.getElementById('p-about').value = localStorage.getItem('about');
         
@@ -151,10 +163,14 @@
     }
 
     function saveSettings() {
-        var name = document.getElementById('p-name').value;
-        localStorage.setItem('username', name);
+        var newName = document.getElementById('p-name').value;
+        localStorage.setItem('username', newName);
         localStorage.setItem('age', document.getElementById('p-age').value);
         localStorage.setItem('about', document.getElementById('p-about').value);
+        
+        // Сразу обновляем отображение в сайдбаре
+        document.getElementById('my-nick-display').innerText = "👤 " + newName;
+        
         alert('Настройки профиля сохранены!');
         hideAll();
     }
@@ -166,7 +182,6 @@
         document.body.style.color = (theme === 'light') ? '#000' : '#fff';
     }
 
-    // === 3. ПОИСК ПО НИКУ ===
     function findUser() {
         var query = document.getElementById('search-input').value;
         if(query) {
@@ -175,30 +190,12 @@
         hideAll();
     }
 
-    // === 4. АРХИВ ===
-    function archiveChat() {
-        alert("Чат перенесен в архив.");
-    }
-
-    // === 5 & 6. УПРАВЛЕНИЕ ОКНАМИ И СООБЩЕНИЯМИ ===
-    function showModal(id) { 
-        hideAll();
-        document.getElementById(id).style.display = 'block'; 
-    }
-    
+    function archiveChat() { alert("Чат перенесен в архив."); }
+    function showModal(id) { hideAll(); document.getElementById(id).style.display = 'block'; }
     function hideAll() { 
         document.getElementById('settings').style.display = 'none'; 
         document.getElementById('search').style.display = 'none'; 
         document.getElementById('auth-modal').style.display = 'none'; 
-    }
-
-    function editMsg(msgId) {
-        var newText = prompt("Введите новый text сообщения:");
-        if (newText) alert("Сообщение " + msgId + " отредактировано.");
-    }
-
-    function delMsg(msgId) {
-        if (confirm("Точно удалить сообщение?")) alert("Сообщение " + msgId + " удалено.");
     }
 </script>
 </body>

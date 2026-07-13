@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>iChatter iOS 6</title>
+    <title>iChatter OS 6</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <style>
         /* Базовые стили, совместимые с iOS 6 Safari */
@@ -26,6 +26,7 @@
     <button class="menu-btn" onclick="showModal('settings')">⚙️ Настройки</button>
     <button class="menu-btn" onclick="showModal('search')">🔍 Поиск по нику</button>
     <button class="menu-btn" onclick="archiveChat()">📁 Архив</button>
+    <button class="menu-btn" onclick="showModal('auth-modal')" style="color: #bbb; font-size: 11px;">🔑 Войти в другой аккаунт</button>
     <div id="chat-list" style="padding: 10px; color: #aaa; font-size: 12px;">Тут будут чаты...</div>
 </div>
 
@@ -34,8 +35,8 @@
     <p>Выберите чат слева.</p>
 </div>
 
-<!-- Окно 1: ВХОД / РЕГИСТРАЦИЯ (поверх всего) -->
-<div id="auth-modal" class="modal" style="display: block; left: 50%; margin-left: -155px; top: 100px;">
+<!-- Окно 1: ВХОД / РЕГИСТРАЦИЯ (Теперь скрыто по умолчанию) -->
+<div id="auth-modal" class="modal" style="display: none; left: 50%; margin-left: -155px; top: 100px;">
     <h3>Авторизация</h3>
     <select id="auth-mode">
         <option value="login">Вход</option>
@@ -46,6 +47,7 @@
     <input id="auth-pass" type="password" placeholder="Пароль">
     
     <button onclick="sendAuthCode()">Получить код</button>
+    <button onclick="hideAll()" style="background: #773333;">Закрыть</button>
     <hr style="border: 0; border-top: 1px solid #555; margin: 15px 0;">
     
     <input id="auth-code" placeholder="6-значный код">
@@ -79,16 +81,13 @@
 
 <script>
     // === НАСТРОЙКА СЕРВЕРА ===
-    // ВАЖНО: Впиши сюда IP адрес твоего Redmi 3S
+    // Впиши сюда IP адрес твоего телефона с запущенным server.js
     var SERVER_URL = "http://192.168.1.15:8080"; 
 
-    // Проверка, вошел ли пользователь ранее
-    if (localStorage.getItem('session_email')) {
-        document.getElementById('auth-modal').style.display = 'none';
-        loadSettings();
-    }
+    // Автоматическая загрузка сохраненных настроек, если они есть
+    loadSettings();
 
-    // === 1. ЛОГИКА АВТОРИЗАЦИИ (Связь с server.js) ===
+    // === 1. ЛОГИКА АВТОРИЗАЦИИ ===
     function sendAuthCode() {
         var data = {
             email: document.getElementById('auth-email').value,
@@ -126,7 +125,6 @@
             if(xhr.readyState === 4) {
                 var res = JSON.parse(xhr.responseText || "{}");
                 if (xhr.status === 200 && res.success) {
-                    // Сохраняем сессию
                     localStorage.setItem('session_email', res.user.email);
                     localStorage.setItem('username', res.user.username);
                     alert("Успешный вход! Добро пожаловать, " + res.user.username);
@@ -172,14 +170,14 @@
     function findUser() {
         var query = document.getElementById('search-input').value;
         if(query) {
-            alert("Здесь будет запрос к БД сервера для поиска ника: " + query);
+            alert("Запрос к БД сервера для поиска ника: " + query);
         }
         hideAll();
     }
 
     // === 4. АРХИВ ===
     function archiveChat() {
-        alert("Чат перенесен в архив (заглушка).");
+        alert("Чат перенесен в архив.");
     }
 
     // === 5 & 6. УПРАВЛЕНИЕ ОКНАМИ И СООБЩЕНИЯМИ ===
@@ -191,16 +189,15 @@
     function hideAll() { 
         document.getElementById('settings').style.display = 'none'; 
         document.getElementById('search').style.display = 'none'; 
+        document.getElementById('auth-modal').style.display = 'none'; 
     }
 
     function editMsg(msgId) {
-        // Логика редактирования для старых устройств
-        var newText = prompt("Введите новый текст сообщения:");
+        var newText = prompt("Введите новый text сообщения:");
         if (newText) alert("Сообщение " + msgId + " отредактировано.");
     }
 
     function delMsg(msgId) {
-        // Логика удаления
         if (confirm("Точно удалить сообщение?")) alert("Сообщение " + msgId + " удалено.");
     }
 </script>

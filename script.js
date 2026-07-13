@@ -1,5 +1,5 @@
 // Конфигурация бэкенда (адрес твоего туннеля Cloudflare)
-var BACKEND_URL = "https://colour-slowly-complications-trade.trycloudflare.com";
+var BACKEND_URL = "https://moss-perspective-stands-copying.trycloudflare.com";
 
 var socket;
 var currentActiveChatPartner = null;

@@ -5,38 +5,71 @@
     <title>iChatter OS 6</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <style>
-        body { background: #4A525A; color: #fff; font-family: Helvetica; margin: 0; padding: 0; }
-        .sidebar { width: 300px; background: #383E44; border-right: 1px solid #000; }
-        .menu-btn { padding: 10px; width: 100%; border: none; background: #2B3035; color: #fff; text-align: left; cursor: pointer; }
-        .modal { display: none; position: absolute; top: 10px; left: 10px; width: 280px; background: #383E44; border: 2px solid #fff; padding: 15px; z-index: 9999; }
-        input, select, textarea { width: 90%; margin-bottom: 10px; padding: 5px; }
+        /* Базовые стили, совместимые с iOS 6 Safari */
+        body { background: #4A525A; color: #fff; font-family: Helvetica, sans-serif; margin: 0; padding: 0; }
+        .sidebar { width: 300px; background: #383E44; border-right: 1px solid #000; position: absolute; top: 0; left: 0; bottom: 0; }
+        .main-chat { margin-left: 300px; padding: 15px; }
+        .menu-btn { padding: 12px; width: 100%; border: none; background: #2B3035; color: #fff; text-align: left; cursor: pointer; border-bottom: 1px solid #222; }
+        
+        /* Окна (модалки) */
+        .modal { display: none; position: absolute; top: 20px; left: 20px; width: 280px; background: #383E44; border: 2px solid #aaa; padding: 15px; z-index: 9999; box-shadow: 0 0 10px #000; }
+        
+        input, select, textarea { width: 90%; margin-bottom: 10px; padding: 8px; font-size: 14px; }
+        button { padding: 8px; background: #555; color: #fff; border: 1px solid #777; cursor: pointer; margin-top: 5px; }
+        .msg { border-bottom: 1px solid #555; padding: 10px 0; }
     </style>
 </head>
 <body>
 
+<!-- Боковое меню -->
 <div class="sidebar">
     <button class="menu-btn" onclick="showModal('settings')">⚙️ Настройки</button>
     <button class="menu-btn" onclick="showModal('search')">🔍 Поиск по нику</button>
     <button class="menu-btn" onclick="archiveChat()">📁 Архив</button>
-    <div id="chat-list"></div>
+    <div id="chat-list" style="padding: 10px; color: #aaa; font-size: 12px;">Тут будут чаты...</div>
 </div>
 
-<!-- Модальное окно: НАСТРОЙКИ -->
+<div class="main-chat">
+    <h2>iChatter</h2>
+    <p>Выберите чат слева.</p>
+</div>
+
+<!-- Окно 1: ВХОД / РЕГИСТРАЦИЯ (поверх всего) -->
+<div id="auth-modal" class="modal" style="display: block; left: 50%; margin-left: -155px; top: 100px;">
+    <h3>Авторизация</h3>
+    <select id="auth-mode">
+        <option value="login">Вход</option>
+        <option value="register">Регистрация</option>
+    </select>
+    <input id="auth-email" type="email" placeholder="Email">
+    <input id="auth-user" placeholder="Имя (только для регистрации)">
+    <input id="auth-pass" type="password" placeholder="Пароль">
+    
+    <button onclick="sendAuthCode()">Получить код</button>
+    <hr style="border: 0; border-top: 1px solid #555; margin: 15px 0;">
+    
+    <input id="auth-code" placeholder="6-значный код">
+    <button onclick="verifyCode()">Войти в аккаунт</button>
+</div>
+
+<!-- Окно 2: НАСТРОЙКИ (Профиль, Тема) -->
 <div id="settings" class="modal">
     <h3>Настройки профиля</h3>
-    <p>Ваш ник:</p>
-    <input id="p-name" placeholder="Введите ваш ник">
+    <input id="p-name" placeholder="Ваш ник">
     <input id="p-age" placeholder="Возраст">
     <textarea id="p-about" placeholder="О себе"></textarea>
+    
+    <p style="font-size: 12px;">Тема оформления:</p>
     <select id="theme" onchange="changeTheme()">
-        <option value="dark">Темная тема</option>
-        <option value="light">Светлая тема</option>
+        <option value="dark">Темная</option>
+        <option value="light">Светлая</option>
     </select>
+    
     <button onclick="saveSettings()">Сохранить</button>
     <button onclick="hideAll()">Закрыть</button>
 </div>
 
-<!-- Модальное окно: ПОИСК -->
+<!-- Окно 3: ПОИСК ПО НИКУ -->
 <div id="search" class="modal">
     <h3>Поиск пользователя</h3>
     <input id="search-input" placeholder="Введите ник">
@@ -45,40 +78,130 @@
 </div>
 
 <script>
-    // Загружаем ник при открытии
-    var savedName = localStorage.getItem('username');
-    if (savedName) {
-        document.getElementById('p-name').value = savedName;
+    // === НАСТРОЙКА СЕРВЕРА ===
+    // ВАЖНО: Впиши сюда IP адрес твоего Redmi 3S
+    var SERVER_URL = "http://192.168.1.15:8080"; 
+
+    // Проверка, вошел ли пользователь ранее
+    if (localStorage.getItem('session_email')) {
+        document.getElementById('auth-modal').style.display = 'none';
+        loadSettings();
     }
 
-    function findUser() {
-        var query = document.getElementById('search-input').value;
-        if(query) alert("Ищем пользователя с ником: " + query);
-        hideAll();
+    // === 1. ЛОГИКА АВТОРИЗАЦИИ (Связь с server.js) ===
+    function sendAuthCode() {
+        var data = {
+            email: document.getElementById('auth-email').value,
+            username: document.getElementById('auth-user').value,
+            password: document.getElementById('auth-pass').value,
+            mode: document.getElementById('auth-mode').value
+        };
+
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", SERVER_URL + "/api/send-code", true);
+        xhr.setRequestHeader("Content-Type", "application/json");
+        xhr.onreadystatechange = function() {
+            if(xhr.readyState === 4) {
+                var res = JSON.parse(xhr.responseText || "{}");
+                if (xhr.status === 200 && res.success) {
+                    alert("Код отправлен на почту!");
+                } else {
+                    alert("Ошибка: " + (res.error || "Сервер не отвечает"));
+                }
+            }
+        };
+        xhr.send(JSON.stringify(data));
+    }
+
+    function verifyCode() {
+        var data = {
+            email: document.getElementById('auth-email').value,
+            code: document.getElementById('auth-code').value
+        };
+
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", SERVER_URL + "/api/verify-code", true);
+        xhr.setRequestHeader("Content-Type", "application/json");
+        xhr.onreadystatechange = function() {
+            if(xhr.readyState === 4) {
+                var res = JSON.parse(xhr.responseText || "{}");
+                if (xhr.status === 200 && res.success) {
+                    // Сохраняем сессию
+                    localStorage.setItem('session_email', res.user.email);
+                    localStorage.setItem('username', res.user.username);
+                    alert("Успешный вход! Добро пожаловать, " + res.user.username);
+                    document.getElementById('auth-modal').style.display = 'none';
+                    loadSettings();
+                } else {
+                    alert("Ошибка: " + (res.error || "Неверный код"));
+                }
+            }
+        };
+        xhr.send(JSON.stringify(data));
+    }
+
+    // === 2. НАСТРОЙКИ, ТЕМА И ПРОФИЛЬ ===
+    function loadSettings() {
+        var savedName = localStorage.getItem('username');
+        if (savedName) document.getElementById('p-name').value = savedName;
+        if (localStorage.getItem('age')) document.getElementById('p-age').value = localStorage.getItem('age');
+        if (localStorage.getItem('about')) document.getElementById('p-about').value = localStorage.getItem('about');
+        
+        var savedTheme = localStorage.getItem('theme') || 'dark';
+        document.getElementById('theme').value = savedTheme;
+        changeTheme();
     }
 
     function saveSettings() {
         var name = document.getElementById('p-name').value;
         localStorage.setItem('username', name);
         localStorage.setItem('age', document.getElementById('p-age').value);
-        alert('Данные сохранены для ника: ' + name);
+        localStorage.setItem('about', document.getElementById('p-about').value);
+        alert('Настройки профиля сохранены!');
         hideAll();
     }
 
-    function archiveChat() {
-        alert('Чат перемещен в архив');
-    }
-
     function changeTheme() {
-        var isLight = document.getElementById('theme').value === 'light';
-        document.body.style.background = isLight ? '#f0f0f0' : '#4A525A';
-        document.body.style.color = isLight ? '#000' : '#fff';
+        var theme = document.getElementById('theme').value;
+        localStorage.setItem('theme', theme);
+        document.body.style.background = (theme === 'light') ? '#f0f0f0' : '#4A525A';
+        document.body.style.color = (theme === 'light') ? '#000' : '#fff';
     }
 
-    function showModal(id) { document.getElementById(id).style.display = 'block'; }
+    // === 3. ПОИСК ПО НИКУ ===
+    function findUser() {
+        var query = document.getElementById('search-input').value;
+        if(query) {
+            alert("Здесь будет запрос к БД сервера для поиска ника: " + query);
+        }
+        hideAll();
+    }
+
+    // === 4. АРХИВ ===
+    function archiveChat() {
+        alert("Чат перенесен в архив (заглушка).");
+    }
+
+    // === 5 & 6. УПРАВЛЕНИЕ ОКНАМИ И СООБЩЕНИЯМИ ===
+    function showModal(id) { 
+        hideAll();
+        document.getElementById(id).style.display = 'block'; 
+    }
+    
     function hideAll() { 
         document.getElementById('settings').style.display = 'none'; 
         document.getElementById('search').style.display = 'none'; 
+    }
+
+    function editMsg(msgId) {
+        // Логика редактирования для старых устройств
+        var newText = prompt("Введите новый текст сообщения:");
+        if (newText) alert("Сообщение " + msgId + " отредактировано.");
+    }
+
+    function delMsg(msgId) {
+        // Логика удаления
+        if (confirm("Точно удалить сообщение?")) alert("Сообщение " + msgId + " удалено.");
     }
 </script>
 </body>

@@ -2,307 +2,107 @@
 <html>
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>iChatter - Вход</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    
     <style>
-        body {
-            background-color: #4A525A;
-            margin: 0;
-            padding: 0;
-            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-            color: #FFFFFF;
-            text-align: center;
-        }
-
-        .login-container {
-            width: 280px;
-            margin: 30px auto 0 auto;
-            padding: 20px;
-        }
-
-        /* Панель вкладок (Табы) */
-        .tab-container {
-            display: block;
-            width: 100%;
-            margin-bottom: 25px;
-            background-color: #383E44;
-            border-radius: 6px;
-            -webkit-border-radius: 6px;
-            overflow: hidden;
-            border: 1px solid #2B3035;
-        }
-        
-        .tab-button {
-            display: inline-block;
-            width: 50%;
-            padding: 10px 0;
-            font-size: 15px;
-            font-weight: bold;
-            color: #A0A5AA;
-            background-color: #383E44;
-            border: none;
-            cursor: pointer;
-            float: left;
-            box-sizing: border-box;
-        }
-        
-        .tab-button.active {
-            background-color: #5B646E;
-            color: #FFFFFF;
-            box-shadow: inset 0 1px 3px rgba(0,0,0,0.4);
-        }
-        
-        .clearfix::after {
-            content: "";
-            clear: both;
-            display: table;
-        }
-
-        .input-group {
-            margin-bottom: 15px;
-            text-align: left;
-        }
-
-        input[type="text"], input[type="password"] {
-            width: 100%;
-            padding: 12px 8px;
-            background-color: #5B646E;
-            border: 1px solid #3A4045;
-            color: #FFFFFF;
-            font-size: 16px;
-            border-radius: 4px;
-            -webkit-border-radius: 4px;
-            box-sizing: border-box;
-            -webkit-box-sizing: border-box;
-        }
-
-        input::-webkit-input-placeholder {
-            color: #A0A5AA;
-        }
-
-        .btn-submit {
-            width: 100%;
-            padding: 12px;
-            background-color: #1F2D3D;
-            border: 1px solid #141D27;
-            color: #A4B3C6;
-            font-size: 16px;
-            font-weight: bold;
-            border-radius: 4px;
-            -webkit-border-radius: 4px;
-            cursor: pointer;
-            margin-top: 10px;
-        }
-
-        .btn-submit:active {
-            background-color: #141D27;
-        }
-
-        #status-message {
-            margin-top: 15px;
-            font-size: 14px;
-            color: #FF6B6B;
-            font-weight: bold;
-            display: none;
-        }
-        
-        #status-message.success {
-            color: #2ECC71;
-        }
-
-        #verification-stage {
-            display: none;
-        }
+        body { background-color: #4a545d; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: Arial, sans-serif; }
+        .login-box { background: #3b434a; padding: 20px; border-radius: 8px; width: 300px; text-align: center; }
+        input { width: 90%; padding: 10px; margin: 10px 0; border: none; border-radius: 4px; font-size: 14px; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background: #2c3e50; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px; font-size: 14px; }
+        button:hover { background: #34495e; }
+        .error { color: #e74c3c; margin-top: 10px; font-size: 14px; }
+        .tabs { display: flex; margin-bottom: 20px; }
+        .tab { flex: 1; padding: 10px; background: #556069; color: white; cursor: pointer; border: 1px solid #3b434a; }
+        .tab.active { background: #3b434a; font-weight: bold; }
+        #code-section { display: none; }
     </style>
 </head>
 <body>
-
-    <div class="login-container">
-        
-        <!-- Вкладки переключения -->
-        <div class="tab-container clearfix" id="tabs-bar">
-            <button type="button" class="tab-button active" id="tab-login">Вход</button>
-            <button type="button" class="tab-button" id="tab-register">Регистрация</button>
+    <div class="login-box">
+        <div class="tabs">
+            <div class="tab active" onclick="setMode('login')">Вход</div>
+            <div class="tab" onclick="setMode('register')">Регистрация</div>
         </div>
         
-        <!-- СТАДИЯ 1: Поля ввода -->
-        <div id="forms-stage">
-            <div class="input-group" id="username-group" style="display: none;">
-                <input type="text" id="username" placeholder="Имя пользователя">
-            </div>
-
-            <div class="input-group">
-                <input type="text" id="email" placeholder="example@mail.name">
-            </div>
-
-            <div class="input-group">
-                <input type="password" id="password" placeholder="••••••••••••">
-            </div>
-
-            <button type="button" class="btn-submit" id="btn-send">Войти и получить код</button>
+        <div id="main-section">
+            <input type="text" id="username" placeholder="Имя пользователя (для реги)" style="display: none;">
+            <input type="email" id="email" placeholder="1rol4k2@gmail.com">
+            <input type="password" id="password" placeholder="Пароль">
+            <button onclick="sendAuthCode()">Войти и получить код</button>
         </div>
 
-        <!-- СТАДИЯ 2: Ввод проверочного кода -->
-        <div id="verification-stage">
-            <div class="input-group">
-                <input type="text" id="verify-code" placeholder="Введите 6-значный код">
-            </div>
-            <button type="button" class="btn-submit" id="btn-verify">Войти в iChatter</button>
+        <div id="code-section">
+            <input type="text" id="code" placeholder="Введите код из почты">
+            <button onclick="verifyAuthCode()">Подтвердить</button>
         </div>
 
-        <!-- Статусные сообщения -->
-        <div id="status-message"></div>
-
+        <div id="error-msg" class="error"></div>
     </div>
 
     <script>
-        var btnSend = document.getElementById('btn-send');
-        var btnVerify = document.getElementById('btn-verify');
-        var formsStage = document.getElementById('forms-stage');
-        var verificationStage = document.getElementById('verification-stage');
-        var statusMessage = document.getElementById('status-message');
-        var tabsBar = document.getElementById('tabs-bar');
-        
-        var tabLogin = document.getElementById('tab-login');
-        var tabRegister = document.getElementById('tab-register');
-        var usernameGroup = document.getElementById('username-group');
+        const API_BASE = 'https://moss-perspective-stands-copying.trycloudflare.com';
+        let currentMode = 'login';
 
-        var currentMode = 'login'; 
-        var currentEmail = '';
-        
-        // Прямой URL твоего туннеля Node.js на телефоне
-        var API_BASE = 'https://moss-perspective-stands-copying.trycloudflare.com';
+        function setMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('username').style.display = (mode === 'register') ? 'block' : 'none';
+            document.getElementById('error-msg').innerText = '';
+        }
 
-        tabLogin.onclick = function() {
-            currentMode = 'login';
-            tabLogin.className = 'tab-button active';
-            tabRegister.className = 'tab-button';
-            usernameGroup.style.display = 'none';
-            btnSend.innerText = 'Войти и получить код';
-            statusMessage.style.display = 'none';
-        };
+        async function sendAuthCode() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const username = document.getElementById('username').value;
+            const errorMsg = document.getElementById('error-msg');
 
-        tabRegister.onclick = function() {
-            currentMode = 'register';
-            tabRegister.className = 'tab-button active';
-            tabLogin.className = 'tab-button';
-            usernameGroup.style.display = 'block';
-            btnSend.innerText = 'Зарегистрироваться';
-            statusMessage.style.display = 'none';
-        };
+            errorMsg.innerText = 'Отправка...';
 
-        function showStatus(text, isSuccess) {
-            statusMessage.innerText = text;
-            statusMessage.style.display = 'block';
-            if (isSuccess) {
-                statusMessage.className = 'success';
-            } else {
-                statusMessage.className = '';
+            try {
+                const response = await fetch(`${API_BASE}/api/send-code`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password, username, mode: currentMode })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('main-section').style.display = 'none';
+                    document.getElementById('code-section').style.display = 'block';
+                    document.querySelector('.tabs').style.display = 'none';
+                    errorMsg.innerText = '';
+                } else {
+                    errorMsg.innerText = data.error || 'Ошибка отправки';
+                }
+            } catch (err) {
+                errorMsg.innerText = 'Ошибка ответа бэкенда. Проверь туннель!';
             }
         }
 
-        // 1. НАЖАТИЕ: ОТПРАВИТЬ ЗАПРОС КОДА
-        btnSend.onclick = function() {
-            var usernameVal = document.getElementById('username').value;
-            var emailVal = document.getElementById('email').value;
-            var passwordVal = document.getElementById('password').value;
+        async function verifyAuthCode() {
+            const email = document.getElementById('email').value;
+            const code = document.getElementById('code').value;
+            const errorMsg = document.getElementById('error-msg');
 
-            if (currentMode === 'register' && (!usernameVal || usernameVal.trim() === '')) {
-                showStatus('Введите имя пользователя!', false);
-                return;
-            }
-            if (!emailVal) {
-                showStatus('Укажите адрес почты', false);
-                return;
-            }
-            if (!passwordVal || passwordVal.trim() === '') {
-                showStatus('Введите пароль!', false);
-                return;
-            }
-
-            currentEmail = emailVal;
-            showStatus('Отправка запроса...', true);
-
-            var xhr = new XMLHttpRequest();
-            xhr.open('POST', API_BASE + '/api/send-code', true);
-            xhr.setRequestHeader('Content-Type', 'application/json');
-
-            xhr.onreadystatechange = function() {
-                if (xhr.readyState === 4) {
-                    try {
-                        var response = JSON.parse(xhr.responseText);
-                        if (xhr.status === 200 && response.success) {
-                            showStatus('Код подтверждения отправлен на почту!', true);
-                            formsStage.style.display = 'none';
-                            tabsBar.style.display = 'none'; 
-                            verificationStage.style.display = 'block';
-                        } else {
-                            showStatus(response.error || 'Ошибка сервера', false);
-                        }
-                    } catch(e) {
-                        showStatus('Ошибка ответа бэкенда. Проверь туннель!', false);
-                    }
+            try {
+                const response = await fetch(`${API_BASE}/api/verify-code`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, code })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    // ЛОГИКА ТОКЕНА: переходим на страницу чата и пишем токен в URL
+                    window.location.href = 'chat.html?token=' + data.token;
+                } else {
+                    errorMsg.innerText = data.error || 'Неверный код';
                 }
-            };
-
-            var data = JSON.stringify({
-                username: usernameVal,
-                email: emailVal,
-                password: passwordVal,
-                mode: currentMode
-            });
-
-            xhr.send(data);
-        };
-
-        // 2. НАЖАТИЕ: ПОДТВЕРДИТЬ КОД И ВОЙТИ
-        btnVerify.onclick = function() {
-            var codeVal = document.getElementById('verify-code').value;
-
-            if (!codeVal) {
-                showStatus('Введите полученный код!', false);
-                return;
+            } catch (err) {
+                errorMsg.innerText = 'Ошибка соединения с сервером';
             }
-
-            showStatus('Проверка кода...', true);
-
-            var xhr = new XMLHttpRequest();
-            xhr.open('POST', API_BASE + '/api/verify-code', true);
-            xhr.setRequestHeader('Content-Type', 'application/json');
-
-            xhr.onreadystatechange = function() {
-                if (xhr.readyState === 4) {
-                    try {
-                        var response = JSON.parse(xhr.responseText);
-                        if (xhr.status === 200 && response.success) {
-                            showStatus('Успешная авторизация! Входим...', true);
-                            
-                            if (window.localStorage) {
-                                localStorage.setItem('userSession', JSON.stringify(response.user));
-                            }
-                            
-                            setTimeout(function() {
-                                window.location.href = 'chat.html';
-                            }, 1500);
-                        } else {
-                            showStatus(response.error || 'Неверный код доступа', false);
-                        }
-                    } catch(e) {
-                        showStatus('Ошибка проверки кода', false);
-                    }
-                }
-            };
-
-            var data = JSON.stringify({
-                email: currentEmail,
-                code: codeVal
-            });
-
-            xhr.send(data);
-        };
+        }
     </script>
-
 </body>
 </html>

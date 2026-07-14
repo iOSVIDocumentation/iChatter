@@ -2,51 +2,112 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>iChatter - Вход</title>
     <style>
-        body { background-color: #4a545d; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: Arial, sans-serif; }
-        .login-box { background: #3b434a; padding: 20px; border-radius: 8px; width: 300px; text-align: center; }
-        input { width: 90%; padding: 10px; margin: 10px 0; border: none; border-radius: 4px; font-size: 14px; box-sizing: border-box; }
-        button { width: 100%; padding: 10px; background: #2c3e50; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px; font-size: 14px; }
-        button:hover { background: #34495e; }
-        .error { color: #e74c3c; margin-top: 10px; font-size: 14px; }
-        .tabs { display: flex; margin-bottom: 20px; }
-        .tab { flex: 1; padding: 10px; background: #556069; color: white; cursor: pointer; border: 1px solid #3b434a; }
-        .tab.active { background: #3b434a; font-weight: bold; }
-        #code-section { display: none; }
+        body { 
+            background-color: #555d65; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            margin: 0; 
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; 
+        }
+        .login-container { 
+            width: 280px; 
+            text-align: center; 
+        }
+        .tabs { 
+            display: flex; 
+            margin-bottom: 20px; 
+            border-radius: 4px; 
+            overflow: hidden; 
+            border: 1px solid #3b434a; 
+        }
+        .tab { 
+            flex: 1; 
+            padding: 10px; 
+            background: #444b52; 
+            color: #a0aab5; 
+            cursor: pointer; 
+            font-size: 14px; 
+            font-weight: bold; 
+        }
+        .tab.active { 
+            background: #65737e; 
+            color: #ffffff; 
+        }
+        input { 
+            width: 100%; 
+            padding: 12px; 
+            margin-bottom: 15px; 
+            border: none; 
+            border-radius: 3px; 
+            font-size: 14px; 
+            box-sizing: border-box; 
+            outline: none;
+        }
+        .action-btn { 
+            width: 100%; 
+            padding: 12px; 
+            background: #2b3947; 
+            color: white; 
+            border: none; 
+            border-radius: 3px; 
+            cursor: pointer; 
+            font-size: 14px; 
+            font-weight: bold; 
+        }
+        .action-btn:active { 
+            background: #1c2630; 
+        }
+        .error { 
+            color: #ff4d4d; 
+            margin-top: 15px; 
+            font-size: 13px; 
+            font-weight: bold; 
+        }
+        #code-section { 
+            display: none; 
+        }
     </style>
 </head>
 <body>
-    <div class="login-box">
-        <div class="tabs">
-            <div class="tab active" onclick="setMode('login')">Вход</div>
-            <div class="tab" onclick="setMode('register')">Регистрация</div>
+    <div class="login-container">
+        <!-- Вкладки Вход / Регистрация -->
+        <div class="tabs" id="tabs-container">
+            <div class="tab active" id="tab-login" onclick="setMode('login')">Вход</div>
+            <div class="tab" id="tab-register" onclick="setMode('register')">Регистрация</div>
         </div>
         
+        <!-- Основная форма -->
         <div id="main-section">
-            <input type="text" id="username" placeholder="Имя пользователя (для реги)" style="display: none;">
-            <input type="email" id="email" placeholder="1rol4k2@gmail.com">
+            <input type="text" id="username" placeholder="Имя пользователя" style="display: none;">
+            <input type="email" id="email" placeholder="example@mail.name">
             <input type="password" id="password" placeholder="Пароль">
-            <button onclick="sendAuthCode()">Войти и получить код</button>
+            <button class="action-btn" onclick="sendAuthCode()">Войти и получить код</button>
         </div>
 
+        <!-- Форма ввода кода -->
         <div id="code-section">
-            <input type="text" id="code" placeholder="Введите код из почты">
-            <button onclick="verifyAuthCode()">Подтвердить</button>
+            <input type="text" id="code" placeholder="Введите проверочный код">
+            <button class="action-btn" onclick="verifyAuthCode()">Подтвердить</button>
         </div>
 
+        <!-- Сообщения об ошибках -->
         <div id="error-msg" class="error"></div>
     </div>
 
     <script>
+        // АКТУАЛЬНЫЙ АДРЕС ТУННЕЛЯ
         const API_BASE = 'https://moss-perspective-stands-copying.trycloudflare.com';
         let currentMode = 'login';
 
         function setMode(mode) {
             currentMode = mode;
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            event.target.classList.add('active');
+            document.getElementById('tab-login').className = (mode === 'login') ? 'tab active' : 'tab';
+            document.getElementById('tab-register').className = (mode === 'register') ? 'tab active' : 'tab';
             document.getElementById('username').style.display = (mode === 'register') ? 'block' : 'none';
             document.getElementById('error-msg').innerText = '';
         }
@@ -58,6 +119,7 @@
             const errorMsg = document.getElementById('error-msg');
 
             errorMsg.innerText = 'Отправка...';
+            errorMsg.style.color = '#fff'; // Делаем текст белым во время загрузки
 
             try {
                 const response = await fetch(`${API_BASE}/api/send-code`, {
@@ -69,13 +131,15 @@
                 
                 if (data.success) {
                     document.getElementById('main-section').style.display = 'none';
+                    document.getElementById('tabs-container').style.display = 'none';
                     document.getElementById('code-section').style.display = 'block';
-                    document.querySelector('.tabs').style.display = 'none';
                     errorMsg.innerText = '';
                 } else {
+                    errorMsg.style.color = '#ff4d4d'; // Возвращаем красный цвет для ошибки
                     errorMsg.innerText = data.error || 'Ошибка отправки';
                 }
             } catch (err) {
+                errorMsg.style.color = '#ff4d4d';
                 errorMsg.innerText = 'Ошибка ответа бэкенда. Проверь туннель!';
             }
         }
@@ -97,9 +161,11 @@
                     // ЛОГИКА ТОКЕНА: переходим на страницу чата и пишем токен в URL
                     window.location.href = 'chat.html?token=' + data.token;
                 } else {
+                    errorMsg.style.color = '#ff4d4d';
                     errorMsg.innerText = data.error || 'Неверный код';
                 }
             } catch (err) {
+                errorMsg.style.color = '#ff4d4d';
                 errorMsg.innerText = 'Ошибка соединения с сервером';
             }
         }

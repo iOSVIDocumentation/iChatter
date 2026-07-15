@@ -4,40 +4,75 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>iChatter</title>
+    <!-- Если этот socket.io.js не сработает в iOS 6, напиши, дадим ссылку на версию 2.x -->
     <script src="https://moss-perspective-stands-copying.trycloudflare.com/socket.io/socket.io.js"></script>
     <style>
-        body { margin: 0; padding: 0; background-color: #DBDFE4; font-family: Helvetica, Arial, sans-serif; overflow: hidden; }
-        .header { position: absolute; top: 0; left: 0; right: 0; height: 44px; background: #4a6c9b; color: white; text-align: center; line-height: 44px; font-weight: bold; z-index: 10; }
-        #sidebar { position: absolute; top: 44px; bottom: 0; left: 0; width: 30%; background: #F8F8F8; border-right: 1px solid #AAA; overflow-y: auto; }
-        #chat-area { position: absolute; top: 44px; bottom: 0; left: 30%; right: 0; background: #E2E7ED; }
-        #messages { position: absolute; top: 0; bottom: 44px; left: 0; right: 0; list-style: none; margin: 0; padding: 15px; overflow-y: auto; }
-        .msg-container { margin-bottom: 15px; overflow: hidden; width: 100%; clear: both; }
-        .msg-box { padding: 8px 12px; border-radius: 12px; background: #FFF; border: 1px solid #BDBDBD; max-width: 70%; display: inline-block; word-wrap: break-word; }
-        .my-msg { float: right; background: #7DCA33; color: white; border: 1px solid #68a82a; }
-        .other-msg { float: left; }
-        .sender-name { font-size: 11px; color: #555; margin-bottom: 4px; font-weight: bold; }
-        .my-msg .sender-name { display: none; }
-        #form-container { position: absolute; bottom: 0; left: 0; right: 0; height: 44px; background: #D0D0D0; padding: 6px; box-sizing: border-box; }
+        body, html { margin: 0; padding: 0; height: 100%; background: #E2E7ED; font-family: Helvetica, sans-serif; overflow: hidden; }
+        
+        /* Жесткая привязка координат для iOS 6 */
+        #messages { 
+            position: absolute; 
+            top: 0; 
+            bottom: 50px; 
+            left: 0; 
+            right: 0; 
+            padding: 10px; 
+            overflow-y: scroll; 
+            -webkit-overflow-scrolling: touch; /* Плавный скролл для старого WebKit */
+            box-sizing: border-box;
+        }
+        
+        .msg { padding: 10px; background: white; margin-bottom: 8px; border-radius: 10px; word-wrap: break-word; }
+        
+        #form-container {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 50px;
+            background: #cbd2d9;
+            box-sizing: border-box;
+            padding: 5px;
+        }
+        
         #form { display: block; width: 100%; height: 100%; margin: 0; }
-        #input { width: 75%; height: 30px; border-radius: 15px; border: 1px solid #999; padding: 0 10px; box-sizing: border-box; font-size: 14px; float: left; }
-        button { height: 30px; width: 22%; border-radius: 8px; border: 1px solid #999; background: #fff; cursor: pointer; float: right; }
+        
+        /* Позиционирование инпута и кнопки без Flexbox */
+        #input { 
+            position: absolute;
+            left: 5px;
+            top: 5px;
+            bottom: 5px;
+            right: 80px;
+            width: auto;
+            box-sizing: border-box;
+            font-size: 16px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            padding: 5px;
+        }
+        
+        #send-btn {
+            position: absolute;
+            right: 5px;
+            top: 5px;
+            bottom: 5px;
+            width: 70px;
+            background: #2c3e50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
-    <div class="header">iChatter</div>
-    <div id="sidebar">
-        <ul id="chats-list" style="list-style: none; padding: 10px; margin: 0;">
-            <li style="padding: 10px; background: #ddd; border-radius: 5px;">Общий чат</li>
-        </ul>
-    </div>
-    <div id="chat-area">
-        <ul id="messages"></ul>
-        <div id="form-container">
-            <form id="form">
-                <input id="input" autocomplete="off" placeholder="Сообщение...">
-                <button type="submit">Отпр.</button>
-            </form>
-        </div>
+    <div id="messages"></div>
+    <div id="form-container">
+        <form id="form">
+            <input id="input" autocomplete="off" placeholder="Сообщение...">
+            <button type="submit" id="send-btn">Отпр.</button>
+        </form>
     </div>
     <script src="script.js"></script>
 </body>

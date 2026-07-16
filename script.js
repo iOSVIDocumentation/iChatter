@@ -1,4 +1,3 @@
-// Все переменные через var, функции через function
 var API = 'https://moss-perspective-stands-copying.trycloudflare.com';
 var token = localStorage.getItem('token');
 var myEmail = localStorage.getItem('email');
@@ -13,14 +12,16 @@ var T = {
     ru: {
         select: 'Выберите контакт', noContacts: 'Нет чатов', online: 'онлайн', offline: 'оффлайн',
         typing: 'печатает...', empty: 'Пусто', notFound: 'Пользователь не найден',
-        enterId: 'Введите ID', msg: 'Сообщение...', send: 'Отпр.', edited: 'ред.',
-        deleted: 'Сообщение удалено', save: 'Сохранить', saved: 'Настройки сохранены'
+        enterNick: 'Введите ник', msg: 'Сообщение...', send: 'Отпр.', edited: 'ред.',
+        deleted: 'Сообщение удалено', save: 'Сохранить', saved: 'Настройки сохранены',
+        nickname: 'Ник (не меняется)', displayName: 'Отображаемое имя'
     },
     en: {
         select: 'Select contact', noContacts: 'No chats', online: 'online', offline: 'offline',
         typing: 'typing...', empty: 'Empty', notFound: 'User not found',
-        enterId: 'Enter ID', msg: 'Message...', send: 'Send', edited: 'edited',
-        deleted: 'Message deleted', save: 'Save', saved: 'Settings saved'
+        enterNick: 'Enter nickname', msg: 'Message...', send: 'Send', edited: 'edited',
+        deleted: 'Message deleted', save: 'Save', saved: 'Settings saved',
+        nickname: 'Nickname (unchangeable)', displayName: 'Display name'
     }
 };
 function t(k) { return T[lang][k] || k; }
@@ -52,6 +53,7 @@ function addMsg(msg) {
     if (msg.from === myEmail) div.className += ' my';
     div.id = 'msg-' + msg.id;
 
+    // fromUsername теперь содержит displayName
     var senderName = msg.fromUsername || msg.from.split('@')[0];
     var timeStr = formatTime(msg.timestamp);
     var text = msg.deleted ? '<i>' + t('deleted') + '</i>' : esc(msg.text);
@@ -62,7 +64,6 @@ function addMsg(msg) {
                     '<span class="time">' + timeStr + '</span>';
 
     if (msg.from === myEmail && !msg.deleted) {
-        // Добавляем кнопки действий только для своих сообщений
         div.innerHTML += '<div class="actions">' +
             '<button class="edit-btn" onclick="editMsg(\'' + msg.id + '\',\'' + esc(msg.text).replace(/'/g, "\\'") + '\')">✎</button>' +
             '<button class="del-btn" onclick="delMsg(\'' + msg.id + '\')">✕</button>' +
@@ -76,7 +77,6 @@ function addMsg(msg) {
 function updMsg(id, text, edited) {
     var el = byId('msg-' + id);
     if (!el) return;
-    // Обновляем только текст и метку редактирования
     var textDiv = el.querySelector('.text');
     if (textDiv) {
         textDiv.innerHTML = esc(text) + (edited ? ' <span class="edited-tag">(' + t('edited') + ')</span>' : '');
@@ -138,7 +138,8 @@ function renderContacts() {
         var div = document.createElement('div');
         div.className = 'chat-item';
         var statusClass = c.isOnline ? 'online' : '';
-        div.innerHTML = '<div class="name">' + esc(c.username) + '</div>' +
+        var displayName = c.displayName || c.username;
+        div.innerHTML = '<div class="name">' + esc(displayName) + '</div>' +
                         '<div class="status ' + statusClass + '">' + (c.isOnline ? t('online') : t('offline')) + '</div>' +
                         '<button class="archive-btn" onclick="event.stopPropagation();archiveChat(\'' + c.email + '\')">📦</button>';
         div.onclick = (function(email) {
@@ -165,7 +166,8 @@ function loadArchive() {
                 var c = archived[i];
                 var div = document.createElement('div');
                 div.className = 'chat-item';
-                div.innerHTML = '<div class="name">' + esc(c.username) + '</div>' +
+                var displayName = c.displayName || c.username;
+                div.innerHTML = '<div class="name">' + esc(displayName) + '</div>' +
                                 '<button class="archive-btn unarchive-btn" onclick="event.stopPropagation();unarchiveChat(\'' + c.email + '\')">↩</button>';
                 div.onclick = (function(email) {
                     return function() { openChat(email); };
@@ -203,10 +205,10 @@ function unarchiveChat(em) {
 }
 
 function findUser() {
-    var id = byId('search-input').value.trim();
-    if (!id) { alert(t('enterId')); return; }
+    var username = byId('search-input').value.trim();
+    if (!username) { alert(t('enterNick')); return; }
     var xhr = new XMLHttpRequest();
-    xhr.open('GET', API + '/api/find-user?token=' + token + '&searchId=' + id, true);
+    xhr.open('GET', API + '/api/find-user?token=' + token + '&username=' + encodeURIComponent(username), true);
     xhr.onreadystatechange = function() {
         if (xhr.readyState === 4 && xhr.status === 200) {
             var d = JSON.parse(xhr.responseText);
@@ -221,16 +223,17 @@ function findUser() {
     xhr.send();
 }
 
-// ========== Открытие чата ==========
 function openChat(em) {
     chatWith = em;
-    // Показываем форму ввода
     byId('form-container').style.display = 'block';
     byId('messages').style.bottom = '50px';
 
     var name = em.split('@')[0];
     for (var i = 0; i < contacts.length; i++) {
-        if (contacts[i].email === em) { name = contacts[i].username; break; }
+        if (contacts[i].email === em) {
+            name = contacts[i].displayName || contacts[i].username;
+            break;
+        }
     }
     byId('chat-title').innerHTML = name;
     showPanel(null);
@@ -244,12 +247,14 @@ function loadSettings() {
     xhr.onreadystatechange = function() {
         if (xhr.readyState === 4 && xhr.status === 200) {
             profile = JSON.parse(xhr.responseText).user;
-            byId('set-name').value = profile.username || '';
+            // username не меняем, показываем как неизменяемый ник
+            byId('set-username').value = profile.username || '';
+            byId('set-displayname').value = profile.displayName || '';
             byId('set-age').value = profile.age || '';
             byId('set-about').value = profile.about || '';
             byId('lang-select').value = profile.language || 'ru';
-            byId('theme-select').value = profile.theme || 'light';
-            byId('my-id').innerHTML = profile.searchId;
+            byId('theme-select').value = profile.theme || 'dark';
+            byId('my-id').innerHTML = profile.searchId; // оставим для информации
             applyTheme(profile.theme);
             loadAvatars();
             loadWallpapers();
@@ -337,7 +342,7 @@ function logoutDevice(tok) {
 }
 
 function saveSettings() {
-    profile.username = byId('set-name').value;
+    profile.displayName = byId('set-displayname').value;
     profile.age = parseInt(byId('set-age').value) || 0;
     profile.about = byId('set-about').value;
     profile.language = byId('lang-select').value;
@@ -357,7 +362,7 @@ function saveSettings() {
     };
     xhr.send(JSON.stringify({
         token: token,
-        username: profile.username,
+        displayName: profile.displayName,
         age: profile.age,
         about: profile.about,
         avatar: profile.avatar,
@@ -422,8 +427,6 @@ function delMsg(id) {
 function connectSocket() {
     socket = io(API, { query: { token: token } });
 
-    socket.on('connect', function() { /* connected */ });
-
     socket.on('receive_message', function(msg) {
         if (chatWith === msg.from) addMsg(msg);
         loadContacts();
@@ -450,7 +453,10 @@ function connectSocket() {
                 if (chatWith === data.from) {
                     var name = data.from.split('@')[0];
                     for (var i = 0; i < contacts.length; i++) {
-                        if (contacts[i].email === data.from) { name = contacts[i].username; break; }
+                        if (contacts[i].email === data.from) {
+                            name = contacts[i].displayName || contacts[i].username;
+                            break;
+                        }
                     }
                     title.innerHTML = name;
                 }
@@ -459,22 +465,18 @@ function connectSocket() {
     });
 }
 
-// ========== Кнопка отправки ==========
 byId('send-btn').onclick = sendMessage;
 byId('input').onkeydown = function(e) {
-    if (e.keyCode === 13) { // Enter
+    if (e.keyCode === 13) {
         e.preventDefault();
         sendMessage();
     }
 };
 
-// Индикатор печати
 byId('input').oninput = function() {
     if (chatWith) socket.emit('typing', { to: chatWith, isTyping: true });
 };
 
-// ========== Инициализация ==========
 connectSocket();
-// По умолчанию чат не выбран, форма скрыта
 byId('form-container').style.display = 'none';
 byId('messages').style.bottom = '0';

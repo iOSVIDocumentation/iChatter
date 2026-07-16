@@ -13,15 +13,13 @@ var T = {
         select: 'Выберите контакт', noContacts: 'Нет чатов', online: 'онлайн', offline: 'оффлайн',
         typing: 'печатает...', empty: 'Пусто', notFound: 'Пользователь не найден',
         enterNick: 'Введите ник', msg: 'Сообщение...', send: 'Отпр.', edited: 'ред.',
-        deleted: 'Сообщение удалено', save: 'Сохранить', saved: 'Настройки сохранены',
-        nickname: 'Ник (не меняется)', displayName: 'Отображаемое имя'
+        deleted: 'Сообщение удалено', save: 'Сохранить', saved: 'Настройки сохранены'
     },
     en: {
         select: 'Select contact', noContacts: 'No chats', online: 'online', offline: 'offline',
         typing: 'typing...', empty: 'Empty', notFound: 'User not found',
         enterNick: 'Enter nickname', msg: 'Message...', send: 'Send', edited: 'edited',
-        deleted: 'Message deleted', save: 'Save', saved: 'Settings saved',
-        nickname: 'Nickname (unchangeable)', displayName: 'Display name'
+        deleted: 'Message deleted', save: 'Save', saved: 'Settings saved'
     }
 };
 function t(k) { return T[lang][k] || k; }
@@ -53,7 +51,6 @@ function addMsg(msg) {
     if (msg.from === myEmail) div.className += ' my';
     div.id = 'msg-' + msg.id;
 
-    // fromUsername теперь содержит displayName
     var senderName = msg.fromUsername || msg.from.split('@')[0];
     var timeStr = formatTime(msg.timestamp);
     var text = msg.deleted ? '<i>' + t('deleted') + '</i>' : esc(msg.text);
@@ -184,9 +181,7 @@ function archiveChat(em) {
     xhr.open('POST', API + '/api/archive-chat', true);
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.onreadystatechange = function() {
-        if (xhr.readyState === 4 && xhr.status === 200) {
-            loadContacts();
-        }
+        if (xhr.readyState === 4 && xhr.status === 200) loadContacts();
     };
     xhr.send(JSON.stringify({ token: token, email: em }));
 }
@@ -247,14 +242,13 @@ function loadSettings() {
     xhr.onreadystatechange = function() {
         if (xhr.readyState === 4 && xhr.status === 200) {
             profile = JSON.parse(xhr.responseText).user;
-            // username не меняем, показываем как неизменяемый ник
             byId('set-username').value = profile.username || '';
             byId('set-displayname').value = profile.displayName || '';
             byId('set-age').value = profile.age || '';
             byId('set-about').value = profile.about || '';
             byId('lang-select').value = profile.language || 'ru';
             byId('theme-select').value = profile.theme || 'dark';
-            byId('my-id').innerHTML = profile.searchId; // оставим для информации
+            byId('my-id').innerHTML = profile.searchId;
             applyTheme(profile.theme);
             loadAvatars();
             loadWallpapers();
@@ -374,9 +368,18 @@ function saveSettings() {
 
 function setLang(l) { lang = l; profile.language = l; }
 function setTheme(th) { profile.theme = th; applyTheme(th); }
+
 function applyTheme(th) {
-    document.body.style.background = th === 'dark' ? '#1a1a2e' : '#E2E7ED';
-    document.body.style.color = th === 'dark' ? '#fff' : '#222';
+    // Переключаем класс у body — это работает даже в iOS 6
+    if (th === 'dark') {
+        document.body.className = 'dark-mode';
+    } else {
+        document.body.className = '';
+    }
+    // Если открыты настройки, актуализируем селект
+    if (byId('theme-select')) {
+        byId('theme-select').value = th;
+    }
 }
 
 // ========== Панели ==========

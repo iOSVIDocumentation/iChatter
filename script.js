@@ -13,13 +13,15 @@ var T = {
         select: 'Выберите контакт', noContacts: 'Нет чатов', online: 'онлайн', offline: 'оффлайн',
         typing: 'печатает...', empty: 'Пусто', notFound: 'Пользователь не найден',
         enterNick: 'Введите ник', msg: 'Сообщение...', send: 'Отпр.', edited: 'ред.',
-        deleted: 'Сообщение удалено', save: 'Сохранить', saved: 'Настройки сохранены'
+        deleted: 'Сообщение удалено', save: 'Сохранить', saved: 'Настройки сохранены',
+        selfSearch: 'Нельзя искать самого себя'
     },
     en: {
         select: 'Select contact', noContacts: 'No chats', online: 'online', offline: 'offline',
         typing: 'typing...', empty: 'Empty', notFound: 'User not found',
         enterNick: 'Enter nickname', msg: 'Message...', send: 'Send', edited: 'edited',
-        deleted: 'Message deleted', save: 'Save', saved: 'Settings saved'
+        deleted: 'Message deleted', save: 'Save', saved: 'Settings saved',
+        selfSearch: 'You cannot search for yourself'
     }
 };
 function t(k) { return T[lang][k] || k; }
@@ -208,6 +210,11 @@ function findUser() {
         if (xhr.readyState === 4 && xhr.status === 200) {
             var d = JSON.parse(xhr.responseText);
             if (d.found) {
+                // Проверка, что найденный пользователь не является текущим
+                if (d.user.email === myEmail) {
+                    alert(t('selfSearch'));
+                    return;
+                }
                 openChat(d.user.email);
                 showPanel(null);
             } else {
@@ -248,7 +255,6 @@ function loadSettings() {
             byId('set-about').value = profile.about || '';
             byId('lang-select').value = profile.language || 'ru';
             byId('theme-select').value = profile.theme || 'dark';
-            byId('my-id').innerHTML = profile.searchId;
             applyTheme(profile.theme);
             loadAvatars();
             loadWallpapers();
@@ -370,13 +376,11 @@ function setLang(l) { lang = l; profile.language = l; }
 function setTheme(th) { profile.theme = th; applyTheme(th); }
 
 function applyTheme(th) {
-    // Переключаем класс у body — это работает даже в iOS 6
     if (th === 'dark') {
         document.body.className = 'dark-mode';
     } else {
         document.body.className = '';
     }
-    // Если открыты настройки, актуализируем селект
     if (byId('theme-select')) {
         byId('theme-select').value = th;
     }

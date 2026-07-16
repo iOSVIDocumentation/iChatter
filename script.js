@@ -1,4 +1,4 @@
-var BACKEND_URL = 'http://192.168.1.15:8080';
+var BACKEND_URL = 'https://moss-perspective-stands-copying.trycloudflare.com';
 var token = localStorage.getItem('ichatter_token');
 var myEmail = localStorage.getItem('ichatter_email');
 var socket = null;

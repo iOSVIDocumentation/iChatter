@@ -1,146 +1,102 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-    <meta charset="utf-8">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>iChatter</title>
+    <title>iChatter - Вход</title>
     <style>
-        html, body { height: 100%; margin: 0; padding: 0; background: #555d65; font-family: Helvetica, sans-serif; }
-        .wrapper { display: table; width: 100%; height: 100%; }
-        .cell { display: table-cell; vertical-align: middle; text-align: center; }
-        .login-box { background: #3b434a; padding: 20px; border-radius: 8px; width: 280px; margin: 0 auto; color: white; box-sizing: border-box; }
-        .lang-switch { text-align: right; margin-bottom: 10px; }
-        .lang-switch button { background: #4a627a; color: white; border: none; padding: 4px 10px; border-radius: 3px; font-size: 12px; cursor: pointer; }
-        .tabs { margin-bottom: 15px; }
-        .tab-btn { width: 48%; padding: 8px 0; background: #2c3e50; color: #aaa; border: none; cursor: pointer; border-radius: 4px; font-size: 14px; }
-        .tab-btn.active { background: #4a627a; color: white; font-weight: bold; }
-        input { width: 100%; padding: 10px; margin: 8px 0; border: none; border-radius: 4px; box-sizing: border-box; font-size: 16px; }
-        .action-btn { width: 100%; padding: 10px; background: #27ae60; color: white; border: none; cursor: pointer; border-radius: 4px; font-size: 16px; margin-top: 10px; }
-        #code-section { background: #2c3e50; padding: 10px; border-radius: 4px; margin-top: 15px; display: none; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1a1a2e; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .box { background: #16213e; padding: 30px 25px; border-radius: 12px; width: 320px; text-align: center; box-shadow: 0 8px 30px rgba(0,0,0,0.5); }
+        .tabs { display: flex; gap: 5px; margin-bottom: 20px; }
+        .tabs button { flex: 1; padding: 10px; background: #0f3460; color: #aaa; border: none; cursor: pointer; font-size: 14px; border-radius: 6px; transition: 0.2s; }
+        .tabs button.active { background: #0088cc; color: #fff; font-weight: bold; }
+        input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #333; border-radius: 6px; background: #0f3460; color: #fff; font-size: 14px; outline: none; }
+        input:focus { border-color: #0088cc; }
+        .btn { width: 100%; padding: 12px; background: #0088cc; color: #fff; border: none; border-radius: 6px; font-size: 15px; font-weight: bold; cursor: pointer; margin-top: 10px; transition: 0.2s; }
+        .btn:hover { background: #00a8ff; }
+        #code-box { display: none; background: #0f3460; padding: 15px; border-radius: 8px; margin-top: 15px; }
+        #code-box p { margin-bottom: 10px; font-size: 13px; color: #ccc; }
+        .lang-row { text-align: right; margin-bottom: 10px; }
+        .lang-row button { background: #0f3460; color: #ccc; border: none; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; }
     </style>
 </head>
 <body>
-    <div class="wrapper">
-        <div class="cell">
-            <div class="login-box">
-                <div class="lang-switch">
-                    <button onclick="toggleLanguage()" id="lang-btn">EN</button>
-                </div>
-                <div class="tabs">
-                    <button id="tab-login" class="tab-btn active" onclick="setMode('login')">Вход</button>
-                    <button id="tab-register" class="tab-btn" onclick="setMode('register')">Регистрация</button>
-                </div>
-                <input type="email" id="email" placeholder="Почта">
-                <input type="text" id="username" placeholder="Имя пользователя" style="display:none;">
-                <input type="password" id="password" placeholder="Пароль">
-                <button id="main-btn" class="action-btn" onclick="sendAuth()">Войти</button>
-                <div id="code-section">
-                    <p id="code-text">Код отправлен на почту</p>
-                    <input type="text" id="code" placeholder="Код из письма">
-                    <button class="action-btn" style="background: #2980b9;" onclick="verifyAuth()">Подтвердить</button>
-                </div>
-            </div>
+    <div class="box">
+        <div class="lang-row">
+            <button onclick="switchLang()" id="langBtn">EN</button>
+        </div>
+        <div class="tabs">
+            <button id="tabLogin" class="active" onclick="setMode('login')">Вход</button>
+            <button id="tabReg" onclick="setMode('register')">Регистрация</button>
+        </div>
+        <input type="email" id="email" placeholder="Email">
+        <input type="text" id="username" placeholder="Имя" style="display:none;">
+        <input type="password" id="password" placeholder="Пароль">
+        <button class="btn" id="mainBtn" onclick="sendCode()">Войти</button>
+        <div id="code-box">
+            <p>Код отправлен на почту</p>
+            <input type="text" id="code" placeholder="Код">
+            <button class="btn" style="background:#27ae60;" onclick="verifyCode()">Подтвердить</button>
         </div>
     </div>
+
     <script>
         var API = 'https://moss-perspective-stands-copying.trycloudflare.com';
-        var currentMode = 'login';
-        var currentLang = 'ru';
-
-        var texts = {
-            ru: {
-                login: 'Вход', register: 'Регистрация', email: 'Почта', username: 'Имя пользователя',
-                password: 'Пароль', enter: 'Войти', regBtn: 'Зарегистрироваться',
-                codeSent: 'Код отправлен на почту', codePlaceholder: 'Код из письма', confirm: 'Подтвердить',
-                fillAll: 'Заполните все поля', enterCode: 'Введите код', wrongCode: 'Неверный код', error: 'Ошибка'
-            },
-            en: {
-                login: 'Login', register: 'Register', email: 'Email', username: 'Username',
-                password: 'Password', enter: 'Login', regBtn: 'Register',
-                codeSent: 'Code sent to email', codePlaceholder: 'Code from email', confirm: 'Confirm',
-                fillAll: 'Fill all fields', enterCode: 'Enter code', wrongCode: 'Wrong code', error: 'Error'
-            }
+        var mode = 'login';
+        var lang = 'ru';
+        var t = {
+            ru: { login: 'Вход', reg: 'Регистрация', email: 'Email', name: 'Имя', pass: 'Пароль', enter: 'Войти', regBtn: 'Зарегистрироваться', codeSent: 'Код отправлен на почту', code: 'Код', confirm: 'Подтвердить', fill: 'Заполните все поля', wrong: 'Неверный код', err: 'Ошибка' },
+            en: { login: 'Login', reg: 'Register', email: 'Email', name: 'Name', pass: 'Password', enter: 'Login', regBtn: 'Register', codeSent: 'Code sent', code: 'Code', confirm: 'Confirm', fill: 'Fill all fields', wrong: 'Wrong code', err: 'Error' }
         };
-
-        function t(key) { return texts[currentLang][key] || key; }
-
-        function toggleLanguage() {
-            currentLang = currentLang === 'ru' ? 'en' : 'ru';
-            document.getElementById('lang-btn').innerHTML = currentLang === 'ru' ? 'EN' : 'RU';
+        function _(k) { return t[lang][k]; }
+        function switchLang() { lang = lang === 'ru' ? 'en' : 'ru'; document.getElementById('langBtn').innerText = lang === 'ru' ? 'EN' : 'RU'; updateUI(); }
+        function updateUI() {
+            document.getElementById('tabLogin').innerText = _('login');
+            document.getElementById('tabReg').innerText = _('reg');
+            document.getElementById('email').placeholder = _('email');
+            document.getElementById('username').placeholder = _('name');
+            document.getElementById('password').placeholder = _('pass');
+            document.getElementById('mainBtn').innerText = mode === 'login' ? _('enter') : _('regBtn');
+        }
+        function setMode(m) {
+            mode = m;
+            document.getElementById('code-box').style.display = 'none';
+            document.getElementById('tabLogin').className = m === 'login' ? 'active' : '';
+            document.getElementById('tabReg').className = m === 'register' ? 'active' : '';
+            document.getElementById('username').style.display = m === 'register' ? 'block' : 'none';
             updateUI();
         }
-
-        function updateUI() {
-            document.getElementById('tab-login').innerHTML = t('login');
-            document.getElementById('tab-register').innerHTML = t('register');
-            document.getElementById('email').placeholder = t('email');
-            document.getElementById('username').placeholder = t('username');
-            document.getElementById('password').placeholder = t('password');
-            document.getElementById('main-btn').innerHTML = currentMode === 'login' ? t('enter') : t('regBtn');
-            document.getElementById('code-text').innerHTML = t('codeSent');
-            document.getElementById('code').placeholder = t('codePlaceholder');
-        }
-
-        function setMode(mode) {
-            currentMode = mode;
-            document.getElementById('code-section').style.display = 'none';
-            if (mode === 'register') {
-                document.getElementById('tab-register').className = 'tab-btn active';
-                document.getElementById('tab-login').className = 'tab-btn';
-                document.getElementById('username').style.display = 'block';
-                document.getElementById('main-btn').innerHTML = t('regBtn');
-            } else {
-                document.getElementById('tab-login').className = 'tab-btn active';
-                document.getElementById('tab-register').className = 'tab-btn';
-                document.getElementById('username').style.display = 'none';
-                document.getElementById('main-btn').innerHTML = t('enter');
-            }
-        }
-
-        function sendAuth() {
+        function sendCode() {
             var email = document.getElementById('email').value.trim();
-            var password = document.getElementById('password').value;
-            var username = document.getElementById('username').value.trim();
-            if (!email || !password || (currentMode === 'register' && !username)) {
-                alert(t('fillAll')); return;
-            }
+            var pass = document.getElementById('password').value;
+            var name = document.getElementById('username').value.trim();
+            if (!email || !pass || (mode === 'register' && !name)) { alert(_('fill')); return; }
             var xhr = new XMLHttpRequest();
             xhr.open('POST', API + '/api/send-code', true);
             xhr.setRequestHeader('Content-Type', 'application/json');
-            xhr.onreadystatechange = function() {
-                if (xhr.readyState === 4) {
-                    var data = {};
-                    try { data = JSON.parse(xhr.responseText); } catch(e) {}
-                    if (xhr.status === 200 && data.success) {
-                        document.getElementById('code-section').style.display = 'block';
-                    } else {
-                        alert(data.error || t('error'));
-                    }
-                }
+            xhr.onload = function() {
+                var d = JSON.parse(xhr.responseText || '{}');
+                if (xhr.status === 200 && d.success) document.getElementById('code-box').style.display = 'block';
+                else alert(d.error || _('err'));
             };
-            xhr.send(JSON.stringify({ email: email, password: password, username: username, mode: currentMode, language: currentLang }));
+            xhr.send(JSON.stringify({ email: email, password: pass, username: name, mode: mode, language: lang }));
         }
-
-        function verifyAuth() {
+        function verifyCode() {
             var email = document.getElementById('email').value.trim();
             var code = document.getElementById('code').value.trim();
-            if (!code) { alert(t('enterCode')); return; }
+            if (!code) { alert(_('fill')); return; }
             var xhr = new XMLHttpRequest();
             xhr.open('POST', API + '/api/verify-code', true);
             xhr.setRequestHeader('Content-Type', 'application/json');
-            xhr.onreadystatechange = function() {
-                if (xhr.readyState === 4) {
-                    var data = {};
-                    try { data = JSON.parse(xhr.responseText); } catch(e) {}
-                    if (xhr.status === 200 && data.success) {
-                        localStorage.setItem('ichatter_token', data.token);
-                        localStorage.setItem('ichatter_email', email);
-                        localStorage.setItem('ichatter_lang', currentLang);
-                        window.location.href = 'chat.html';
-                    } else {
-                        alert(data.error || t('wrongCode'));
-                    }
-                }
+            xhr.onload = function() {
+                var d = JSON.parse(xhr.responseText || '{}');
+                if (xhr.status === 200 && d.success) {
+                    localStorage.setItem('token', d.token);
+                    localStorage.setItem('email', email);
+                    localStorage.setItem('lang', lang);
+                    window.location.href = 'chat.html';
+                } else alert(d.error || _('wrong'));
             };
             xhr.send(JSON.stringify({ email: email, code: code, device: 'Web' }));
         }

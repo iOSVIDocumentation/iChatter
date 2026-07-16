@@ -7,6 +7,7 @@ var chatWith = null;
 var editingId = null;
 var profile = null;
 var contacts = [];
+var pendingName = null; // временное имя собеседника для открытого чата
 
 var T = {
     ru: {
@@ -76,8 +77,9 @@ function addMsg(msg) {
 function updMsg(id, text, edited) {
     var el = byId('msg-' + id);
     if (!el) return;
-    var textDiv = el.querySelector('.text');
-    if (textDiv) {
+    var textDivs = el.getElementsByClassName('text');
+    if (textDivs.length > 0) {
+        var textDiv = textDivs[0];
         textDiv.innerHTML = esc(text) + (edited ? ' <span class="edited-tag">(' + t('edited') + ')</span>' : '');
     }
 }
@@ -85,13 +87,13 @@ function updMsg(id, text, edited) {
 function delMsgUI(id) {
     var el = byId('msg-' + id);
     if (!el) return;
-    var textDiv = el.querySelector('.text');
-    if (textDiv) {
-        textDiv.innerHTML = '<i>' + t('deleted') + '</i>';
+    var textDivs = el.getElementsByClassName('text');
+    if (textDivs.length > 0) {
+        textDivs[0].innerHTML = '<i>' + t('deleted') + '</i>';
     }
-    var actions = el.querySelector('.actions');
-    if (actions) {
-        actions.style.display = 'none';
+    var actions = el.getElementsByClassName('actions');
+    if (actions.length > 0) {
+        actions[0].style.display = 'none';
     }
 }
 
@@ -168,9 +170,12 @@ function loadArchive() {
                 var displayName = c.displayName || c.username;
                 div.innerHTML = '<div class="name">' + esc(displayName) + '</div>' +
                                 '<button class="archive-btn unarchive-btn" onclick="event.stopPropagation();unarchiveChat(\'' + c.email + '\')">↩</button>';
-                div.onclick = (function(email) {
-                    return function() { openChat(email); };
-                })(c.email);
+                div.onclick = (function(email, name) {
+                    return function() {
+                        pendingName = name;
+                        openChat(email);
+                    };
+                })(c.email, displayName);
                 list.appendChild(div);
             }
         }
@@ -210,11 +215,12 @@ function findUser() {
         if (xhr.readyState === 4 && xhr.status === 200) {
             var d = JSON.parse(xhr.responseText);
             if (d.found) {
-                // Проверка, что найденный пользователь не является текущим
                 if (d.user.email === myEmail) {
                     alert(t('selfSearch'));
                     return;
                 }
+                // Сохраняем имя найденного пользователя
+                pendingName = d.user.displayName || d.user.username;
                 openChat(d.user.email);
                 showPanel(null);
             } else {
@@ -230,12 +236,22 @@ function openChat(em) {
     byId('form-container').style.display = 'block';
     byId('messages').style.bottom = '50px';
 
-    var name = em.split('@')[0];
-    for (var i = 0; i < contacts.length; i++) {
-        if (contacts[i].email === em) {
-            name = contacts[i].displayName || contacts[i].username;
-            break;
+    // Определяем отображаемое имя
+    var name = null;
+    if (pendingName) {
+        name = pendingName;
+        pendingName = null; // сбрасываем
+    } else {
+        // Ищем в контактах
+        for (var i = 0; i < contacts.length; i++) {
+            if (contacts[i].email === em) {
+                name = contacts[i].displayName || contacts[i].username;
+                break;
+            }
         }
+    }
+    if (!name) {
+        name = em.split('@')[0]; // запасной вариант
     }
     byId('chat-title').innerHTML = name;
     showPanel(null);
@@ -276,7 +292,7 @@ function loadAvatars() {
         if (profile.avatar === 'av' + i + '.png') img.className = 'selected';
         img.onclick = (function(index) {
             return function() {
-                var imgs = grid.querySelectorAll('img');
+                var imgs = grid.getElementsByTagName('img');
                 for (var j = 0; j < imgs.length; j++) imgs[j].className = '';
                 this.className = 'selected';
                 profile.avatar = 'av' + index + '.png';
@@ -296,7 +312,7 @@ function loadWallpapers() {
         if (profile.wallpaper === walls[i]) img.className = 'selected';
         img.onclick = (function(w) {
             return function() {
-                var imgs = grid.querySelectorAll('img');
+                var imgs = grid.getElementsByTagName('img');
                 for (var k = 0; k < imgs.length; k++) imgs[k].className = '';
                 this.className = 'selected';
                 profile.wallpaper = w;
@@ -430,7 +446,7 @@ function delMsg(id) {
     socket.emit('delete_message', { id: id });
 }
 
-// ========== Сокет ==========
+// ========== Сокет (поддерживает старую версию Socket.IO 2.x) ==========
 function connectSocket() {
     socket = io(API, { query: { token: token } });
 
@@ -458,9 +474,10 @@ function connectSocket() {
             clearTimeout(window.typingTimer);
             window.typingTimer = setTimeout(function() {
                 if (chatWith === data.from) {
-                    var name = data.from.split('@')[0];
+                    // восстанавливаем заголовок
+                    var name = chatWith.split('@')[0];
                     for (var i = 0; i < contacts.length; i++) {
-                        if (contacts[i].email === data.from) {
+                        if (contacts[i].email === chatWith) {
                             name = contacts[i].displayName || contacts[i].username;
                             break;
                         }

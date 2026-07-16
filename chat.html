@@ -8,32 +8,69 @@
     <style>
         body, html { margin: 0; padding: 0; height: 100%; background: #E2E7ED; font-family: Helvetica, sans-serif; overflow: hidden; }
         #header { position: absolute; top: 0; left: 0; right: 0; height: 44px; background: #2c3e50; color: white; line-height: 44px; padding: 0 10px; z-index: 10; box-sizing: border-box; }
-        #header button { float: left; margin-top: 7px; margin-right: 10px; background: #4a627a; color: white; border: none; padding: 5px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; }
-        #contacts-panel { position: absolute; top: 44px; bottom: 0; left: 0; width: 100%; background: white; overflow-y: scroll; -webkit-overflow-scrolling: touch; z-index: 5; display: none; }
-        .contact-item { padding: 12px 10px; border-bottom: 1px solid #eee; cursor: pointer; }
+        #header button { float: left; margin-top: 7px; margin-right: 6px; background: #4a627a; color: white; border: none; padding: 5px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; }
+        #chat-title { font-size: 14px; display: inline-block; max-width: 50%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
+
+        #contacts-panel, #settings-panel, #archive-panel { position: absolute; top: 44px; bottom: 0; left: 0; width: 100%; background: white; overflow-y: scroll; -webkit-overflow-scrolling: touch; z-index: 5; display: none; }
+        .contact-item { padding: 12px 10px; border-bottom: 1px solid #eee; cursor: pointer; position: relative; }
         .contact-item .name { font-weight: bold; }
         .contact-item .status { font-size: 12px; color: #888; }
         .contact-item .status.online { color: #27ae60; }
-        #add-contact { padding: 10px; border-bottom: 1px solid #ccc; background: #f5f5f5; }
-        #add-contact input { width: 58%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
-        #add-contact button { width: 30%; padding: 8px; background: #2c3e50; color: white; border: none; border-radius: 4px; font-size: 14px; }
+        .contact-item .archive-btn { position: absolute; right: 10px; top: 12px; background: #e74c3c; color: white; border: none; padding: 3px 8px; border-radius: 3px; font-size: 10px; cursor: pointer; }
+
+        #add-contact, .panel-section { padding: 10px; border-bottom: 1px solid #ccc; background: #f5f5f5; }
+        #add-contact input, .panel-section input { width: 58%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+        #add-contact button, .panel-section button { width: 30%; padding: 8px; background: #2c3e50; color: white; border: none; border-radius: 4px; font-size: 14px; }
+        .panel-section select { width: 100%; padding: 8px; margin-top: 5px; border-radius: 4px; }
+
         #messages { position: absolute; top: 44px; bottom: 50px; left: 0; right: 0; padding: 10px; overflow-y: scroll; -webkit-overflow-scrolling: touch; box-sizing: border-box; }
-        .msg { padding: 8px 10px; background: white; margin-bottom: 6px; border-radius: 8px; word-wrap: break-word; font-size: 14px; }
+        .msg { padding: 8px 10px; background: white; margin-bottom: 6px; border-radius: 8px; word-wrap: break-word; font-size: 14px; position: relative; }
         .msg.my { background: #dcf8c6; }
         .msg .sender { font-weight: bold; font-size: 12px; color: #555; }
         .msg .time { font-size: 10px; color: #999; margin-left: 5px; }
         .msg .text { margin-top: 3px; }
+        .msg .edited { font-size: 10px; color: #888; font-style: italic; }
+        .msg .actions { display: none; position: absolute; right: 5px; top: 5px; }
+        .msg:hover .actions { display: block; }
+        .msg .actions button { font-size: 10px; padding: 2px 5px; margin-left: 3px; border: none; border-radius: 3px; cursor: pointer; }
+        .msg .actions .edit-btn { background: #f39c12; color: white; }
+        .msg .actions .del-btn { background: #e74c3c; color: white; }
+        .msg.deleted .text { color: #999; font-style: italic; }
+
         #form-container { position: absolute; bottom: 0; left: 0; right: 0; height: 50px; background: #cbd2d9; box-sizing: border-box; padding: 5px; }
         #form { display: block; width: 100%; height: 100%; margin: 0; }
         #input { position: absolute; left: 5px; top: 5px; bottom: 5px; right: 80px; width: auto; box-sizing: border-box; font-size: 16px; border-radius: 4px; border: 1px solid #ccc; padding: 5px; }
         #send-btn { position: absolute; right: 5px; top: 5px; bottom: 5px; width: 70px; background: #2c3e50; color: white; border: none; border-radius: 4px; font-size: 14px; }
+
+        .settings-row { padding: 10px; border-bottom: 1px solid #eee; }
+        .settings-row label { font-weight: bold; display: block; margin-bottom: 5px; }
+        .avatar-grid { overflow: hidden; }
+        .avatar-grid img { width: 50px; height: 50px; border-radius: 25px; margin: 5px; border: 2px solid transparent; cursor: pointer; }
+        .avatar-grid img.selected { border-color: #27ae60; }
+        .wallpaper-grid img { width: 80px; height: 50px; margin: 5px; border: 2px solid transparent; cursor: pointer; object-fit: cover; }
+        .wallpaper-grid img.selected { border-color: #27ae60; }
+
+        /* Тёмная тема */
+        body.dark { background: #1a1a2e; }
+        body.dark #messages { background: #1a1a2e; }
+        body.dark .msg { background: #16213e; color: #eee; }
+        body.dark .msg.my { background: #0f3460; }
+        body.dark #form-container { background: #0f3460; }
+        body.dark #header { background: #0f3460; }
+        body.dark #contacts-panel, body.dark #settings-panel, body.dark #archive-panel { background: #1a1a2e; color: #eee; }
+        body.dark .contact-item { border-color: #333; }
+        body.dark .settings-row { border-color: #333; }
     </style>
 </head>
-<body>
+<body id="body">
     <div id="header">
-        <button onclick="toggleContacts()">☰</button>
+        <button onclick="togglePanel('contacts')">☰</button>
+        <button onclick="togglePanel('archive')">📦</button>
+        <button onclick="togglePanel('settings')">⚙</button>
         <span id="chat-title">Выберите контакт</span>
     </div>
+
+    <!-- Контакты -->
     <div id="contacts-panel">
         <div id="add-contact">
             <input type="text" id="search-input" placeholder="ID пользователя">
@@ -41,13 +78,74 @@
         </div>
         <div id="contacts-list"></div>
     </div>
+
+    <!-- Архив -->
+    <div id="archive-panel">
+        <div style="padding:10px;font-weight:bold;background:#f5f5f5;">Архивные чаты</div>
+        <div id="archive-list"></div>
+    </div>
+
+    <!-- Настройки -->
+    <div id="settings-panel">
+        <div style="padding:10px;font-weight:bold;background:#f5f5f5;">Настройки</div>
+        <div class="settings-row">
+            <label>Язык / Language</label>
+            <select id="settings-lang" onchange="changeLanguage(this.value)">
+                <option value="ru">Русский</option>
+                <option value="en">English</option>
+            </select>
+        </div>
+        <div class="settings-row">
+            <label>Тема</label>
+            <select id="settings-theme" onchange="changeTheme(this.value)">
+                <option value="light">Светлая</option>
+                <option value="dark">Тёмная</option>
+            </select>
+        </div>
+        <div class="settings-row">
+            <label>Обои чата</label>
+            <div class="wallpaper-grid" id="wallpaper-grid"></div>
+            <input type="file" id="wallpaper-upload" accept="image/*" onchange="uploadWallpaper()" style="margin-top:5px;">
+        </div>
+        <div class="settings-row">
+            <label>Имя</label>
+            <input type="text" id="settings-username" placeholder="Ваше имя">
+        </div>
+        <div class="settings-row">
+            <label>Возраст</label>
+            <input type="number" id="settings-age" placeholder="Возраст" min="0" max="150">
+        </div>
+        <div class="settings-row">
+            <label>О себе</label>
+            <input type="text" id="settings-about" placeholder="Расскажите о себе">
+        </div>
+        <div class="settings-row">
+            <label>Аватар</label>
+            <div class="avatar-grid" id="avatar-grid"></div>
+        </div>
+        <div class="settings-row">
+            <label>Мой ID: <b id="my-search-id">...</b></label>
+        </div>
+        <div class="settings-row">
+            <label>Устройства</label>
+            <div id="devices-list"></div>
+        </div>
+        <div class="settings-row">
+            <button onclick="saveSettings()" style="width:100%;padding:10px;background:#27ae60;color:white;border:none;border-radius:4px;font-size:16px;">Сохранить</button>
+        </div>
+    </div>
+
+    <!-- Сообщения -->
     <div id="messages"></div>
+
+    <!-- Ввод -->
     <div id="form-container">
         <form id="form">
             <input id="input" autocomplete="off" placeholder="Сообщение...">
             <button type="submit" id="send-btn">Отпр.</button>
         </form>
     </div>
+
     <script src="script.js"></script>
 </body>
 </html>

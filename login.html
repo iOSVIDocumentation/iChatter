@@ -3,12 +3,14 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>iChatter - Вход</title>
+    <title>iChatter</title>
     <style>
         html, body { height: 100%; margin: 0; padding: 0; background: #555d65; font-family: Helvetica, sans-serif; }
         .wrapper { display: table; width: 100%; height: 100%; }
         .cell { display: table-cell; vertical-align: middle; text-align: center; }
         .login-box { background: #3b434a; padding: 20px; border-radius: 8px; width: 280px; margin: 0 auto; color: white; box-sizing: border-box; }
+        .lang-switch { text-align: right; margin-bottom: 10px; }
+        .lang-switch button { background: #4a627a; color: white; border: none; padding: 4px 10px; border-radius: 3px; font-size: 12px; cursor: pointer; }
         .tabs { margin-bottom: 15px; }
         .tab-btn { width: 48%; padding: 8px 0; background: #2c3e50; color: #aaa; border: none; cursor: pointer; border-radius: 4px; font-size: 14px; }
         .tab-btn.active { background: #4a627a; color: white; font-weight: bold; }
@@ -21,6 +23,9 @@
     <div class="wrapper">
         <div class="cell">
             <div class="login-box">
+                <div class="lang-switch">
+                    <button onclick="toggleLanguage()" id="lang-btn">EN</button>
+                </div>
                 <div class="tabs">
                     <button id="tab-login" class="tab-btn active" onclick="setMode('login')">Вход</button>
                     <button id="tab-register" class="tab-btn" onclick="setMode('register')">Регистрация</button>
@@ -30,7 +35,7 @@
                 <input type="password" id="password" placeholder="Пароль">
                 <button id="main-btn" class="action-btn" onclick="sendAuth()">Войти</button>
                 <div id="code-section">
-                    <p style="margin: 0 0 10px 0; font-size: 14px;">Код отправлен на почту</p>
+                    <p id="code-text">Код отправлен на почту</p>
                     <input type="text" id="code" placeholder="Код из письма">
                     <button class="action-btn" style="background: #2980b9;" onclick="verifyAuth()">Подтвердить</button>
                 </div>
@@ -40,6 +45,41 @@
     <script>
         var API = 'https://moss-perspective-stands-copying.trycloudflare.com';
         var currentMode = 'login';
+        var currentLang = 'ru';
+
+        var texts = {
+            ru: {
+                login: 'Вход', register: 'Регистрация', email: 'Почта', username: 'Имя пользователя',
+                password: 'Пароль', enter: 'Войти', regBtn: 'Зарегистрироваться',
+                codeSent: 'Код отправлен на почту', codePlaceholder: 'Код из письма', confirm: 'Подтвердить',
+                fillAll: 'Заполните все поля', enterCode: 'Введите код', wrongCode: 'Неверный код', error: 'Ошибка'
+            },
+            en: {
+                login: 'Login', register: 'Register', email: 'Email', username: 'Username',
+                password: 'Password', enter: 'Login', regBtn: 'Register',
+                codeSent: 'Code sent to email', codePlaceholder: 'Code from email', confirm: 'Confirm',
+                fillAll: 'Fill all fields', enterCode: 'Enter code', wrongCode: 'Wrong code', error: 'Error'
+            }
+        };
+
+        function t(key) { return texts[currentLang][key] || key; }
+
+        function toggleLanguage() {
+            currentLang = currentLang === 'ru' ? 'en' : 'ru';
+            document.getElementById('lang-btn').innerHTML = currentLang === 'ru' ? 'EN' : 'RU';
+            updateUI();
+        }
+
+        function updateUI() {
+            document.getElementById('tab-login').innerHTML = t('login');
+            document.getElementById('tab-register').innerHTML = t('register');
+            document.getElementById('email').placeholder = t('email');
+            document.getElementById('username').placeholder = t('username');
+            document.getElementById('password').placeholder = t('password');
+            document.getElementById('main-btn').innerHTML = currentMode === 'login' ? t('enter') : t('regBtn');
+            document.getElementById('code-text').innerHTML = t('codeSent');
+            document.getElementById('code').placeholder = t('codePlaceholder');
+        }
 
         function setMode(mode) {
             currentMode = mode;
@@ -48,12 +88,12 @@
                 document.getElementById('tab-register').className = 'tab-btn active';
                 document.getElementById('tab-login').className = 'tab-btn';
                 document.getElementById('username').style.display = 'block';
-                document.getElementById('main-btn').innerHTML = 'Зарегистрироваться';
+                document.getElementById('main-btn').innerHTML = t('regBtn');
             } else {
                 document.getElementById('tab-login').className = 'tab-btn active';
                 document.getElementById('tab-register').className = 'tab-btn';
                 document.getElementById('username').style.display = 'none';
-                document.getElementById('main-btn').innerHTML = 'Войти';
+                document.getElementById('main-btn').innerHTML = t('enter');
             }
         }
 
@@ -62,8 +102,7 @@
             var password = document.getElementById('password').value;
             var username = document.getElementById('username').value.trim();
             if (!email || !password || (currentMode === 'register' && !username)) {
-                alert("Заполните все поля");
-                return;
+                alert(t('fillAll')); return;
             }
             var xhr = new XMLHttpRequest();
             xhr.open('POST', API + '/api/send-code', true);
@@ -75,17 +114,17 @@
                     if (xhr.status === 200 && data.success) {
                         document.getElementById('code-section').style.display = 'block';
                     } else {
-                        alert(data.error || 'Ошибка');
+                        alert(data.error || t('error'));
                     }
                 }
             };
-            xhr.send(JSON.stringify({ email: email, password: password, username: username, mode: currentMode }));
+            xhr.send(JSON.stringify({ email: email, password: password, username: username, mode: currentMode, language: currentLang }));
         }
 
         function verifyAuth() {
             var email = document.getElementById('email').value.trim();
             var code = document.getElementById('code').value.trim();
-            if (!code) { alert("Введите код"); return; }
+            if (!code) { alert(t('enterCode')); return; }
             var xhr = new XMLHttpRequest();
             xhr.open('POST', API + '/api/verify-code', true);
             xhr.setRequestHeader('Content-Type', 'application/json');
@@ -96,13 +135,14 @@
                     if (xhr.status === 200 && data.success) {
                         localStorage.setItem('ichatter_token', data.token);
                         localStorage.setItem('ichatter_email', email);
+                        localStorage.setItem('ichatter_lang', currentLang);
                         window.location.href = 'chat.html';
                     } else {
-                        alert(data.error || 'Неверный код');
+                        alert(data.error || t('wrongCode'));
                     }
                 }
             };
-            xhr.send(JSON.stringify({ email: email, code: code }));
+            xhr.send(JSON.stringify({ email: email, code: code, device: 'Web' }));
         }
     </script>
 </body>

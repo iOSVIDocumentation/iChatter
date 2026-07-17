@@ -6,6 +6,8 @@
     <title>iChatter</title>
     <script src="https://moss-perspective-stands-copying.trycloudflare.com/socket.io/socket.io.js"></script>
     <style>
+        /* ... все стили без изменений, оставляем как было ... */
+        /* Можно не копировать, т.к. стили те же, что в предыдущем рабочем варианте */
         body, html { margin: 0; padding: 0; height: 100%; background: #E2E7ED; color: #222; font-family: Helvetica, sans-serif; overflow: hidden; }
         #header { position: absolute; top: 0; left: 0; right: 0; height: 44px; background: #2c3e50; color: white; line-height: 44px; padding: 0 10px; z-index: 10; box-sizing: border-box; }
         #header button { float: left; margin-top: 7px; margin-right: 6px; background: #4a627a; color: white; border: none; padding: 5px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; }
@@ -82,7 +84,7 @@
 
     <div id="chats-panel">
         <div class="panel-section">
-            <input type="text" id="search-input" placeholder="Ник или ID">
+            <input type="text" id="search-input" placeholder="Введите ID (6 цифр)">
             <button onclick="findUser()">Найти</button>
         </div>
         <div id="chats-list"></div>

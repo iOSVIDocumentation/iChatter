@@ -30,7 +30,6 @@ var editingId = null;
 var profile = null;
 var contacts = [];
 var pendingName = null;
-var firstLoad = true;
 
 if (!token || !myEmail) { window.location.href = 'login.html'; }
 
@@ -44,12 +43,17 @@ function isOldIOS() {
 
 var T = {
     ru: {
-        select: 'Выберите контакт', noContacts: 'Нет чатов', online: 'онлайн', offline: 'оффлайн',
+        select: 'Выберите контакт', noContacts: 'Нет чатов', online: 'онлайн', offline: 'офлайн',
         typing: 'печатает...', empty: 'Пусто', notFound: 'Пользователь не найден',
         enterId: 'Введите 6-значный ID', msg: 'Сообщение...', send: 'Отпр.', edited: 'ред.',
         deleted: 'Сообщение удалено', save: 'Сохранить', saved: 'Настройки сохранены',
         selfSearch: 'Нельзя искать самого себя', invalidId: 'ID должен состоять из 6 цифр',
-        chats: 'Чаты', archive: 'Архив', settings: 'Настройки', back: '← Назад'
+        chats: 'Чаты', archive: 'Архив', settings: 'Настройки', back: '← Назад',
+        langLabel: 'Язык / Language', themeLabel: 'Тема', wallpaper: 'Обои чата',
+        nickname: 'Ник (не меняется)', displayName: 'Отображаемое имя',
+        age: 'Возраст', about: 'О себе', avatar: 'Аватар', myId: 'Мой ID',
+        devices: 'Устройства', uploadWallpaper: 'Загрузить свой фон',
+        uploadAvatar: 'Загрузить свой аватар', searchPlaceholder: 'Введите ID (6 цифр)'
     },
     en: {
         select: 'Select contact', noContacts: 'No chats', online: 'online', offline: 'offline',
@@ -57,7 +61,12 @@ var T = {
         enterId: 'Enter 6-digit ID', msg: 'Message...', send: 'Send', edited: 'edited',
         deleted: 'Message deleted', save: 'Save', saved: 'Settings saved',
         selfSearch: 'You cannot search for yourself', invalidId: 'ID must be 6 digits',
-        chats: 'Chats', archive: 'Archive', settings: 'Settings', back: '← Back'
+        chats: 'Chats', archive: 'Archive', settings: 'Settings', back: '← Back',
+        langLabel: 'Language', themeLabel: 'Theme', wallpaper: 'Chat Wallpaper',
+        nickname: 'Nickname (unchangeable)', displayName: 'Display Name',
+        age: 'Age', about: 'About', avatar: 'Avatar', myId: 'My ID',
+        devices: 'Devices', uploadWallpaper: 'Upload Custom',
+        uploadAvatar: 'Upload Custom', searchPlaceholder: 'Enter ID (6 digits)'
     }
 };
 function t(k) { return T[lang][k] || k; }
@@ -77,6 +86,7 @@ function esc(s) {
     return div.innerHTML;
 }
 
+// ========== UI сообщений ==========
 function addMsg(msg) {
     var container = byId('messages');
     var div = document.createElement('div');
@@ -129,7 +139,7 @@ function delMsgUI(id) {
     if (actions.length > 0) actions[0].style.display = 'none';
 }
 
-// Навигация
+// ========== Навигация ==========
 function showTab(tab) {
     byId('chats-panel').style.display = 'none';
     byId('archive-panel').style.display = 'none';
@@ -139,6 +149,9 @@ function showTab(tab) {
     for (var i = 0; i < navs.length; i++) navs[i].className = 'nav-btn';
     byId('bottom-nav').style.display = 'table';
     byId('btn-back').style.display = 'none';
+
+    // Возвращаем заголовок приложения
+    byId('chat-title').innerHTML = 'iChatter';
 
     if (tab === 'chats') {
         byId('chats-panel').style.display = 'block';
@@ -185,13 +198,13 @@ function updateNavTexts() {
     byId('nav-chats').textContent = t('chats');
     byId('nav-archive').textContent = t('archive');
     byId('nav-settings').textContent = t('settings');
-    byId('search-input').placeholder = t('enterId');
+    byId('search-input').placeholder = t('searchPlaceholder');
     byId('input').placeholder = t('msg');
     byId('send-btn').textContent = t('send');
     byId('btn-back').textContent = t('back');
 }
 
-// Загрузка данных
+// ========== Данные ==========
 function loadMessages(to) {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', API + '/api/messages?token=' + token + '&chatWith=' + to, true);
@@ -213,10 +226,7 @@ function loadContacts() {
         if (xhr.readyState === 4 && xhr.status === 200) {
             contacts = JSON.parse(xhr.responseText).contacts || [];
             renderContacts();
-            if (firstLoad && contacts.length > 0) {
-                firstLoad = false;
-                openChat(contacts[0].email);
-            }
+            // Убираем автовход в чат – теперь просто показываем список
         }
     };
     xhr.send();
@@ -304,7 +314,7 @@ function findUser() {
     xhr.send();
 }
 
-// Настройки
+// ========== Настройки ==========
 function loadSettings() {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', API + '/api/my-profile?token=' + token, true);
@@ -323,9 +333,35 @@ function loadSettings() {
             loadAvatars();
             loadWallpapers();
             loadDevices();
+            updateSettingsLabels();
         }
     };
     xhr.send();
+}
+
+function updateSettingsLabels() {
+    // Обновляем подписи в настройках согласно текущему языку
+    var rows = byId('settings-panel').getElementsByClassName('settings-row');
+    for (var i = 0; i < rows.length; i++) {
+        var label = rows[i].getElementsByTagName('label')[0];
+        if (!label) continue;
+        var text = '';
+        // Определяем, какая это настройка, по тексту или атрибуту (здесь проще по порядку, но используем for атрибут)
+        var input = rows[i].querySelector('input, select');
+        if (input) {
+            if (input.id === 'lang-select') text = t('langLabel');
+            else if (input.id === 'theme-select') text = t('themeLabel');
+            else if (input.id === 'set-username') text = t('nickname');
+            else if (input.id === 'set-displayname') text = t('displayName');
+            else if (input.id === 'set-age') text = t('age');
+            else if (input.id === 'set-about') text = t('about');
+            else if (input.id === 'avatar-grid') text = t('avatar');
+            else if (input.id === 'wallpaper-grid') text = t('wallpaper');
+            else if (input.id === 'my-id-display') text = t('myId');
+            else if (input.id === 'devices-list') text = t('devices');
+            if (text) label.textContent = text;
+        }
+    }
 }
 
 function loadAvatars() {
@@ -428,7 +464,9 @@ function setLang(l) {
     if (profile) profile.language = l;
     localStorage.setItem('lang', lang);
     updateNavTexts();
-    if (byId('settings-panel').style.display === 'block') loadSettings();
+    if (byId('settings-panel').style.display === 'block') {
+        loadSettings(); // перезагрузит и обновит label'ы
+    }
 }
 
 function setTheme(th) {
@@ -441,7 +479,7 @@ function setTheme(th) {
     if (byId('theme-select')) byId('theme-select').value = th;
 }
 
-// Отправка медиа с поддержкой iOS 6
+// ========== Отправка ==========
 function sendMediaMessage(input) {
     if (!input.files || !input.files[0]) return;
     var file = input.files[0];
@@ -558,6 +596,7 @@ function delMsg(id) {
     if (confirm('Удалить сообщение?')) socket.emit('delete_message', { id: id });
 }
 
+// ========== Сокет ==========
 function connectSocket() {
     socket = io(API, { query: { token: token } });
     socket.on('receive_message', function(msg) { if (chatWith === msg.from) addMsg(msg); loadContacts(); });

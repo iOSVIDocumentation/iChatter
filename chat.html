@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>iChatter</title>
-    <script src="https://moss-perspective-stands-copying.trycloudflare.com/socket.io/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.4.1/socket.io.min.js"></script>
     <style>
         /* Базовые (светлые) стили */
         body, html {
@@ -105,6 +105,8 @@
             color: white; border: none; border-radius: 4px;
             font-size: 15px; cursor: pointer;
         }
+        .settings-row .checkbox-label { font-weight: normal; font-size: 14px; }
+        .settings-row .checkbox-label input { width: auto; margin-right: 8px; }
         .avatar-grid { overflow: hidden; }
         .avatar-grid img {
             width: 44px; height: 44px; border-radius: 22px;
@@ -183,7 +185,6 @@
     </style>
 </head>
 <body class="dark-mode">
-    <!-- Шапка -->
     <div id="header">
         <button onclick="showPanel('chats')">Чаты</button>
         <button onclick="showPanel('archive')">Архив</button>
@@ -191,22 +192,19 @@
         <span id="chat-title">iChatter</span>
     </div>
 
-    <!-- Панель чатов -->
     <div id="chats-panel">
         <div class="panel-section">
-            <input type="text" id="search-input" placeholder="Ник пользователя">
+            <input type="text" id="search-input" placeholder="Ник или ID">
             <button onclick="findUser()">Найти</button>
         </div>
         <div id="chats-list"></div>
     </div>
 
-    <!-- Панель архива -->
     <div id="archive-panel">
         <div style="padding:10px;font-weight:bold;border-bottom:1px solid #ccc;">Архивные чаты</div>
         <div id="archive-list"></div>
     </div>
 
-    <!-- Панель настроек -->
     <div id="settings-panel">
         <div style="padding:10px;font-weight:bold;border-bottom:1px solid #ccc;">Настройки</div>
         <div class="settings-row">
@@ -248,6 +246,14 @@
             <div class="avatar-grid" id="avatar-grid"></div>
         </div>
         <div class="settings-row">
+            <label>Мой ID: <b id="my-id-display">...</b></label>
+        </div>
+        <div class="settings-row">
+            <label class="checkbox-label">
+                <input type="checkbox" id="show-email-check"> Показывать почту другим
+            </label>
+        </div>
+        <div class="settings-row">
             <label>Устройства</label>
             <div id="devices-list"></div>
         </div>
@@ -256,10 +262,8 @@
         </div>
     </div>
 
-    <!-- Сообщения -->
     <div id="messages"></div>
 
-    <!-- Форма ввода -->
     <div id="form-container">
         <form id="form" onsubmit="return false;">
             <input id="input" autocomplete="off" placeholder="Сообщение...">

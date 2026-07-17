@@ -134,7 +134,6 @@
                     var data = {};
                     try { data = JSON.parse(xhr.responseText); } catch(e) {}
                     if (xhr.status === 200 && data.success) {
-                        // Сохраняем и переходим с длинным токеном в URL
                         localStorage.setItem('token', data.token);
                         localStorage.setItem('email', email);
                         localStorage.setItem('lang', currentLang);

@@ -1,4 +1,3 @@
-// Получаем параметры из URL
 function getParam(name) {
     var query = window.location.search.substring(1);
     var vars = query.split('&');
@@ -18,7 +17,6 @@ var urlEmail = getParam('email');
 if (urlToken) {
     localStorage.setItem('token', urlToken);
     if (urlEmail) localStorage.setItem('email', urlEmail);
-    // Оставляем токен в URL для отображения
     if (window.history && window.history.replaceState) {
         var newUrl = window.location.pathname + '?token=' + urlToken + (urlEmail ? '&email=' + encodeURIComponent(urlEmail) : '');
         window.history.replaceState({}, '', newUrl);
@@ -35,9 +33,7 @@ var profile = null;
 var contacts = [];
 var pendingName = null;
 
-if (!token || !myEmail) {
-    window.location.href = 'login.html';
-}
+if (!token || !myEmail) { window.location.href = 'login.html'; }
 
 function byId(id) { return document.getElementById(id); }
 
@@ -75,7 +71,6 @@ function esc(s) {
     return div.innerHTML;
 }
 
-// UI сообщений
 function addMsg(msg) {
     var container = byId('messages');
     var div = document.createElement('div');
@@ -233,7 +228,6 @@ function openChat(em) {
     loadMessages(em);
 }
 
-// Настройки
 function loadSettings() {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', API + '/api/my-profile?token=' + token, true);
@@ -246,7 +240,7 @@ function loadSettings() {
             byId('set-about').value = profile.about || '';
             byId('lang-select').value = profile.language || 'ru';
             byId('theme-select').value = profile.theme || 'dark';
-            byId('my-id-display').innerHTML = profile.searchId || '';  // <-- ID отображается здесь
+            byId('my-id-display').innerHTML = profile.searchId || '';
             byId('show-email-check').checked = !!profile.showEmail;
             applyTheme(profile.theme);
             loadAvatars();
@@ -388,5 +382,3 @@ byId('input').oninput = function() { if (chatWith) socket.emit('typing', { to: c
 connectSocket();
 byId('form-container').style.display = 'none';
 byId('messages').style.bottom = '0';
-
-// Если токен есть в URL, но нет в localStorage, мы уже сохранили, теперь просто отобразим

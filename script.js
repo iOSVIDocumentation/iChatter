@@ -30,7 +30,7 @@ var editingId = null;
 var profile = null;
 var contacts = [];
 var pendingName = null;
-var firstLoad = true; // чтобы автоматически открыть первый чат
+var firstLoad = true;
 
 if (!token || !myEmail) { window.location.href = 'login.html'; }
 
@@ -122,17 +122,20 @@ function delMsgUI(id) {
     if (actions.length > 0) actions[0].style.display = 'none';
 }
 
-// ========== Переключение вкладок ==========
+// ========== Навигация и переключение вкладок ==========
 function showTab(tab) {
-    // Скрываем всё
+    // Скрываем все панели
     byId('chats-panel').style.display = 'none';
     byId('archive-panel').style.display = 'none';
     byId('settings-panel').style.display = 'none';
     byId('chat-area').style.display = 'none';
-
-    // Сбрасываем подсветку
-    var navs = document.querySelectorAll('.nav-btn');
+    // Убираем подсветку со всех кнопок
+    var navs = document.getElementsByClassName('nav-btn');
     for (var i = 0; i < navs.length; i++) navs[i].className = 'nav-btn';
+    // Показываем нижнюю навигацию (если не открыт чат)
+    byId('bottom-nav').style.display = 'table';
+    // Прячем кнопку "Назад"
+    byId('btn-back').style.display = 'none';
 
     if (tab === 'chats') {
         byId('chats-panel').style.display = 'block';
@@ -151,15 +154,15 @@ function showTab(tab) {
 
 function openChat(em) {
     chatWith = em;
-    // Скрываем все панели, показываем chat-area
+    // Скрываем панели, показываем чат
     byId('chats-panel').style.display = 'none';
     byId('archive-panel').style.display = 'none';
     byId('settings-panel').style.display = 'none';
     byId('chat-area').style.display = 'block';
-    // Подсветка "Чаты" всё равно активна, так как чат - часть этого раздела
-    var navs = document.querySelectorAll('.nav-btn');
-    for (var i = 0; i < navs.length; i++) navs[i].className = 'nav-btn';
-    byId('nav-chats').className = 'nav-btn active';
+    // Скрываем нижнюю навигацию
+    byId('bottom-nav').style.display = 'none';
+    // Показываем кнопку "Назад"
+    byId('btn-back').style.display = 'block';
 
     var name = pendingName;
     if (!name) {
@@ -171,6 +174,11 @@ function openChat(em) {
     pendingName = null;
     byId('chat-title').innerHTML = name;
     loadMessages(em);
+}
+
+function goBack() {
+    // Возвращаемся в список чатов
+    showTab('chats');
 }
 
 // ========== Загрузка данных ==========
@@ -195,7 +203,6 @@ function loadContacts() {
         if (xhr.readyState === 4 && xhr.status === 200) {
             contacts = JSON.parse(xhr.responseText).contacts || [];
             renderContacts();
-            // Автоматически открыть первый чат при первой загрузке
             if (firstLoad && contacts.length > 0) {
                 firstLoad = false;
                 openChat(contacts[0].email);
@@ -299,7 +306,6 @@ function loadSettings() {
             byId('set-age').value = profile.age || '';
             byId('set-about').value = profile.about || '';
             byId('lang-select').value = profile.language || 'ru';
-            byId('theme-select').value = 'dark'; // только тёмная, как в логине
             byId('my-id-display').innerHTML = profile.searchId || '';
             loadAvatars();
             loadWallpapers();
@@ -384,7 +390,6 @@ function saveSettings() {
     profile.age = parseInt(byId('set-age').value) || 0;
     profile.about = byId('set-about').value;
     profile.language = byId('lang-select').value;
-    // тема не меняется, всегда тёмная
     lang = profile.language;
     localStorage.setItem('lang', lang);
 
@@ -394,16 +399,15 @@ function saveSettings() {
     xhr.onreadystatechange = function() {
         if (xhr.readyState === 4 && xhr.status === 200) {
             alert(t('saved'));
-            showTab('settings'); // остаться на настройках
+            showTab('settings');
         }
     };
     xhr.send(JSON.stringify({ token: token, displayName: profile.displayName, age: profile.age, about: profile.about, avatar: profile.avatar, theme: 'dark', language: profile.language, wallpaper: profile.wallpaper }));
 }
 
 function setLang(l) { lang = l; if (profile) profile.language = l; }
-function setTheme(th) { } // тема всегда тёмная, ничего не делаем
 
-// ========== Отправка сообщений ==========
+// ========== Отправка ==========
 function sendMediaMessage(input) {
     if (!input.files || !input.files[0]) return;
     var file = input.files[0];
@@ -517,7 +521,5 @@ byId('send-btn').onclick = sendMessage;
 byId('input').onkeydown = function(e) { if (e.keyCode === 13) { e.preventDefault(); sendMessage(); } };
 byId('input').oninput = function() { if (chatWith) socket.emit('typing', { to: chatWith, isTyping: true }); };
 
-// Запуск
 connectSocket();
-// По умолчанию открываем вкладку "Чаты" (загрузка контактов сама откроет первый чат)
 showTab('chats');

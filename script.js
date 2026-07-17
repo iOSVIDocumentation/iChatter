@@ -16,7 +16,7 @@ function isOldIOS() {
 }
 
 var API = isOldIOS() ? 'http://192.168.1.15:8080' : 'https://moss-perspective-stands-copying.trycloudflare.com';
-// Если у тебя другой локальный IP, замени 192.168.1.15
+// Если локальный IP другой, замени 192.168.1.15
 
 var urlToken = getParam('token');
 var urlEmail = getParam('email');
@@ -75,7 +75,6 @@ var T = {
 };
 function t(k) { return T[lang][k] || k; }
 
-// ====== Утилиты ======
 function formatTime(ts) { var d = new Date(ts); var h = d.getHours(); var m = d.getMinutes(); if (m < 10) m = '0' + m; return h + ':' + m; }
 function esc(s) { if (!s) return ''; var div = document.createElement('div'); div.appendChild(document.createTextNode(s)); return div.innerHTML; }
 
@@ -142,8 +141,6 @@ function showTab(tab) {
     for (var i = 0; i < navs.length; i++) navs[i].className = 'nav-btn';
     byId('bottom-nav').style.display = 'table';
     byId('btn-back').style.display = 'none';
-
-    // всегда возвращаем заголовок приложения
     byId('chat-title').innerHTML = 'iChatter';
 
     if (tab === 'chats') {
@@ -315,11 +312,7 @@ function loadSettings() {
             byId('set-displayname').value = profile.displayName || '';
             byId('set-age').value = profile.age || '';
             byId('set-about').value = profile.about || '';
-            // язык и тема из профиля
-            var savedLang = profile.language || 'ru';
-            lang = savedLang;
-            localStorage.setItem('lang', lang);
-            byId('lang-select').value = savedLang;
+            byId('lang-select').value = profile.language || lang;
             var savedTheme = profile.theme || 'dark';
             byId('theme-select').value = savedTheme;
             setTheme(savedTheme);
@@ -327,15 +320,82 @@ function loadSettings() {
             loadAvatars();
             loadWallpapers();
             loadDevices();
-            updateNavTexts(); // обновить навигацию под язык
+            updateNavTexts();
         }
     };
     xhr.send();
 }
 
-function loadAvatars() { /* … как раньше … */ }
-function loadWallpapers() { /* … */ }
-function loadDevices() { /* … */ }
+function loadAvatars() {
+    var grid = byId('avatar-grid');
+    grid.innerHTML = '';
+    for (var i = 1; i <= 10; i++) {
+        var img = document.createElement('img');
+        img.src = API + '/avatars/av' + i + '.png';
+        img.onerror = function() { this.style.display = 'none'; };
+        if (profile.avatar === 'av' + i + '.png') img.className = 'selected';
+        img.onclick = (function(idx) { return function() { var imgs = grid.getElementsByTagName('img'); for (var j = 0; j < imgs.length; j++) imgs[j].className = ''; this.className = 'selected'; profile.avatar = 'av' + idx + '.png'; }; })(i);
+        grid.appendChild(img);
+    }
+    if (profile.avatar && profile.avatar.startsWith('/uploads/avatars/')) {
+        var custImg = document.createElement('img');
+        custImg.src = API + profile.avatar;
+        custImg.className = 'selected';
+        custImg.onclick = function() { var imgs = grid.getElementsByTagName('img'); for (var j = 0; j < imgs.length; j++) imgs[j].className = ''; this.className = 'selected'; profile.avatar = this.src.replace(API, ''); };
+        grid.appendChild(custImg);
+    }
+}
+
+function loadWallpapers() {
+    var grid = byId('wallpaper-grid');
+    grid.innerHTML = '';
+    var walls = ['bg1.jpg','bg2.jpg','bg3.jpg','bg4.jpg','bg5.jpg','bg6.jpg','bg7.jpg','bg8.jpg'];
+    for (var i = 0; i < walls.length; i++) {
+        var img = document.createElement('img');
+        img.src = API + '/wallpapers/' + walls[i];
+        img.onerror = function() { this.style.display = 'none'; };
+        if (profile.wallpaper === walls[i]) img.className = 'selected';
+        img.onclick = (function(w) { return function() { var imgs = grid.getElementsByTagName('img'); for (var k = 0; k < imgs.length; k++) imgs[k].className = ''; this.className = 'selected'; profile.wallpaper = w; byId('messages').style.backgroundImage = 'url(' + API + '/wallpapers/' + w + ')'; byId('messages').style.backgroundSize = 'cover'; }; })(walls[i]);
+        grid.appendChild(img);
+    }
+    if (profile.wallpaper && profile.wallpaper.startsWith('/uploads/wallpapers/')) {
+        var custBg = document.createElement('img');
+        custBg.src = API + profile.wallpaper;
+        custBg.className = 'selected';
+        custBg.onclick = function() { var imgs = grid.getElementsByTagName('img'); for (var j = 0; j < imgs.length; j++) imgs[j].className = ''; this.className = 'selected'; profile.wallpaper = this.src.replace(API, ''); byId('messages').style.backgroundImage = 'url(' + this.src + ')'; byId('messages').style.backgroundSize = 'cover'; };
+        grid.appendChild(custBg);
+    }
+}
+
+function loadDevices() {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', API + '/api/my-devices?token=' + token, true);
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+            var devices = JSON.parse(xhr.responseText).devices || [];
+            var list = byId('devices-list');
+            list.innerHTML = '';
+            for (var i = 0; i < devices.length; i++) {
+                var d = devices[i];
+                var div = document.createElement('div');
+                div.style.padding = '6px 0';
+                var extra = d.isCurrent ? ' <b>[текущий]</b>' : ' <button onclick="logoutDevice(\'' + d.token + '\')" style="font-size:10px;background:#e74c3c;color:white;border:none;padding:3px 8px;border-radius:4px;cursor:pointer;">Выйти</button>';
+                div.innerHTML = d.device + ' (' + new Date(d.created).toLocaleString() + ')' + extra;
+                list.appendChild(div);
+            }
+        }
+    };
+    xhr.send();
+}
+
+function logoutDevice(tok) {
+    if (!confirm('Выйти с устройства?')) return;
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', API + '/api/logout-device', true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.onreadystatechange = function() { if (xhr.readyState === 4) loadDevices(); };
+    xhr.send(JSON.stringify({ token: token, targetToken: tok }));
+}
 
 function saveSettings() {
     profile.displayName = byId('set-displayname').value;
@@ -365,7 +425,8 @@ function setLang(l) {
     lang = l;
     localStorage.setItem('lang', lang);
     updateNavTexts();
-    // НЕ вызываем loadSettings, чтобы не сбросить форму
+    // Явно обновляем селект, если настройки открыты
+    if (byId('lang-select')) byId('lang-select').value = lang;
 }
 
 function setTheme(th) {
@@ -383,7 +444,33 @@ function sendMediaMessage(input) {
     if (!input.files || !input.files[0]) return;
     var file = input.files[0];
     if (isOldIOS()) {
-        // … iframe‑форма …
+        // iframe‑форма для старых iOS
+        var iframe = document.createElement('iframe');
+        iframe.name = 'upload-iframe-' + Date.now();
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+        var form = document.createElement('form');
+        form.method = 'POST';
+        form.action = API + '/api/upload-media?token=' + token;
+        form.enctype = 'multipart/form-data';
+        form.target = iframe.name;
+        form.style.display = 'none';
+        var clone = input.cloneNode(true);
+        clone.name = 'file';
+        form.appendChild(clone);
+        document.body.appendChild(form);
+        form.submit();
+        iframe.onload = function() {
+            try {
+                var response = JSON.parse(iframe.contentDocument.body.textContent || iframe.contentWindow.document.body.textContent);
+                if (response.success && socket && chatWith) {
+                    socket.emit('send_message', { to: chatWith, text: '', media: { url: response.url, type: response.type } });
+                }
+            } catch(e) {}
+            document.body.removeChild(iframe);
+            document.body.removeChild(form);
+            input.value = '';
+        };
     } else {
         var formData = new FormData();
         formData.append('file', file);
@@ -403,6 +490,66 @@ function sendMediaMessage(input) {
         xhr.send(formData);
     }
 }
+
+function uploadCustomAvatar(input) {
+    if (!input.files || !input.files[0]) return;
+    var file = input.files[0];
+    var formData = new FormData();
+    formData.append('avatar', file);
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', API + '/api/upload-avatar?token=' + token, true);
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+            var resp = JSON.parse(xhr.responseText);
+            if (resp.success) {
+                alert('Аватар обновлён!');
+                profile.avatar = resp.url;
+                loadAvatars();
+            }
+        }
+        input.value = '';
+    };
+    xhr.send(formData);
+}
+
+function uploadCustomWallpaper(input) {
+    if (!input.files || !input.files[0]) return;
+    var file = input.files[0];
+    var formData = new FormData();
+    formData.append('wallpaper', file);
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', API + '/api/upload-wallpaper?token=' + token, true);
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+            var resp = JSON.parse(xhr.responseText);
+            if (resp.success) {
+                alert('Обои обновлены!');
+                profile.wallpaper = resp.url;
+                byId('messages').style.backgroundImage = 'url(' + API + resp.url + ')';
+                byId('messages').style.backgroundSize = 'cover';
+            }
+        }
+        input.value = '';
+    };
+    xhr.send(formData);
+}
+
+function sendMessage() {
+    var input = byId('input');
+    var text = input.value.trim();
+    if (!text || !chatWith) return;
+    if (!socket) return;
+    if (editingId) {
+        socket.emit('edit_message', { id: editingId, newText: text });
+        editingId = null;
+    } else {
+        socket.emit('send_message', { to: chatWith, text: text });
+    }
+    input.value = '';
+}
+
+function editMsg(id, text) { editingId = id; byId('input').value = text; byId('input').focus(); }
+function delMsg(id) { if (confirm('Удалить сообщение?')) socket.emit('delete_message', { id: id }); }
 
 // ====== Сокет ======
 function connectSocket() {
@@ -428,7 +575,7 @@ function connectSocket() {
 
 byId('send-btn').onclick = sendMessage;
 byId('input').onkeydown = function(e) { if (e.keyCode === 13) { e.preventDefault(); sendMessage(); } };
-byId('input').oninput = function() { if (chatWith) socket.emit('typing', { to: chatWith, isTyping: true }); };
+byId('input').oninput = function() { if (chatWith && socket) socket.emit('typing', { to: chatWith, isTyping: true }); };
 
 connectSocket();
 showTab('chats');

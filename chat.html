@@ -1,165 +1,523 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>iChatter</title>
-    <script src="https://moss-perspective-stands-copying.trycloudflare.com/socket.io/socket.io.js"></script>
-    <style>
-        body, html { margin: 0; padding: 0; height: 100%; background: #E2E7ED; color: #222; font-family: Helvetica, sans-serif; overflow: hidden; }
-        #header { position: absolute; top: 0; left: 0; right: 0; height: 44px; background: #2c3e50; color: white; line-height: 44px; padding: 0 10px; z-index: 10; box-sizing: border-box; }
-        #header button { float: left; margin-top: 7px; margin-right: 6px; background: #4a627a; color: white; border: none; padding: 5px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; }
-        #chat-title { font-size: 14px; font-weight: bold; display: inline-block; max-width: 50%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
-        #chats-panel, #archive-panel, #settings-panel { position: absolute; top: 44px; bottom: 0; left: 0; width: 100%; background: white; overflow-y: scroll; -webkit-overflow-scrolling: touch; z-index: 5; display: none; }
-        .panel-section { padding: 10px; border-bottom: 1px solid #ccc; background: #f5f5f5; }
-        .panel-section input { width: 58%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
-        .panel-section button { width: 30%; padding: 8px; background: #2c3e50; color: white; border: none; border-radius: 4px; font-size: 14px; }
-        .chat-item { padding: 12px 10px; border-bottom: 1px solid #eee; cursor: pointer; position: relative; }
-        .chat-item .name { font-weight: bold; }
-        .chat-item .status { font-size: 12px; color: #888; }
-        .chat-item .status.online { color: #27ae60; }
-        .chat-item .archive-btn { position: absolute; right: 10px; top: 12px; background: #e74c3c; color: white; border: none; padding: 3px 8px; border-radius: 3px; font-size: 10px; cursor: pointer; }
-        .chat-item .unarchive-btn { background: #27ae60; }
-        #messages { position: absolute; top: 44px; bottom: 0; left: 0; right: 0; padding: 10px; overflow-y: scroll; -webkit-overflow-scrolling: touch; box-sizing: border-box; background: #E2E7ED; }
-        .msg { padding: 8px 10px; background: white; margin-bottom: 6px; border-radius: 8px; word-wrap: break-word; font-size: 14px; position: relative; max-width: 80%; }
-        .msg.my { background: #dcf8c6; margin-left: 20%; }
-        .msg .sender { font-weight: bold; font-size: 12px; color: #555; }
-        .msg .time { font-size: 10px; color: #999; margin-left: 5px; }
-        .msg .text { margin-top: 3px; }
-        .msg .edited-tag { font-size: 10px; color: #888; font-style: italic; }
-        .msg .actions { display: none; position: absolute; right: 5px; top: 5px; }
-        .msg .actions button { font-size: 10px; padding: 2px 5px; margin-left: 3px; border: none; border-radius: 3px; cursor: pointer; color: white; }
-        .msg .actions .edit-btn { background: #f39c12; }
-        .msg .actions .del-btn { background: #e74c3c; }
-        .msg .media { margin-top: 5px; max-width: 100%; border-radius: 8px; }
-        #form-container { position: absolute; bottom: 0; left: 0; right: 0; height: 50px; background: #cbd2d9; box-sizing: border-box; padding: 5px; display: none; }
-        #form { display: block; width: 100%; height: 100%; margin: 0; }
-        #input { position: absolute; left: 45px; top: 5px; bottom: 5px; right: 80px; width: auto; box-sizing: border-box; font-size: 16px; border-radius: 4px; border: 1px solid #ccc; padding: 5px; background: white; color: #222; }
-        .media-btn { position: absolute; left: 5px; top: 5px; bottom: 5px; width: 35px; background: #4a627a; color: white; border: none; border-radius: 4px; font-size: 18px; cursor: pointer; }
-        #send-btn { position: absolute; right: 5px; top: 5px; bottom: 5px; width: 70px; background: #2c3e50; color: white; border: none; border-radius: 4px; font-size: 14px; cursor: pointer; }
-        .settings-row { padding: 12px 10px; border-bottom: 1px solid #eee; }
-        .settings-row label { font-weight: bold; display: block; margin-bottom: 5px; font-size: 13px; }
-        .settings-row input, .settings-row select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; box-sizing: border-box; background: white; color: #222; }
-        .settings-row button { width: 100%; padding: 10px; background: #27ae60; color: white; border: none; border-radius: 4px; font-size: 15px; cursor: pointer; }
-        .avatar-grid { overflow: hidden; }
-        .avatar-grid img { width: 44px; height: 44px; border-radius: 22px; margin: 4px; border: 2px solid transparent; cursor: pointer; float: left; }
-        .avatar-grid img.selected { border-color: #27ae60; }
-        .wallpaper-grid { overflow: hidden; }
-        .wallpaper-grid img { width: 70px; height: 44px; margin: 4px; border: 2px solid transparent; cursor: pointer; object-fit: cover; float: left; }
-        .wallpaper-grid img.selected { border-color: #27ae60; }
-        body.dark-mode { background: #1a1a2e; color: #ddd; }
-        body.dark-mode #header { background: #0f3460; }
-        body.dark-mode #chats-panel, body.dark-mode #archive-panel, body.dark-mode #settings-panel { background: #16213e; color: #ddd; }
-        body.dark-mode .panel-section { background: #1a1a2e; border-color: #0f3460; }
-        body.dark-mode .panel-section input { background: #0f3460; border-color: #333; color: #ddd; }
-        body.dark-mode .chat-item { border-color: #0f3460; }
-        body.dark-mode .chat-item .status { color: #aaa; }
-        body.dark-mode .chat-item .status.online { color: #4cd964; }
-        body.dark-mode #messages { background: #1a1a2e; }
-        body.dark-mode .msg { background: #0f3460; color: #ddd; }
-        body.dark-mode .msg.my { background: #0088cc; }
-        body.dark-mode .msg .sender { color: #bbb; }
-        body.dark-mode .msg .time { color: #999; }
-        body.dark-mode .msg .edited-tag { color: #aaa; }
-        body.dark-mode #form-container { background: #0f3460; border-top: 1px solid #1a1a2e; }
-        body.dark-mode #input { background: #0f3460; border-color: #333; color: #ddd; }
-        body.dark-mode #send-btn { background: #0088cc; }
-        body.dark-mode .media-btn { background: #0088cc; }
-        body.dark-mode .settings-row { border-color: #0f3460; }
-        body.dark-mode .settings-row input, body.dark-mode .settings-row select { background: #0f3460; border-color: #333; color: #ddd; }
-        body.dark-mode .settings-row button { background: #27ae60; }
-        body.dark-mode .avatar-grid img.selected { border-color: #4cd964; }
-        body.dark-mode .wallpaper-grid img.selected { border-color: #4cd964; }
-    </style>
-</head>
-<body class="dark-mode">
-    <div id="header">
-        <button onclick="showPanel('chats')">Чаты</button>
-        <button onclick="showPanel('archive')">Архив</button>
-        <button onclick="showPanel('settings')">Настр.</button>
-        <span id="chat-title">iChatter</span>
-    </div>
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const nodemailer = require('nodemailer');
+const fs = require('fs');
+const path = require('path');
+const http = require('http');
+const { Server } = require('socket.io');
+const crypto = require('crypto');
+const multer = require('multer');
 
-    <div id="chats-panel">
-        <div class="panel-section">
-            <input type="text" id="search-input" placeholder="Ник или ID">
-            <button onclick="findUser()">Найти</button>
-        </div>
-        <div id="chats-list"></div>
-    </div>
+const app = express();
+const server = http.createServer(app);
 
-    <div id="archive-panel">
-        <div style="padding:10px;font-weight:bold;border-bottom:1px solid #ccc;">Архивные чаты</div>
-        <div id="archive-list"></div>
-    </div>
+const io = new Server(server, {
+    cors: { origin: '*', methods: ["GET", "POST"] },
+    transports: ['polling', 'websocket']
+});
 
-    <div id="settings-panel">
-        <div style="padding:10px;font-weight:bold;border-bottom:1px solid #ccc;">Настройки</div>
-        <div class="settings-row">
-            <label>Язык / Language</label>
-            <select id="lang-select" onchange="setLang(this.value)">
-                <option value="ru">Русский</option>
-                <option value="en">English</option>
-            </select>
-        </div>
-        <div class="settings-row">
-            <label>Тема</label>
-            <select id="theme-select" onchange="setTheme(this.value)">
-                <option value="light">Светлая</option>
-                <option value="dark">Тёмная</option>
-            </select>
-        </div>
-        <div class="settings-row">
-            <label>Обои чата</label>
-            <div class="wallpaper-grid" id="wallpaper-grid"></div>
-            <button class="upload-btn" style="margin-top:5px;" onclick="document.getElementById('wallpaper-file').click()">Загрузить свой фон</button>
-            <input type="file" id="wallpaper-file" accept="image/*" style="display:none;" onchange="uploadCustomWallpaper(this)">
-        </div>
-        <div class="settings-row">
-            <label>Ник (не меняется)</label>
-            <input type="text" id="set-username" disabled style="background:#ddd; color:#555;">
-        </div>
-        <div class="settings-row">
-            <label>Отображаемое имя</label>
-            <input type="text" id="set-displayname" placeholder="Как вас видят другие">
-        </div>
-        <div class="settings-row">
-            <label>Возраст</label>
-            <input type="number" id="set-age" placeholder="Возраст" min="0" max="150">
-        </div>
-        <div class="settings-row">
-            <label>О себе</label>
-            <input type="text" id="set-about" placeholder="Расскажите о себе">
-        </div>
-        <div class="settings-row">
-            <label>Аватар</label>
-            <div class="avatar-grid" id="avatar-grid"></div>
-            <button class="upload-btn" style="margin-top:5px;" onclick="document.getElementById('avatar-file').click()">Загрузить свой аватар</button>
-            <input type="file" id="avatar-file" accept="image/*" style="display:none;" onchange="uploadCustomAvatar(this)">
-        </div>
-        <div class="settings-row">
-            <label>Мой ID: <b id="my-id-display">...</b></label>
-        </div>
-        <div class="settings-row">
-            <label>Устройства</label>
-            <div id="devices-list"></div>
-        </div>
-        <div class="settings-row">
-            <button onclick="saveSettings()">Сохранить</button>
-        </div>
-    </div>
+app.use(cors({ origin: '*', methods: ['GET', 'POST'] }));
+app.use(express.json({ limit: '5mb' }));
 
-    <div id="messages"></div>
+const DB_PATH = path.join(__dirname, 'database.json');
+const TOKENS_PATH = path.join(__dirname, 'tokens.json');
+const PUBLIC_DIR = path.join(__dirname, 'public');
+const AVATARS_DIR = path.join(PUBLIC_DIR, 'avatars');
+const WALLPAPERS_DIR = path.join(PUBLIC_DIR, 'wallpapers');
+const MEDIA_DIR = path.join(PUBLIC_DIR, 'uploads', 'media');
+const CUSTOM_AVATARS_DIR = path.join(PUBLIC_DIR, 'uploads', 'avatars');
+const CUSTOM_WALLPAPERS_DIR = path.join(PUBLIC_DIR, 'uploads', 'wallpapers');
 
-    <div id="form-container">
-        <form id="form" onsubmit="return false;">
-            <input type="file" id="media-file" accept="image/*,video/*,audio/*,application/*" style="display:none;" onchange="sendMediaMessage(this)">
-            <button type="button" class="media-btn" onclick="document.getElementById('media-file').click()">📎</button>
-            <input id="input" autocomplete="off" placeholder="Сообщение...">
-            <button type="button" id="send-btn" onclick="sendMessage()">Отпр.</button>
-        </form>
-    </div>
+[AVATARS_DIR, WALLPAPERS_DIR, MEDIA_DIR, CUSTOM_AVATARS_DIR, CUSTOM_WALLPAPERS_DIR].forEach(dir => {
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+});
 
-    <script src="script.js"></script>
-</body>
-</html>
+app.use('/avatars', express.static(AVATARS_DIR));
+app.use('/wallpapers', express.static(WALLPAPERS_DIR));
+app.use('/uploads', express.static(path.join(PUBLIC_DIR, 'uploads')));
+
+// Multer storage
+const storageMedia = multer.diskStorage({
+    destination: MEDIA_DIR,
+    filename: (req, file, cb) => {
+        const ext = path.extname(file.originalname);
+        cb(null, Date.now() + '-' + Math.random().toString(36).substr(2, 6) + ext);
+    }
+});
+const uploadMedia = multer({ storage: storageMedia, limits: { fileSize: 10 * 1024 * 1024 } });
+
+const storageAvatar = multer.diskStorage({
+    destination: CUSTOM_AVATARS_DIR,
+    filename: (req, file, cb) => {
+        const ext = path.extname(file.originalname);
+        cb(null, 'avatar-' + Date.now() + ext);
+    }
+});
+const uploadAvatar = multer({ storage: storageAvatar, limits: { fileSize: 5 * 1024 * 1024 } });
+
+const storageWallpaper = multer.diskStorage({
+    destination: CUSTOM_WALLPAPERS_DIR,
+    filename: (req, file, cb) => {
+        const ext = path.extname(file.originalname);
+        cb(null, 'bg-' + Date.now() + ext);
+    }
+});
+const uploadWallpaper = multer({ storage: storageWallpaper, limits: { fileSize: 5 * 1024 * 1024 } });
+
+const tempCodes = {};
+let activeTokens = {};
+const connectedUsers = {};
+
+const DEFAULT_AVATARS = [
+    'av1.png', 'av2.png', 'av3.png', 'av4.png', 'av5.png',
+    'av6.png', 'av7.png', 'av8.png', 'av9.png', 'av10.png'
+];
+
+const DEFAULT_WALLPAPERS = [
+    'bg1.jpg', 'bg2.jpg', 'bg3.jpg', 'bg4.jpg', 'bg5.jpg',
+    'bg6.jpg', 'bg7.jpg', 'bg8.jpg'
+];
+
+function readDatabase() {
+    try {
+        if (!fs.existsSync(DB_PATH)) return { users: [], messages: [], archivedChats: {} };
+        const data = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
+        if (!data.messages) data.messages = [];
+        if (!data.archivedChats) data.archivedChats = {};
+        return data;
+    } catch (err) { return { users: [], messages: [], archivedChats: {} }; }
+}
+
+function writeDatabase(data) {
+    try { fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2), 'utf8'); }
+    catch (err) { console.error('Ошибка записи в базу:', err); }
+}
+
+function loadTokens() {
+    try {
+        if (fs.existsSync(TOKENS_PATH)) {
+            activeTokens = JSON.parse(fs.readFileSync(TOKENS_PATH, 'utf8'));
+            console.log("[СИСТЕМА] Токены загружены.");
+        }
+    } catch (err) { console.log("[ОШИБКА] Токены не загружены"); }
+}
+
+function saveTokens() {
+    fs.writeFileSync(TOKENS_PATH, JSON.stringify(activeTokens, null, 2), 'utf8');
+}
+
+loadTokens();
+
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+    }
+});
+
+function generateSearchId(db) {
+    let newId;
+    let isUnique = false;
+    while (!isUnique) {
+        newId = Math.floor(100000 + Math.random() * 900000).toString();
+        if (!db.users.find(u => u.searchId === newId)) isUnique = true;
+    }
+    return newId;
+}
+
+// ===================== HTTP =====================
+app.post('/api/send-code', (req, res) => {
+    const { email, username, password, mode, language } = req.body;
+    const targetEmail = email.toLowerCase().trim();
+    const targetUsername = (username || '').trim().toLowerCase();
+    const db = readDatabase();
+    const existingUser = db.users.find(u => (u.email || '').toLowerCase().trim() === targetEmail);
+    const lang = language === 'en' ? 'en' : 'ru';
+
+    if (mode === 'register') {
+        if (existingUser) {
+            const msg = lang === 'en' ? 'Email is already taken' : 'Email занят';
+            return res.status(400).json({ error: msg });
+        }
+        if (db.users.find(u => (u.username || '').toLowerCase() === targetUsername)) {
+            const msg = lang === 'en' ? 'Username is already taken' : 'Ник уже занят';
+            return res.status(400).json({ error: msg });
+        }
+        db.users.push({
+            searchId: generateSearchId(db),
+            username: targetUsername,
+            displayName: username.trim(),
+            email: targetEmail,
+            password: password,
+            age: 0,
+            about: lang === 'en' ? 'Hey, I\'m in iChatter!' : 'Привет, я в iChatter!',
+            avatar: 'av1.png',
+            wallpaper: '',
+            theme: 'dark',
+            language: lang
+        });
+        writeDatabase(db);
+    } else {
+        if (!existingUser || existingUser.password !== password) {
+            const msg = lang === 'en' ? 'Invalid login/password' : 'Неверный логин/пароль';
+            return res.status(401).json({ error: msg });
+        }
+    }
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    tempCodes[targetEmail] = { code, username: existingUser ? existingUser.username : targetUsername };
+    console.log(`[КОД] На почту ${targetEmail} отправлен код: ${code}`);
+
+    const subject = lang === 'en' ? 'iChatter Authorization Code' : 'Код авторизации iChatter';
+    const text = lang === 'en'
+        ? `Your iChatter verification code: ${code}\nValid for 10 minutes.`
+        : `Ваш проверочный код для iChatter: ${code}\nДействует 10 минут.`;
+
+    transporter.sendMail({
+        from: '"iChatter" <1rol4k2@gmail.com>',
+        to: targetEmail,
+        subject: subject,
+        text: text
+    }, (err) => {
+        if (err) {
+            console.error('Ошибка отправки:', err);
+            const msg = lang === 'en' ? 'Mail error' : 'Ошибка почты';
+            return res.status(500).json({ error: msg });
+        }
+        res.json({ success: true });
+    });
+});
+
+app.post('/api/verify-code', (req, res) => {
+    const { email, code, device } = req.body;
+    const targetEmail = email.toLowerCase().trim();
+    const record = tempCodes[targetEmail];
+    if (!record || record.code !== code.trim()) {
+        return res.status(400).json({ error: 'Ошибка кода' });
+    }
+
+    const db = readDatabase();
+    const user = db.users.find(u => u.email === targetEmail);
+    const token = crypto.randomBytes(64).toString('hex');
+    activeTokens[token] = {
+        email: targetEmail,
+        username: user ? user.username : record.username,
+        searchId: user ? user.searchId : '000000',
+        device: device || 'Web',
+        created: Date.now()
+    };
+    saveTokens();
+    console.log(`[ВХОД] ${user ? user.username : record.username} (${targetEmail})`);
+
+    res.json({ success: true, token, user: user || { username: record.username, email: targetEmail } });
+    delete tempCodes[targetEmail];
+});
+
+app.get('/api/my-profile', (req, res) => {
+    const { token } = req.query;
+    if (!activeTokens[token]) return res.status(401).json({ error: 'Unauthorized' });
+    const db = readDatabase();
+    const user = db.users.find(u => u.email === activeTokens[token].email);
+    if (user) res.json({ user });
+    else res.status(404).json({ error: 'Пользователь не найден' });
+});
+
+app.post('/api/update-profile', (req, res) => {
+    const { token, displayName, age, about, avatar, theme, language, wallpaper } = req.body;
+    if (!activeTokens[token]) return res.status(401).json({ error: 'Unauthorized' });
+    const db = readDatabase();
+    const user = db.users.find(u => u.email === activeTokens[token].email);
+    if (user) {
+        if (displayName) user.displayName = displayName;
+        if (age !== undefined) user.age = age;
+        if (about !== undefined) user.about = about;
+        if (avatar) user.avatar = avatar;
+        if (theme) user.theme = theme;
+        if (language) user.language = language;
+        if (wallpaper !== undefined) user.wallpaper = wallpaper;
+        writeDatabase(db);
+        res.json({ success: true, user });
+    } else res.status(404).json({ error: 'Пользователь не найден' });
+});
+
+app.get('/api/default-avatars', (req, res) => res.json({ avatars: DEFAULT_AVATARS }));
+app.get('/api/default-wallpapers', (req, res) => res.json({ wallpapers: DEFAULT_WALLPAPERS }));
+
+app.get('/api/my-devices', (req, res) => {
+    const { token } = req.query;
+    if (!activeTokens[token]) return res.status(401).json({ error: 'Unauthorized' });
+    const currentToken = token;
+    const userEmail = activeTokens[token].email;
+    const devices = [];
+    for (let t in activeTokens) {
+        if (activeTokens[t].email === userEmail) {
+            devices.push({
+                token: t === currentToken ? null : t.substring(0, 16) + '...',
+                device: activeTokens[t].device || 'Unknown',
+                created: activeTokens[t].created,
+                isCurrent: t === currentToken
+            });
+        }
+    }
+    res.json({ devices });
+});
+
+app.post('/api/logout-device', (req, res) => {
+    const { token, targetToken } = req.body;
+    if (!activeTokens[token]) return res.status(401).json({ error: 'Unauthorized' });
+    const userEmail = activeTokens[token].email;
+    let fullToken = null;
+    for (let t in activeTokens) {
+        if (t.startsWith(targetToken) && activeTokens[t].email === userEmail) {
+            fullToken = t;
+            break;
+        }
+    }
+    if (fullToken && fullToken !== token) {
+        delete activeTokens[fullToken];
+        saveTokens();
+        res.json({ success: true });
+    } else res.status(400).json({ error: 'Нельзя выйти с текущего устройства' });
+});
+
+app.get('/api/messages', (req, res) => {
+    const { token, chatWith } = req.query;
+    if (!activeTokens[token]) return res.status(401).json({ error: 'Unauthorized' });
+    const currentUserEmail = activeTokens[token].email;
+    const db = readDatabase();
+    const chatMessages = db.messages.filter(msg =>
+        (msg.from === currentUserEmail && msg.to === chatWith) ||
+        (msg.from === chatWith && msg.to === currentUserEmail)
+    ).sort((a, b) => a.timestamp - b.timestamp);
+    chatMessages.forEach(msg => { if (msg.to === currentUserEmail && !msg.read) msg.read = true; });
+    writeDatabase(db);
+    res.json({ messages: chatMessages });
+});
+
+app.get('/api/contacts', (req, res) => {
+    const { token } = req.query;
+    if (!activeTokens[token]) return res.status(401).json({ error: 'Unauthorized' });
+    const currentUserEmail = activeTokens[token].email;
+    const db = readDatabase();
+    const contactsSet = new Set();
+    db.messages.forEach(msg => {
+        if (msg.from === currentUserEmail && msg.to) contactsSet.add(msg.to);
+        if (msg.to === currentUserEmail && msg.from) contactsSet.add(msg.from);
+    });
+    const archived = db.archivedChats[currentUserEmail] || [];
+    const contacts = Array.from(contactsSet)
+        .filter(email => email && !archived.includes(email))
+        .map(email => {
+            const user = db.users.find(u => u.email === email);
+            return {
+                email,
+                username: user ? user.username : (email ? email.split('@')[0] : 'Unknown'),
+                displayName: user ? (user.displayName || user.username) : (email ? email.split('@')[0] : 'Unknown'),
+                searchId: user ? user.searchId : '000000',
+                avatar: user ? user.avatar : 'av1.png',
+                about: user ? user.about : '',
+                isOnline: Object.values(connectedUsers).some(s => s.user && s.user.email === email)
+            };
+        });
+    res.json({ contacts });
+});
+
+app.get('/api/archived-chats', (req, res) => {
+    const { token } = req.query;
+    if (!activeTokens[token]) return res.status(401).json({ error: 'Unauthorized' });
+    const currentUserEmail = activeTokens[token].email;
+    const db = readDatabase();
+    const archived = (db.archivedChats[currentUserEmail] || []).filter(email => email);
+    const archivedContacts = archived.map(email => {
+        const user = db.users.find(u => u.email === email);
+        return {
+            email,
+            username: user ? user.username : (email ? email.split('@')[0] : 'Unknown'),
+            displayName: user ? (user.displayName || user.username) : (email ? email.split('@')[0] : 'Unknown'),
+            searchId: user ? user.searchId : '000000',
+            avatar: user ? user.avatar : 'av1.png'
+        };
+    });
+    res.json({ contacts: archivedContacts });
+});
+
+app.post('/api/archive-chat', (req, res) => {
+    const { token, email } = req.body;
+    if (!activeTokens[token]) return res.status(401).json({ error: 'Unauthorized' });
+    const currentUserEmail = activeTokens[token].email;
+    const db = readDatabase();
+    if (!db.archivedChats[currentUserEmail]) db.archivedChats[currentUserEmail] = [];
+    if (!db.archivedChats[currentUserEmail].includes(email)) {
+        db.archivedChats[currentUserEmail].push(email);
+        writeDatabase(db);
+    }
+    res.json({ success: true });
+});
+
+app.post('/api/unarchive-chat', (req, res) => {
+    const { token, email } = req.body;
+    if (!activeTokens[token]) return res.status(401).json({ error: 'Unauthorized' });
+    const currentUserEmail = activeTokens[token].email;
+    const db = readDatabase();
+    if (db.archivedChats[currentUserEmail]) {
+        db.archivedChats[currentUserEmail] = db.archivedChats[currentUserEmail].filter(e => e !== email);
+        writeDatabase(db);
+    }
+    res.json({ success: true });
+});
+
+app.get('/api/find-user', (req, res) => {
+    const { token, username } = req.query;
+    if (!activeTokens[token]) return res.status(401).json({ error: 'Unauthorized' });
+    const db = readDatabase();
+    const query = (username || '').trim();
+    let user = null;
+    if (/^\d{6}$/.test(query)) {
+        user = db.users.find(u => u.searchId === query);
+    } else {
+        user = db.users.find(u => (u.username || '').toLowerCase() === query.toLowerCase());
+    }
+    if (user) {
+        res.json({
+            found: true,
+            user: {
+                email: user.email,
+                username: user.username,
+                displayName: user.displayName || user.username,
+                searchId: user.searchId,
+                avatar: user.avatar,
+                about: user.about
+            }
+        });
+    } else res.json({ found: false });
+});
+
+// Загрузка медиа
+app.post('/api/upload-media', (req, res) => {
+    const token = req.query.token;
+    if (!activeTokens[token]) return res.status(401).json({ error: 'Unauthorized' });
+    uploadMedia.single('file')(req, res, (err) => {
+        if (err) return res.status(400).json({ error: 'Ошибка загрузки файла' });
+        if (!req.file) return res.status(400).json({ error: 'Файл не выбран' });
+        const fileUrl = '/uploads/media/' + req.file.filename;
+        res.json({ success: true, url: fileUrl, type: req.file.mimetype });
+    });
+});
+
+// Загрузка аватара
+app.post('/api/upload-avatar', (req, res) => {
+    const token = req.query.token;
+    if (!activeTokens[token]) return res.status(401).json({ error: 'Unauthorized' });
+    uploadAvatar.single('avatar')(req, res, (err) => {
+        if (err) return res.status(400).json({ error: 'Ошибка загрузки аватара' });
+        if (!req.file) return res.status(400).json({ error: 'Файл не выбран' });
+        const avatarUrl = '/uploads/avatars/' + req.file.filename;
+        const db = readDatabase();
+        const user = db.users.find(u => u.email === activeTokens[token].email);
+        if (user) { user.avatar = avatarUrl; writeDatabase(db); }
+        res.json({ success: true, url: avatarUrl });
+    });
+});
+
+// Загрузка обоев
+app.post('/api/upload-wallpaper', (req, res) => {
+    const token = req.query.token;
+    if (!activeTokens[token]) return res.status(401).json({ error: 'Unauthorized' });
+    uploadWallpaper.single('wallpaper')(req, res, (err) => {
+        if (err) return res.status(400).json({ error: 'Ошибка загрузки обоев' });
+        if (!req.file) return res.status(400).json({ error: 'Файл не выбран' });
+        const wallpaperUrl = '/uploads/wallpapers/' + req.file.filename;
+        const db = readDatabase();
+        const user = db.users.find(u => u.email === activeTokens[token].email);
+        if (user) { user.wallpaper = wallpaperUrl; writeDatabase(db); }
+        res.json({ success: true, url: wallpaperUrl });
+    });
+});
+
+// ===================== SOCKETS =====================
+io.use((socket, next) => {
+    const token = socket.handshake.query.token;
+    if (!token) return next(new Error("No token"));
+    if (activeTokens[token]) {
+        const db = readDatabase();
+        const fullUser = db.users.find(u => u.email === activeTokens[token].email);
+        socket.user = fullUser || {
+            username: activeTokens[token].username || 'Unknown',
+            email: activeTokens[token].email,
+            searchId: activeTokens[token].searchId || '000000'
+        };
+        next();
+    } else next(new Error("Unauthorized"));
+});
+
+io.on('connection', (socket) => {
+    console.log(`[ПОДКЛЮЧЕН] ${socket.user.username}`);
+    connectedUsers[socket.id] = socket;
+    socket.join(socket.user.email);
+    io.emit('user_status', { email: socket.user.email, username: socket.user.username, status: 'online' });
+
+    socket.on('send_message', (data) => {
+        const db = readDatabase();
+        if (!db.messages) db.messages = [];
+        const message = {
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+            from: socket.user.email,
+            fromUsername: socket.user.displayName || socket.user.username,
+            fromSearchId: socket.user.searchId,
+            to: data.to,
+            text: data.text || '',
+            media: data.media || null,
+            timestamp: Date.now(),
+            read: false
+        };
+        db.messages.push(message);
+        if (db.archivedChats[socket.user.email]) {
+            db.archivedChats[socket.user.email] = db.archivedChats[socket.user.email].filter(e => e !== data.to);
+        }
+        if (db.archivedChats[data.to]) {
+            db.archivedChats[data.to] = db.archivedChats[data.to].filter(e => e !== socket.user.email);
+        }
+        writeDatabase(db);
+        io.to(data.to).emit('receive_message', message);
+        socket.emit('message_sent', message);
+    });
+
+    socket.on('edit_message', (data) => {
+        const db = readDatabase();
+        const message = db.messages.find(m => m.id === data.id);
+        if (message && message.from === socket.user.email) {
+            message.text = data.newText;
+            message.edited = true;
+            writeDatabase(db);
+            io.to(message.to).emit('update_message', { id: message.id, text: message.text, edited: true });
+            socket.emit('update_message', { id: message.id, text: message.text, edited: true });
+        }
+    });
+
+    socket.on('delete_message', (data) => {
+        const db = readDatabase();
+        const message = db.messages.find(m => m.id === data.id);
+        if (message && message.from === socket.user.email) {
+            message.deleted = true;
+            message.text = '';
+            writeDatabase(db);
+            io.to(message.to).emit('remove_message', { id: message.id });
+            socket.emit('remove_message', { id: message.id });
+        }
+    });
+
+    socket.on('typing', (data) => {
+        io.to(data.to).emit('user_typing', { from: socket.user.email, username: socket.user.displayName || socket.user.username, isTyping: data.isTyping });
+    });
+
+    socket.on('disconnect', () => {
+        console.log(`[ОТКЛЮЧЕН] ${socket.user.username}`);
+        delete connectedUsers[socket.id];
+        io.emit('user_status', { email: socket.user.email, username: socket.user.username, status: 'offline' });
+    });
+});
+
+const PORT = process.env.PORT || 8080;
+server.listen(PORT, '0.0.0.0', () => console.log(`Сервер запущен на порту ${PORT}`));

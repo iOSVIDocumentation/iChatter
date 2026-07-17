@@ -6,147 +6,68 @@
     <title>iChatter</title>
     <script src="https://moss-perspective-stands-copying.trycloudflare.com/socket.io/socket.io.js"></script>
     <style>
-        body, html {
-            margin: 0; padding: 0; height: 100%;
-            background: #555d65; color: #fff;
-            font-family: Helvetica, sans-serif; overflow: hidden;
-        }
-        #header {
-            position: absolute; top: 0; left: 0; right: 0; height: 44px;
-            background: #2c3e50; color: white; line-height: 44px;
-            padding: 0 10px; z-index: 10; box-sizing: border-box;
-            display: flex; align-items: center;
-        }
-        #btn-back {
-            background: #4a627a; color: white; border: none;
-            padding: 6px 12px; border-radius: 4px; font-size: 12px;
-            cursor: pointer; margin-right: 8px; display: none;
-        }
-        #chat-title {
-            font-size: 14px; font-weight: bold; overflow: hidden;
-            text-overflow: ellipsis; white-space: nowrap;
-        }
-        #main-content {
-            position: absolute; top: 44px; bottom: 50px; left: 0; right: 0;
-            overflow: hidden;
-        }
-        #chats-panel, #archive-panel, #settings-panel, #chat-area {
-            position: absolute; top: 0; bottom: 0; left: 0; width: 100%;
-            background: #3b434a; overflow-y: scroll;
-            -webkit-overflow-scrolling: touch; z-index: 2;
-            display: none;
-        }
-        #messages {
-            position: absolute; top: 0; left: 0; right: 0; bottom: 50px;
-            padding: 10px; overflow-y: scroll;
-            -webkit-overflow-scrolling: touch; box-sizing: border-box;
-            background: #555d65;
-        }
-        #form-container {
-            position: absolute; bottom: 0; left: 0; right: 0; height: 50px;
-            background: #3b434a; box-sizing: border-box;
-            padding: 5px; display: block;
-        }
-        #form { display: block; width: 100%; height: 100%; margin: 0; }
-        #input {
-            position: absolute; left: 45px; top: 5px; bottom: 5px;
-            right: 80px; width: auto; box-sizing: border-box;
-            font-size: 16px; border-radius: 4px; border: none;
-            padding: 5px; background: white; color: #222;
-        }
-        .media-btn {
-            position: absolute; left: 5px; top: 5px; bottom: 5px; width: 35px;
-            background: #4a627a; color: white; border: none;
-            border-radius: 4px; font-size: 18px; cursor: pointer;
-        }
-        #send-btn {
-            position: absolute; right: 5px; top: 5px; bottom: 5px; width: 70px;
-            background: #27ae60; color: white; border: none;
-            border-radius: 4px; font-size: 14px; cursor: pointer;
-        }
-        .panel-section {
-            padding: 10px; border-bottom: 1px solid #4a627a;
-            background: #2c3e50;
-        }
-        .panel-section input {
-            width: 58%; padding: 8px; border: none; border-radius: 4px;
-            font-size: 14px; background: white; color: #222;
-        }
-        .panel-section button {
-            width: 30%; padding: 8px; background: #4a627a; color: white;
-            border: none; border-radius: 4px; font-size: 14px;
-        }
-        .chat-item {
-            padding: 12px 10px; border-bottom: 1px solid #4a627a;
-            cursor: pointer; position: relative;
-        }
+        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: Helvetica, sans-serif; }
+        /* Тёмная тема по умолчанию */
+        body { background: #1a1a2e; color: #ddd; }
+        #header { height: 44px; background: #0f3460; line-height: 44px; padding: 0 10px; display: flex; align-items: center; position: absolute; top: 0; left: 0; right: 0; z-index: 10; }
+        #btn-back { background: #0088cc; color: white; border: none; padding: 5px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; display: none; margin-right: 8px; }
+        #chat-title { font-size: 14px; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        #main-content { position: absolute; top: 44px; bottom: 50px; left: 0; right: 0; }
+        #chats-panel, #archive-panel, #settings-panel, #chat-area { position: absolute; top: 0; bottom: 0; left: 0; width: 100%; overflow-y: scroll; -webkit-overflow-scrolling: touch; display: none; background: #16213e; }
+        #messages { position: absolute; top: 0; left: 0; right: 0; bottom: 50px; padding: 10px; overflow-y: scroll; -webkit-overflow-scrolling: touch; }
+        #form-container { position: absolute; bottom: 0; left: 0; right: 0; height: 50px; background: #0f3460; padding: 5px; box-sizing: border-box; }
+        #form { display: flex; align-items: center; gap: 5px; height: 100%; }
+        #input { flex: 1; padding: 8px; border: none; border-radius: 4px; background: white; color: #222; }
+        .media-btn, #send-btn { background: #0088cc; color: white; border: none; border-radius: 4px; padding: 8px 12px; cursor: pointer; }
+        .panel-section { padding: 10px; background: #1a1a2e; display: flex; gap: 5px; }
+        .panel-section input { flex: 1; padding: 8px; border: none; border-radius: 4px; background: white; color: #222; }
+        .panel-section button { padding: 8px 12px; background: #4a627a; color: white; border: none; border-radius: 4px; }
+        .chat-item { padding: 12px; border-bottom: 1px solid #0f3460; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
         .chat-item .name { font-weight: bold; }
         .chat-item .status { font-size: 12px; color: #aaa; }
         .chat-item .status.online { color: #4cd964; }
-        .chat-item .archive-btn {
-            position: absolute; right: 10px; top: 12px;
-            background: #e74c3c; color: white; border: none;
-            padding: 3px 8px; border-radius: 3px; font-size: 10px; cursor: pointer;
-        }
-        .chat-item .unarchive-btn { background: #27ae60; }
-        .msg {
-            padding: 8px 10px; background: #2c3e50; margin-bottom: 6px;
-            border-radius: 8px; word-wrap: break-word; font-size: 14px;
-            position: relative; max-width: 80%; color: #fff;
-        }
-        .msg.my {
-            background: #27ae60; margin-left: 20%; color: #fff;
-        }
+        .archive-btn { background: #e74c3c; color: white; border: none; padding: 4px 8px; border-radius: 3px; font-size: 10px; cursor: pointer; }
+        .msg { padding: 8px 10px; margin-bottom: 6px; border-radius: 8px; word-wrap: break-word; font-size: 14px; max-width: 80%; position: relative; }
+        .msg.my { margin-left: 20%; background: #0088cc; color: white; }
+        .msg:not(.my) { background: #0f3460; }
         .msg .sender { font-weight: bold; font-size: 12px; color: #ccc; }
         .msg .time { font-size: 10px; color: #aaa; margin-left: 5px; }
-        .msg .text { margin-top: 3px; }
-        .msg .edited-tag { font-size: 10px; color: #ddd; font-style: italic; }
         .msg .actions { display: none; position: absolute; right: 5px; top: 5px; }
-        .msg .actions button {
-            font-size: 10px; padding: 2px 5px; margin-left: 3px;
-            border: none; border-radius: 3px; cursor: pointer; color: white;
-        }
-        .msg .actions .edit-btn { background: #f39c12; }
-        .msg .actions .del-btn { background: #e74c3c; }
-        .msg .media { margin-top: 5px; max-width: 100%; border-radius: 8px; }
-        .settings-row {
-            padding: 12px 10px; border-bottom: 1px solid #4a627a;
-        }
-        .settings-row label { font-weight: bold; display: block; margin-bottom: 5px; font-size: 13px; }
-        .settings-row input, .settings-row select {
-            width: 100%; padding: 8px; border: none; border-radius: 4px;
-            font-size: 14px; box-sizing: border-box; background: white; color: #222;
-        }
-        .settings-row button {
-            width: 100%; padding: 10px; background: #27ae60; color: white;
-            border: none; border-radius: 4px; font-size: 15px; cursor: pointer;
-        }
-        .avatar-grid { overflow: hidden; }
-        .avatar-grid img {
-            width: 44px; height: 44px; border-radius: 22px; margin: 4px;
-            border: 2px solid transparent; cursor: pointer; float: left;
-        }
+        .msg .actions button { font-size: 10px; padding: 2px 5px; margin-left: 3px; border: none; border-radius: 3px; cursor: pointer; color: white; }
+        .edit-btn { background: #f39c12; }
+        .del-btn { background: #e74c3c; }
+        .settings-row { padding: 12px; border-bottom: 1px solid #0f3460; }
+        .settings-row label { font-weight: bold; display: block; margin-bottom: 5px; }
+        .settings-row input, .settings-row select { width: 100%; padding: 8px; border: none; border-radius: 4px; background: white; color: #222; }
+        .avatar-grid, .wallpaper-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+        .avatar-grid img { width: 44px; height: 44px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; }
         .avatar-grid img.selected { border-color: #27ae60; }
-        .wallpaper-grid { overflow: hidden; }
-        .wallpaper-grid img {
-            width: 70px; height: 44px; margin: 4px;
-            border: 2px solid transparent; cursor: pointer; object-fit: cover; float: left;
-        }
+        .wallpaper-grid img { width: 70px; height: 44px; border-radius: 4px; border: 2px solid transparent; cursor: pointer; object-fit: cover; }
         .wallpaper-grid img.selected { border-color: #27ae60; }
-        #bottom-nav {
-            position: absolute; bottom: 0; left: 0; right: 0; height: 50px;
-            background: #3b434a; display: table; width: 100%; z-index: 20;
-        }
-        .nav-btn {
-            display: table-cell; text-align: center; vertical-align: middle;
-            background: #2c3e50; color: #aaa; font-size: 12px; cursor: pointer;
-            border-right: 1px solid #4a627a;
-        }
+        #bottom-nav { position: absolute; bottom: 0; left: 0; right: 0; height: 50px; display: flex; background: #0f3460; }
+        .nav-btn { flex: 1; display: flex; align-items: center; justify-content: center; color: #aaa; font-size: 12px; cursor: pointer; border-right: 1px solid #1a1a2e; }
         .nav-btn:last-child { border-right: none; }
-        .nav-btn.active { background: #4a627a; color: white; font-weight: bold; }
+        .nav-btn.active { background: #0088cc; color: white; font-weight: bold; }
+
+        /* Светлая тема */
+        body.light-mode { background: #E2E7ED; color: #222; }
+        body.light-mode #header { background: #2c3e50; }
+        body.light-mode #chats-panel, body.light-mode #archive-panel, body.light-mode #settings-panel { background: white; }
+        body.light-mode #messages { background: #E2E7ED; }
+        body.light-mode .panel-section { background: #f5f5f5; }
+        body.light-mode .panel-section input { background: white; color: #222; }
+        body.light-mode .chat-item { border-color: #eee; }
+        body.light-mode .msg:not(.my) { background: white; color: #222; }
+        body.light-mode .msg.my { background: #dcf8c6; color: #222; }
+        body.light-mode #form-container { background: #cbd2d9; }
+        body.light-mode .settings-row { border-color: #eee; }
+        body.light-mode .settings-row input, .settings-row select { background: white; color: #222; }
+        body.light-mode #bottom-nav { background: #cbd2d9; }
+        body.light-mode .nav-btn { background: #2c3e50; border-color: #ccc; }
+        body.light-mode .nav-btn.active { background: #4a627a; }
     </style>
 </head>
-<body>
+<body class="dark-mode">
     <div id="header">
         <button id="btn-back" onclick="goBack()">← Назад</button>
         <span id="chat-title">iChatter</span>
@@ -155,69 +76,70 @@
     <div id="main-content">
         <div id="chats-panel">
             <div class="panel-section">
-                <input type="text" id="search-input" placeholder="Введите ID (6 цифр)">
-                <button onclick="findUser()">Найти</button>
+                <input type="text" id="search-input" placeholder="Enter ID (6 digits)">
+                <button onclick="findUser()">Find</button>
             </div>
             <div id="chats-list"></div>
         </div>
 
         <div id="archive-panel">
-            <div style="padding:10px;font-weight:bold;border-bottom:1px solid #4a627a;">Архивные чаты</div>
+            <div style="padding:10px;font-weight:bold;">Archived Chats</div>
             <div id="archive-list"></div>
         </div>
 
         <div id="settings-panel">
-            <div style="padding:10px;font-weight:bold;border-bottom:1px solid #4a627a;">Настройки</div>
+            <div style="padding:10px;font-weight:bold;">Settings</div>
             <div class="settings-row">
-                <label>Язык / Language</label>
+                <label>Language</label>
                 <select id="lang-select" onchange="setLang(this.value)">
                     <option value="ru">Русский</option>
                     <option value="en">English</option>
                 </select>
             </div>
             <div class="settings-row">
-                <label>Тема</label>
+                <label>Theme</label>
                 <select id="theme-select" onchange="setTheme(this.value)">
-                    <option value="dark">Тёмная</option>
+                    <option value="dark">Dark</option>
+                    <option value="light">Light</option>
                 </select>
             </div>
             <div class="settings-row">
-                <label>Обои чата</label>
+                <label>Chat Wallpaper</label>
                 <div class="wallpaper-grid" id="wallpaper-grid"></div>
-                <button class="upload-btn" style="margin-top:5px; background:#4a627a; color:white; border:none; padding:8px; border-radius:4px;" onclick="document.getElementById('wallpaper-file').click()">Загрузить свой фон</button>
+                <button class="upload-btn" style="margin-top:5px; background:#4a627a; color:white; border:none; padding:8px; border-radius:4px;" onclick="document.getElementById('wallpaper-file').click()">Upload Custom</button>
                 <input type="file" id="wallpaper-file" accept="image/*" style="display:none;" onchange="uploadCustomWallpaper(this)">
             </div>
             <div class="settings-row">
-                <label>Ник (не меняется)</label>
+                <label>Nickname (unchangeable)</label>
                 <input type="text" id="set-username" disabled style="background:#ccc; color:#555;">
             </div>
             <div class="settings-row">
-                <label>Отображаемое имя</label>
-                <input type="text" id="set-displayname" placeholder="Как вас видят другие">
+                <label>Display Name</label>
+                <input type="text" id="set-displayname" placeholder="How others see you">
             </div>
             <div class="settings-row">
-                <label>Возраст</label>
-                <input type="number" id="set-age" placeholder="Возраст" min="0" max="150">
+                <label>Age</label>
+                <input type="number" id="set-age" placeholder="Age" min="0" max="150">
             </div>
             <div class="settings-row">
-                <label>О себе</label>
-                <input type="text" id="set-about" placeholder="Расскажите о себе">
+                <label>About</label>
+                <input type="text" id="set-about" placeholder="Tell about yourself">
             </div>
             <div class="settings-row">
-                <label>Аватар</label>
+                <label>Avatar</label>
                 <div class="avatar-grid" id="avatar-grid"></div>
-                <button class="upload-btn" style="margin-top:5px; background:#4a627a; color:white; border:none; padding:8px; border-radius:4px;" onclick="document.getElementById('avatar-file').click()">Загрузить свой аватар</button>
+                <button class="upload-btn" style="margin-top:5px; background:#4a627a; color:white; border:none; padding:8px; border-radius:4px;" onclick="document.getElementById('avatar-file').click()">Upload Custom</button>
                 <input type="file" id="avatar-file" accept="image/*" style="display:none;" onchange="uploadCustomAvatar(this)">
             </div>
             <div class="settings-row">
-                <label>Мой ID: <b id="my-id-display">...</b></label>
+                <label>My ID: <b id="my-id-display">...</b></label>
             </div>
             <div class="settings-row">
-                <label>Устройства</label>
+                <label>Devices</label>
                 <div id="devices-list"></div>
             </div>
             <div class="settings-row">
-                <button onclick="saveSettings()">Сохранить</button>
+                <button onclick="saveSettings()">Save</button>
             </div>
         </div>
 
@@ -227,18 +149,21 @@
                 <form id="form" onsubmit="return false;">
                     <input type="file" id="media-file" accept="image/*,video/*,audio/*,application/*" style="display:none;" onchange="sendMediaMessage(this)">
                     <button type="button" class="media-btn" onclick="document.getElementById('media-file').click()">📎</button>
-                    <input id="input" autocomplete="off" placeholder="Сообщение...">
-                    <button type="button" id="send-btn" onclick="sendMessage()">Отпр.</button>
+                    <input id="input" autocomplete="off" placeholder="Message...">
+                    <button type="button" id="send-btn" onclick="sendMessage()">Send</button>
                 </form>
             </div>
         </div>
     </div>
 
     <div id="bottom-nav">
-        <div class="nav-btn active" id="nav-chats" onclick="showTab('chats')">Чаты</div>
-        <div class="nav-btn" id="nav-archive" onclick="showTab('archive')">Архив</div>
-        <div class="nav-btn" id="nav-settings" onclick="showTab('settings')">Настр.</div>
+        <div class="nav-btn active" id="nav-chats" onclick="showTab('chats')">Chats</div>
+        <div class="nav-btn" id="nav-archive" onclick="showTab('archive')">Archive</div>
+        <div class="nav-btn" id="nav-settings" onclick="showTab('settings')">Settings</div>
     </div>
+
+    <!-- Скрытый iframe для загрузки файлов на старых iOS -->
+    <iframe id="upload-iframe" name="upload-iframe" style="display:none;"></iframe>
 
     <script src="script.js?v=2"></script>
 </body>

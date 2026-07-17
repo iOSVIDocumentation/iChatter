@@ -4,7 +4,6 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>iChatter</title>
-    <!-- Подключаем клиентскую библиотеку с того же сервера (версия всегда совпадает) -->
     <script src="https://moss-perspective-stands-copying.trycloudflare.com/socket.io/socket.io.js"></script>
     <style>
         body, html { margin: 0; padding: 0; height: 100%; background: #E2E7ED; color: #222; font-family: Helvetica, sans-serif; overflow: hidden; }
@@ -32,16 +31,16 @@
         .msg .actions button { font-size: 10px; padding: 2px 5px; margin-left: 3px; border: none; border-radius: 3px; cursor: pointer; color: white; }
         .msg .actions .edit-btn { background: #f39c12; }
         .msg .actions .del-btn { background: #e74c3c; }
+        .msg .media { margin-top: 5px; max-width: 100%; border-radius: 8px; }
         #form-container { position: absolute; bottom: 0; left: 0; right: 0; height: 50px; background: #cbd2d9; box-sizing: border-box; padding: 5px; display: none; }
         #form { display: block; width: 100%; height: 100%; margin: 0; }
-        #input { position: absolute; left: 5px; top: 5px; bottom: 5px; right: 80px; width: auto; box-sizing: border-box; font-size: 16px; border-radius: 4px; border: 1px solid #ccc; padding: 5px; background: white; color: #222; }
+        #input { position: absolute; left: 45px; top: 5px; bottom: 5px; right: 80px; width: auto; box-sizing: border-box; font-size: 16px; border-radius: 4px; border: 1px solid #ccc; padding: 5px; background: white; color: #222; }
+        .media-btn { position: absolute; left: 5px; top: 5px; bottom: 5px; width: 35px; background: #4a627a; color: white; border: none; border-radius: 4px; font-size: 18px; cursor: pointer; }
         #send-btn { position: absolute; right: 5px; top: 5px; bottom: 5px; width: 70px; background: #2c3e50; color: white; border: none; border-radius: 4px; font-size: 14px; cursor: pointer; }
         .settings-row { padding: 12px 10px; border-bottom: 1px solid #eee; }
         .settings-row label { font-weight: bold; display: block; margin-bottom: 5px; font-size: 13px; }
         .settings-row input, .settings-row select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; box-sizing: border-box; background: white; color: #222; }
         .settings-row button { width: 100%; padding: 10px; background: #27ae60; color: white; border: none; border-radius: 4px; font-size: 15px; cursor: pointer; }
-        .settings-row .checkbox-label { font-weight: normal; font-size: 14px; }
-        .settings-row .checkbox-label input { width: auto; margin-right: 8px; }
         .avatar-grid { overflow: hidden; }
         .avatar-grid img { width: 44px; height: 44px; border-radius: 22px; margin: 4px; border: 2px solid transparent; cursor: pointer; float: left; }
         .avatar-grid img.selected { border-color: #27ae60; }
@@ -65,6 +64,7 @@
         body.dark-mode #form-container { background: #0f3460; border-top: 1px solid #1a1a2e; }
         body.dark-mode #input { background: #0f3460; border-color: #333; color: #ddd; }
         body.dark-mode #send-btn { background: #0088cc; }
+        body.dark-mode .media-btn { background: #0088cc; }
         body.dark-mode .settings-row { border-color: #0f3460; }
         body.dark-mode .settings-row input, body.dark-mode .settings-row select { background: #0f3460; border-color: #333; color: #ddd; }
         body.dark-mode .settings-row button { background: #27ae60; }
@@ -112,6 +112,8 @@
         <div class="settings-row">
             <label>Обои чата</label>
             <div class="wallpaper-grid" id="wallpaper-grid"></div>
+            <button class="upload-btn" style="margin-top:5px;" onclick="document.getElementById('wallpaper-file').click()">Загрузить свой фон</button>
+            <input type="file" id="wallpaper-file" accept="image/*" style="display:none;" onchange="uploadCustomWallpaper(this)">
         </div>
         <div class="settings-row">
             <label>Ник (не меняется)</label>
@@ -132,14 +134,11 @@
         <div class="settings-row">
             <label>Аватар</label>
             <div class="avatar-grid" id="avatar-grid"></div>
+            <button class="upload-btn" style="margin-top:5px;" onclick="document.getElementById('avatar-file').click()">Загрузить свой аватар</button>
+            <input type="file" id="avatar-file" accept="image/*" style="display:none;" onchange="uploadCustomAvatar(this)">
         </div>
         <div class="settings-row">
             <label>Мой ID: <b id="my-id-display">...</b></label>
-        </div>
-        <div class="settings-row">
-            <label class="checkbox-label">
-                <input type="checkbox" id="show-email-check"> Показывать почту другим
-            </label>
         </div>
         <div class="settings-row">
             <label>Устройства</label>
@@ -154,6 +153,8 @@
 
     <div id="form-container">
         <form id="form" onsubmit="return false;">
+            <input type="file" id="media-file" accept="image/*,video/*,audio/*,application/*" style="display:none;" onchange="sendMediaMessage(this)">
+            <button type="button" class="media-btn" onclick="document.getElementById('media-file').click()">📎</button>
             <input id="input" autocomplete="off" placeholder="Сообщение...">
             <button type="button" id="send-btn" onclick="sendMessage()">Отпр.</button>
         </form>
@@ -161,4 +162,4 @@
 
     <script src="script.js"></script>
 </body>
-</html>
+</html>ввввввв

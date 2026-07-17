@@ -6,7 +6,6 @@
     <title>iChatter</title>
     <script src="https://moss-perspective-stands-copying.trycloudflare.com/socket.io/socket.io.js"></script>
     <style>
-        /* Основные цвета как в login.html */
         body, html {
             margin: 0; padding: 0; height: 100%;
             background: #555d65; color: #fff;
@@ -16,25 +15,26 @@
             position: absolute; top: 0; left: 0; right: 0; height: 44px;
             background: #2c3e50; color: white; line-height: 44px;
             padding: 0 10px; z-index: 10; box-sizing: border-box;
+            display: flex; align-items: center;
+        }
+        #btn-back {
+            background: #4a627a; color: white; border: none;
+            padding: 6px 12px; border-radius: 4px; font-size: 12px;
+            cursor: pointer; margin-right: 8px; display: none;
         }
         #chat-title {
-            font-size: 14px; font-weight: bold; display: inline-block;
-            max-width: 100%; overflow: hidden; text-overflow: ellipsis;
-            white-space: nowrap; vertical-align: middle;
+            font-size: 14px; font-weight: bold; overflow: hidden;
+            text-overflow: ellipsis; white-space: nowrap;
         }
         #main-content {
             position: absolute; top: 44px; bottom: 50px; left: 0; right: 0;
             overflow: hidden;
         }
-        /* Панели */
         #chats-panel, #archive-panel, #settings-panel, #chat-area {
             position: absolute; top: 0; bottom: 0; left: 0; width: 100%;
             background: #3b434a; overflow-y: scroll;
             -webkit-overflow-scrolling: touch; z-index: 2;
             display: none;
-        }
-        #chat-area {
-            background: transparent; /* фон сообщений будет внутри #messages */
         }
         #messages {
             position: absolute; top: 0; left: 0; right: 0; bottom: 50px;
@@ -64,8 +64,6 @@
             background: #27ae60; color: white; border: none;
             border-radius: 4px; font-size: 14px; cursor: pointer;
         }
-
-        /* Элементы панелей */
         .panel-section {
             padding: 10px; border-bottom: 1px solid #4a627a;
             background: #2c3e50;
@@ -91,7 +89,6 @@
             padding: 3px 8px; border-radius: 3px; font-size: 10px; cursor: pointer;
         }
         .chat-item .unarchive-btn { background: #27ae60; }
-
         .msg {
             padding: 8px 10px; background: #2c3e50; margin-bottom: 6px;
             border-radius: 8px; word-wrap: break-word; font-size: 14px;
@@ -112,7 +109,6 @@
         .msg .actions .edit-btn { background: #f39c12; }
         .msg .actions .del-btn { background: #e74c3c; }
         .msg .media { margin-top: 5px; max-width: 100%; border-radius: 8px; }
-
         .settings-row {
             padding: 12px 10px; border-bottom: 1px solid #4a627a;
         }
@@ -137,12 +133,9 @@
             border: 2px solid transparent; cursor: pointer; object-fit: cover; float: left;
         }
         .wallpaper-grid img.selected { border-color: #27ae60; }
-
-        /* Нижняя панель навигации */
         #bottom-nav {
             position: absolute; bottom: 0; left: 0; right: 0; height: 50px;
-            background: #3b434a; display: table; width: 100%;
-            z-index: 20;
+            background: #3b434a; display: table; width: 100%; z-index: 20;
         }
         .nav-btn {
             display: table-cell; text-align: center; vertical-align: middle;
@@ -154,14 +147,12 @@
     </style>
 </head>
 <body>
-    <!-- Шапка -->
     <div id="header">
+        <button id="btn-back" onclick="goBack()">← Назад</button>
         <span id="chat-title">iChatter</span>
     </div>
 
-    <!-- Основной контент -->
     <div id="main-content">
-        <!-- Панель чатов -->
         <div id="chats-panel">
             <div class="panel-section">
                 <input type="text" id="search-input" placeholder="Введите ID (6 цифр)">
@@ -170,13 +161,11 @@
             <div id="chats-list"></div>
         </div>
 
-        <!-- Панель архива -->
         <div id="archive-panel">
             <div style="padding:10px;font-weight:bold;border-bottom:1px solid #4a627a;">Архивные чаты</div>
             <div id="archive-list"></div>
         </div>
 
-        <!-- Панель настроек -->
         <div id="settings-panel">
             <div style="padding:10px;font-weight:bold;border-bottom:1px solid #4a627a;">Настройки</div>
             <div class="settings-row">
@@ -189,7 +178,6 @@
             <div class="settings-row">
                 <label>Тема</label>
                 <select id="theme-select" onchange="setTheme(this.value)">
-                    <option value="light">Светлая</option>
                     <option value="dark">Тёмная</option>
                 </select>
             </div>
@@ -233,7 +221,6 @@
             </div>
         </div>
 
-        <!-- Чат -->
         <div id="chat-area">
             <div id="messages"></div>
             <div id="form-container">
@@ -247,13 +234,12 @@
         </div>
     </div>
 
-    <!-- Нижняя навигация -->
     <div id="bottom-nav">
         <div class="nav-btn active" id="nav-chats" onclick="showTab('chats')">Чаты</div>
         <div class="nav-btn" id="nav-archive" onclick="showTab('archive')">Архив</div>
         <div class="nav-btn" id="nav-settings" onclick="showTab('settings')">Настр.</div>
     </div>
 
-    <script src="script.js"></script>
+    <script src="script.js?v=2"></script>
 </body>
 </html>

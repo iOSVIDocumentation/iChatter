@@ -7,22 +7,24 @@ var chatWith = null;
 var editingId = null;
 var profile = null;
 var contacts = [];
-var pendingName = null; // временное имя собеседника для открытого чата
+var pendingName = null;
 
 var T = {
     ru: {
         select: 'Выберите контакт', noContacts: 'Нет чатов', online: 'онлайн', offline: 'оффлайн',
         typing: 'печатает...', empty: 'Пусто', notFound: 'Пользователь не найден',
-        enterNick: 'Введите ник', msg: 'Сообщение...', send: 'Отпр.', edited: 'ред.',
+        enterNick: 'Введите ник или ID', msg: 'Сообщение...', send: 'Отпр.', edited: 'ред.',
         deleted: 'Сообщение удалено', save: 'Сохранить', saved: 'Настройки сохранены',
-        selfSearch: 'Нельзя искать самого себя'
+        selfSearch: 'Нельзя искать самого себя',
+        showEmailLabel: 'Показывать почту другим'
     },
     en: {
         select: 'Select contact', noContacts: 'No chats', online: 'online', offline: 'offline',
         typing: 'typing...', empty: 'Empty', notFound: 'User not found',
-        enterNick: 'Enter nickname', msg: 'Message...', send: 'Send', edited: 'edited',
+        enterNick: 'Enter nickname or ID', msg: 'Message...', send: 'Send', edited: 'edited',
         deleted: 'Message deleted', save: 'Save', saved: 'Settings saved',
-        selfSearch: 'You cannot search for yourself'
+        selfSearch: 'You cannot search for yourself',
+        showEmailLabel: 'Show email to others'
     }
 };
 function t(k) { return T[lang][k] || k; }
@@ -207,10 +209,10 @@ function unarchiveChat(em) {
 }
 
 function findUser() {
-    var username = byId('search-input').value.trim();
-    if (!username) { alert(t('enterNick')); return; }
+    var query = byId('search-input').value.trim();
+    if (!query) { alert(t('enterNick')); return; }
     var xhr = new XMLHttpRequest();
-    xhr.open('GET', API + '/api/find-user?token=' + token + '&username=' + encodeURIComponent(username), true);
+    xhr.open('GET', API + '/api/find-user?token=' + token + '&username=' + encodeURIComponent(query), true);
     xhr.onreadystatechange = function() {
         if (xhr.readyState === 4 && xhr.status === 200) {
             var d = JSON.parse(xhr.responseText);
@@ -219,7 +221,6 @@ function findUser() {
                     alert(t('selfSearch'));
                     return;
                 }
-                // Сохраняем имя найденного пользователя
                 pendingName = d.user.displayName || d.user.username;
                 openChat(d.user.email);
                 showPanel(null);
@@ -236,13 +237,8 @@ function openChat(em) {
     byId('form-container').style.display = 'block';
     byId('messages').style.bottom = '50px';
 
-    // Определяем отображаемое имя
-    var name = null;
-    if (pendingName) {
-        name = pendingName;
-        pendingName = null; // сбрасываем
-    } else {
-        // Ищем в контактах
+    var name = pendingName;
+    if (!name) {
         for (var i = 0; i < contacts.length; i++) {
             if (contacts[i].email === em) {
                 name = contacts[i].displayName || contacts[i].username;
@@ -250,9 +246,9 @@ function openChat(em) {
             }
         }
     }
-    if (!name) {
-        name = em.split('@')[0]; // запасной вариант
-    }
+    if (!name) name = em.split('@')[0];
+    pendingName = null;
+
     byId('chat-title').innerHTML = name;
     showPanel(null);
     loadMessages(em);
@@ -271,6 +267,8 @@ function loadSettings() {
             byId('set-about').value = profile.about || '';
             byId('lang-select').value = profile.language || 'ru';
             byId('theme-select').value = profile.theme || 'dark';
+            byId('my-id-display').innerHTML = profile.searchId || '';
+            byId('show-email-check').checked = !!profile.showEmail;
             applyTheme(profile.theme);
             loadAvatars();
             loadWallpapers();
@@ -363,6 +361,7 @@ function saveSettings() {
     profile.about = byId('set-about').value;
     profile.language = byId('lang-select').value;
     profile.theme = byId('theme-select').value;
+    profile.showEmail = byId('show-email-check').checked;
     lang = profile.language;
     localStorage.setItem('lang', lang);
     applyTheme(profile.theme);
@@ -384,7 +383,8 @@ function saveSettings() {
         avatar: profile.avatar,
         theme: profile.theme,
         language: profile.language,
-        wallpaper: profile.wallpaper
+        wallpaper: profile.wallpaper,
+        showEmail: profile.showEmail
     }));
 }
 
@@ -446,7 +446,7 @@ function delMsg(id) {
     socket.emit('delete_message', { id: id });
 }
 
-// ========== Сокет (поддерживает старую версию Socket.IO 2.x) ==========
+// ========== Сокет ==========
 function connectSocket() {
     socket = io(API, { query: { token: token } });
 
@@ -474,7 +474,6 @@ function connectSocket() {
             clearTimeout(window.typingTimer);
             window.typingTimer = setTimeout(function() {
                 if (chatWith === data.from) {
-                    // восстанавливаем заголовок
                     var name = chatWith.split('@')[0];
                     for (var i = 0; i < contacts.length; i++) {
                         if (contacts[i].email === chatWith) {

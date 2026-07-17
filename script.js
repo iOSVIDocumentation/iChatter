@@ -30,6 +30,7 @@ var editingId = null;
 var profile = null;
 var contacts = [];
 var pendingName = null;
+var firstLoad = true; // чтобы автоматически открыть первый чат
 
 if (!token || !myEmail) { window.location.href = 'login.html'; }
 
@@ -121,7 +122,58 @@ function delMsgUI(id) {
     if (actions.length > 0) actions[0].style.display = 'none';
 }
 
-// ========== API запросы ==========
+// ========== Переключение вкладок ==========
+function showTab(tab) {
+    // Скрываем всё
+    byId('chats-panel').style.display = 'none';
+    byId('archive-panel').style.display = 'none';
+    byId('settings-panel').style.display = 'none';
+    byId('chat-area').style.display = 'none';
+
+    // Сбрасываем подсветку
+    var navs = document.querySelectorAll('.nav-btn');
+    for (var i = 0; i < navs.length; i++) navs[i].className = 'nav-btn';
+
+    if (tab === 'chats') {
+        byId('chats-panel').style.display = 'block';
+        byId('nav-chats').className = 'nav-btn active';
+        loadContacts();
+    } else if (tab === 'archive') {
+        byId('archive-panel').style.display = 'block';
+        byId('nav-archive').className = 'nav-btn active';
+        loadArchive();
+    } else if (tab === 'settings') {
+        byId('settings-panel').style.display = 'block';
+        byId('nav-settings').className = 'nav-btn active';
+        loadSettings();
+    }
+}
+
+function openChat(em) {
+    chatWith = em;
+    // Скрываем все панели, показываем chat-area
+    byId('chats-panel').style.display = 'none';
+    byId('archive-panel').style.display = 'none';
+    byId('settings-panel').style.display = 'none';
+    byId('chat-area').style.display = 'block';
+    // Подсветка "Чаты" всё равно активна, так как чат - часть этого раздела
+    var navs = document.querySelectorAll('.nav-btn');
+    for (var i = 0; i < navs.length; i++) navs[i].className = 'nav-btn';
+    byId('nav-chats').className = 'nav-btn active';
+
+    var name = pendingName;
+    if (!name) {
+        for (var i = 0; i < contacts.length; i++) {
+            if (contacts[i].email === em) { name = contacts[i].displayName || contacts[i].username; break; }
+        }
+    }
+    if (!name) name = em.split('@')[0];
+    pendingName = null;
+    byId('chat-title').innerHTML = name;
+    loadMessages(em);
+}
+
+// ========== Загрузка данных ==========
 function loadMessages(to) {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', API + '/api/messages?token=' + token + '&chatWith=' + to, true);
@@ -143,6 +195,11 @@ function loadContacts() {
         if (xhr.readyState === 4 && xhr.status === 200) {
             contacts = JSON.parse(xhr.responseText).contacts || [];
             renderContacts();
+            // Автоматически открыть первый чат при первой загрузке
+            if (firstLoad && contacts.length > 0) {
+                firstLoad = false;
+                openChat(contacts[0].email);
+            }
         }
     };
     xhr.send();
@@ -152,7 +209,7 @@ function renderContacts() {
     var list = byId('chats-list');
     list.innerHTML = '';
     if (!contacts.length) {
-        list.innerHTML = '<div style="padding:20px;text-align:center;color:#888;">' + t('noContacts') + '</div>';
+        list.innerHTML = '<div style="padding:20px;text-align:center;color:#aaa;">' + t('noContacts') + '</div>';
         return;
     }
     for (var i = 0; i < contacts.length; i++) {
@@ -175,7 +232,7 @@ function loadArchive() {
             var list = byId('archive-list');
             list.innerHTML = '';
             if (!data.length) {
-                list.innerHTML = '<div style="padding:20px;text-align:center;color:#888;">' + t('empty') + '</div>';
+                list.innerHTML = '<div style="padding:20px;text-align:center;color:#aaa;">' + t('empty') + '</div>';
                 return;
             }
             for (var i = 0; i < data.length; i++) {
@@ -211,7 +268,6 @@ function findUser() {
     var id = byId('search-input').value.trim();
     if (!id) { alert(t('enterId')); return; }
     if (!/^\d{6}$/.test(id)) { alert(t('invalidId')); return; }
-
     var xhr = new XMLHttpRequest();
     xhr.open('GET', API + '/api/find-user?token=' + token + '&id=' + encodeURIComponent(id), true);
     xhr.onreadystatechange = function() {
@@ -221,7 +277,6 @@ function findUser() {
                 if (d.user.email === myEmail) { alert(t('selfSearch')); return; }
                 pendingName = d.user.displayName || d.user.username;
                 openChat(d.user.email);
-                showPanel(null);
             } else if (d.error) {
                 alert(d.error);
             } else {
@@ -230,23 +285,6 @@ function findUser() {
         }
     };
     xhr.send();
-}
-
-function openChat(em) {
-    chatWith = em;
-    byId('form-container').style.display = 'block';
-    byId('messages').style.bottom = '50px';
-    var name = pendingName;
-    if (!name) {
-        for (var i = 0; i < contacts.length; i++) {
-            if (contacts[i].email === em) { name = contacts[i].displayName || contacts[i].username; break; }
-        }
-    }
-    if (!name) name = em.split('@')[0];
-    pendingName = null;
-    byId('chat-title').innerHTML = name;
-    showPanel(null);
-    loadMessages(em);
 }
 
 // ========== Настройки ==========
@@ -261,9 +299,8 @@ function loadSettings() {
             byId('set-age').value = profile.age || '';
             byId('set-about').value = profile.about || '';
             byId('lang-select').value = profile.language || 'ru';
-            byId('theme-select').value = profile.theme || 'dark';
+            byId('theme-select').value = 'dark'; // только тёмная, как в логине
             byId('my-id-display').innerHTML = profile.searchId || '';
-            applyTheme(profile.theme);
             loadAvatars();
             loadWallpapers();
             loadDevices();
@@ -278,7 +315,7 @@ function loadAvatars() {
     for (var i = 1; i <= 10; i++) {
         var img = document.createElement('img');
         img.src = API + '/avatars/av' + i + '.png';
-        img.onerror = function() { this.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44"><rect fill="%230088cc" width="44" height="44"/><text fill="white" x="8" y="28" font-size="20">' + i + '</text></svg>'; };
+        img.onerror = function() { this.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44"><rect fill="%234a627a" width="44" height="44"/><text fill="white" x="8" y="28" font-size="20">' + i + '</text></svg>'; };
         if (profile.avatar === 'av' + i + '.png') img.className = 'selected';
         img.onclick = (function(idx) { return function() { var imgs = grid.getElementsByTagName('img'); for (var j = 0; j < imgs.length; j++) imgs[j].className = ''; this.className = 'selected'; profile.avatar = 'av' + idx + '.png'; }; })(i);
         grid.appendChild(img);
@@ -347,36 +384,26 @@ function saveSettings() {
     profile.age = parseInt(byId('set-age').value) || 0;
     profile.about = byId('set-about').value;
     profile.language = byId('lang-select').value;
-    profile.theme = byId('theme-select').value;
+    // тема не меняется, всегда тёмная
     lang = profile.language;
     localStorage.setItem('lang', lang);
-    applyTheme(profile.theme);
+
     var xhr = new XMLHttpRequest();
     xhr.open('POST', API + '/api/update-profile', true);
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.onreadystatechange = function() {
         if (xhr.readyState === 4 && xhr.status === 200) {
             alert(t('saved'));
-            showPanel(null);
+            showTab('settings'); // остаться на настройках
         }
     };
-    xhr.send(JSON.stringify({ token: token, displayName: profile.displayName, age: profile.age, about: profile.about, avatar: profile.avatar, theme: profile.theme, language: profile.language, wallpaper: profile.wallpaper }));
+    xhr.send(JSON.stringify({ token: token, displayName: profile.displayName, age: profile.age, about: profile.about, avatar: profile.avatar, theme: 'dark', language: profile.language, wallpaper: profile.wallpaper }));
 }
 
 function setLang(l) { lang = l; if (profile) profile.language = l; }
-function setTheme(th) { if (profile) profile.theme = th; applyTheme(th); }
-function applyTheme(th) { document.body.className = th === 'dark' ? 'dark-mode' : ''; if (byId('theme-select')) byId('theme-select').value = th; }
+function setTheme(th) { } // тема всегда тёмная, ничего не делаем
 
-function showPanel(name) {
-    byId('chats-panel').style.display = 'none';
-    byId('archive-panel').style.display = 'none';
-    byId('settings-panel').style.display = 'none';
-    if (name === 'chats') { byId('chats-panel').style.display = 'block'; loadContacts(); }
-    else if (name === 'archive') { byId('archive-panel').style.display = 'block'; loadArchive(); }
-    else if (name === 'settings') { byId('settings-panel').style.display = 'block'; loadSettings(); }
-}
-
-// ========== Медиа и кастомные загрузки ==========
+// ========== Отправка сообщений ==========
 function sendMediaMessage(input) {
     if (!input.files || !input.files[0]) return;
     var file = input.files[0];
@@ -441,7 +468,6 @@ function uploadCustomWallpaper(input) {
     xhr.send(formData);
 }
 
-// ========== Отправка текста ==========
 function sendMessage() {
     var input = byId('input');
     var text = input.value.trim();
@@ -491,6 +517,7 @@ byId('send-btn').onclick = sendMessage;
 byId('input').onkeydown = function(e) { if (e.keyCode === 13) { e.preventDefault(); sendMessage(); } };
 byId('input').oninput = function() { if (chatWith) socket.emit('typing', { to: chatWith, isTyping: true }); };
 
+// Запуск
 connectSocket();
-byId('form-container').style.display = 'none';
-byId('messages').style.bottom = '0';
+// По умолчанию открываем вкладку "Чаты" (загрузка контактов сама откроет первый чат)
+showTab('chats');

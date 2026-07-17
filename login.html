@@ -43,7 +43,6 @@
         </div>
     </div>
     <script>
-        // ВАЖНО: все переменные через var, функции через function, без шаблонных строк
         var API = 'https://moss-perspective-stands-copying.trycloudflare.com';
         var currentMode = 'login';
         var currentLang = 'ru';
@@ -135,10 +134,11 @@
                     var data = {};
                     try { data = JSON.parse(xhr.responseText); } catch(e) {}
                     if (xhr.status === 200 && data.success) {
+                        // Сохраняем и переходим с длинным токеном в URL
                         localStorage.setItem('token', data.token);
                         localStorage.setItem('email', email);
                         localStorage.setItem('lang', currentLang);
-                        window.location.href = 'chat.html';
+                        window.location.href = 'chat.html?token=' + data.token + '&email=' + encodeURIComponent(email);
                     } else {
                         alert(data.error || t('wrongCode'));
                     }

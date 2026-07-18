@@ -112,11 +112,11 @@ function addMsg(msg) {
     if (msg.media) {
         var mediaUrl = API + msg.media.url;
         var type = msg.media.type;
-        if (type.startsWith('image/')) {
+        if (type && type.indexOf('image/') === 0) {
             div.innerHTML += '<img src="' + mediaUrl + '" class="media" style="max-width:200px;max-height:200px;cursor:pointer;" onerror="this.style.display=\'none\'">';
-        } else if (type.startsWith('video/')) {
+        } else if (type && type.indexOf('video/') === 0) {
             div.innerHTML += '<video controls class="media" style="max-width:200px;max-height:200px;"><source src="' + mediaUrl + '" type="' + type + '"></video>';
-        } else if (type.startsWith('audio/')) {
+        } else if (type && type.indexOf('audio/') === 0) {
             div.innerHTML += '<audio controls class="media"><source src="' + mediaUrl + '" type="' + type + '"></audio>';
         } else {
             div.innerHTML += '<a href="' + mediaUrl + '" target="_blank" class="media">📎 ' + (msg.media.url.split('/').pop()) + '</a>';
@@ -323,7 +323,7 @@ function findUser() {
     xhr.send();
 }
 
-// ====== НАСТРОЙКИ (все функции явно) ======
+// ====== НАСТРОЙКИ (без querySelector) ======
 function loadSettings() {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', API + '/api/my-profile?token=' + token, true);
@@ -338,7 +338,6 @@ function loadSettings() {
             var savedTheme = profile.theme || 'dark';
             byId('theme-select').value = savedTheme;
             setTheme(savedTheme);
-            // ВОТ ЭТА СТРОКА ОТОБРАЖАЕТ ID
             byId('my-id-display').innerHTML = profile.searchId || '';
             loadAvatars();
             loadWallpapers();
@@ -360,7 +359,7 @@ function loadAvatars() {
         img.onclick = (function(idx) { return function() { var imgs = grid.getElementsByTagName('img'); for (var j = 0; j < imgs.length; j++) imgs[j].className = ''; this.className = 'selected'; profile.avatar = 'av' + idx + '.png'; }; })(i);
         grid.appendChild(img);
     }
-    if (profile.avatar && profile.avatar.startsWith('/uploads/avatars/')) {
+    if (profile.avatar && profile.avatar.indexOf('/uploads/avatars/') === 0) {
         var custImg = document.createElement('img');
         custImg.src = API + profile.avatar;
         custImg.className = 'selected';
@@ -381,7 +380,7 @@ function loadWallpapers() {
         img.onclick = (function(w) { return function() { var imgs = grid.getElementsByTagName('img'); for (var k = 0; k < imgs.length; k++) imgs[k].className = ''; this.className = 'selected'; profile.wallpaper = w; byId('messages').style.backgroundImage = 'url(' + API + '/wallpapers/' + w + ')'; byId('messages').style.backgroundSize = 'cover'; }; })(walls[i]);
         grid.appendChild(img);
     }
-    if (profile.wallpaper && profile.wallpaper.startsWith('/uploads/wallpapers/')) {
+    if (profile.wallpaper && profile.wallpaper.indexOf('/uploads/wallpapers/') === 0) {
         var custBg = document.createElement('img');
         custBg.src = API + profile.wallpaper;
         custBg.className = 'selected';
@@ -461,7 +460,7 @@ function setTheme(th) {
     if (byId('theme-select')) byId('theme-select').value = th;
 }
 
-// ====== ЗАГРУЗКА ФАЙЛОВ И ОТПРАВКА ======
+// ====== ЗАГРУЗКА ФАЙЛОВ ======
 function uploadFileForChat(fileInput, callback) {
     if (!fileInput.files || !fileInput.files[0]) return;
     var file = fileInput.files[0];
@@ -608,6 +607,7 @@ function connectSocket() {
     });
 
     socket.on('message_sent', function(msg) {
+        // Просто добавляем подтверждённое сообщение (без временных заглушек)
         if (chatWith === msg.to) addMsg(msg);
         loadContacts();
     });

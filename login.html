@@ -43,7 +43,7 @@
         </div>
     </div>
     <script>
-        var API = 'https://moss-perspective-stands-copying.trycloudflare.com';
+        var API = 'https://ichatterios6.iosvidocum.workers.dev';
         var currentMode = 'login';
         var currentLang = 'ru';
 
@@ -137,7 +137,15 @@
                         localStorage.setItem('token', data.token);
                         localStorage.setItem('email', email);
                         localStorage.setItem('lang', currentLang);
-                        window.location.href = 'chat.html?token=' + data.token + '&email=' + encodeURIComponent(email);
+
+                        var chatURL;
+                        // Если устройство старое – направляем на локальный HTTP
+                        if (navigator.userAgent.match(/iPhone OS (\d+)_/) && parseInt(RegExp.$1) < 10) {
+                            chatURL = 'http://192.168.1.9:8080/chat.html?token=' + data.token + '&email=' + encodeURIComponent(email);
+                        } else {
+                            chatURL = 'chat.html?token=' + data.token + '&email=' + encodeURIComponent(email);
+                        }
+                        window.location.href = chatURL;
                     } else {
                         alert(data.error || t('wrongCode'));
                     }

@@ -4,9 +4,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>iChatter</title>
-
-    <!-- Жёсткий редирект: если iOS 6 и HTTPS – сразу уходим на локальный HTTP -->
     <script>
+        // Мгновенный редирект для iOS 6, если открыто через HTTPS
         if (navigator.userAgent.match(/iPhone OS (\d+)_/) && parseInt(RegExp.$1) < 10 && location.protocol === 'https:') {
             location.href = 'http://192.168.1.9:8080' + location.pathname + location.search;
         }

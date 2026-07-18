@@ -70,7 +70,8 @@ var T = {
         langLabel: 'Язык', themeLabel: 'Тема', wallpaper: 'Обои чата',
         nickname: 'Ник (не меняется)', displayName: 'Отображаемое имя',
         age: 'Возраст', about: 'О себе', avatar: 'Аватар', myId: 'Мой ID',
-        devices: 'Устройства', searchPlaceholder: 'Введите ID (6 цифр)'
+        devices: 'Устройства', searchPlaceholder: 'Введите ID (6 цифр)',
+        uploadAvatar: 'Загрузить свой аватар'
     },
     en: {
         chats: 'Chats', archive: 'Archive', settings: 'Settings', back: '← Back',
@@ -82,7 +83,8 @@ var T = {
         langLabel: 'Language', themeLabel: 'Theme', wallpaper: 'Chat Wallpaper',
         nickname: 'Nickname (unchangeable)', displayName: 'Display Name',
         age: 'Age', about: 'About', avatar: 'Avatar', myId: 'My ID',
-        devices: 'Devices', searchPlaceholder: 'Enter ID (6 digits)'
+        devices: 'Devices', searchPlaceholder: 'Enter ID (6 digits)',
+        uploadAvatar: 'Upload Custom Avatar'
     }
 };
 function t(k) { return T[lang][k] || k; }
@@ -352,7 +354,7 @@ function findUser() {
     xhr.send();
 }
 
-// ====== НАСТРОЙКИ ======
+// ====== НАСТРОЙКИ (полностью) ======
 function loadSettings() {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', API + '/api/my-profile?token=' + token, true);
@@ -487,6 +489,69 @@ function setTheme(th) {
     }
     if (profile) profile.theme = th;
     if (byId('theme-select')) byId('theme-select').value = th;
+}
+
+// ====== ЗАГРУЗКА СВОЕЙ АВАТАРКИ ======
+function uploadCustomAvatar(input) {
+    if (!input.files || !input.files[0]) return;
+    var file = input.files[0];
+    if (isOldIOS()) {
+        // iOS 6 – загрузка через iframe
+        var iframe = document.createElement('iframe');
+        iframe.name = 'avatar-upload-' + Date.now();
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+
+        var form = document.createElement('form');
+        form.method = 'POST';
+        form.action = API + '/api/upload-avatar?token=' + token;
+        form.enctype = 'multipart/form-data';
+        form.target = iframe.name;
+        form.style.display = 'none';
+
+        var clone = input.cloneNode(true);
+        clone.name = 'avatar';
+        form.appendChild(clone);
+        document.body.appendChild(form);
+        form.submit();
+
+        iframe.onload = function() {
+            try {
+                var body = iframe.contentDocument.body.textContent || iframe.contentWindow.document.body.textContent;
+                var resp = JSON.parse(body);
+                if (resp.success) {
+                    alert('Аватар обновлён!');
+                    profile.avatar = resp.url;
+                    loadAvatars();
+                } else {
+                    alert('Ошибка загрузки');
+                }
+            } catch(e) {
+                alert('Ошибка обработки ответа');
+            }
+            document.body.removeChild(iframe);
+            document.body.removeChild(form);
+            input.value = '';
+        };
+    } else {
+        // Современный способ
+        var formData = new FormData();
+        formData.append('avatar', file);
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', API + '/api/upload-avatar?token=' + token, true);
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4 && xhr.status === 200) {
+                var resp = JSON.parse(xhr.responseText);
+                if (resp.success) {
+                    alert('Аватар обновлён!');
+                    profile.avatar = resp.url;
+                    loadAvatars();
+                }
+            }
+            input.value = '';
+        };
+        xhr.send(formData);
+    }
 }
 
 // ====== ОТПРАВКА СООБЩЕНИЙ ======

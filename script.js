@@ -1,5 +1,5 @@
 // ==============================================
-// АВТОМАТИЧЕСКИЙ РЕДИРЕКТ ДЛЯ СТАРЫХ iOS
+// АВТО-РЕДИРЕКТ ДЛЯ iOS 6
 // ==============================================
 function isOldIOS() {
     var ua = navigator.userAgent;
@@ -7,7 +7,6 @@ function isOldIOS() {
     return match && parseInt(match[1]) < 10;
 }
 
-// Если страница открыта через HTTPS, а устройство старое – перенаправляем на локальный HTTP сервера
 if (isOldIOS() && window.location.protocol === 'https:') {
     window.location.href = 'http://192.168.1.9:8080' + window.location.pathname + window.location.search;
 }
@@ -16,8 +15,8 @@ if (isOldIOS() && window.location.protocol === 'https:') {
 // НАСТРОЙКА API
 // ==============================================
 var API = isOldIOS()
-    ? 'http://192.168.1.9:8080'                           // iOS 6 работает напрямую
-    : 'https://ichatterios6.iosvidocum.workers.dev';      // все остальные через твой домен
+    ? 'http://192.168.1.9:8080'
+    : 'https://ichatterios6.iosvidocum.workers.dev';
 
 // ==============================================
 // УТИЛИТЫ
@@ -53,6 +52,7 @@ var editingId = null;
 var profile = null;
 var contacts = [];
 var pendingName = null;
+var loadedMessageIds = {}; // защита от дублирования сообщений
 
 if (!token || !myEmail) { window.location.href = 'login.html'; }
 
@@ -92,8 +92,11 @@ function t(k) { return T[lang][k] || k; }
 function formatTime(ts) { var d = new Date(ts); var h = d.getHours(); var m = d.getMinutes(); if (m < 10) m = '0' + m; return h + ':' + m; }
 function esc(s) { if (!s) return ''; var div = document.createElement('div'); div.appendChild(document.createTextNode(s)); return div.innerHTML; }
 
-// ====== UI СООБЩЕНИЙ ======
-function addMsg(msg) {
+// ====== UI сообщений ======
+function addMsg(msg, prepend) {
+    if (loadedMessageIds[msg.id]) return;       // уже есть в DOM
+    loadedMessageIds[msg.id] = true;
+
     var container = byId('messages');
     var div = document.createElement('div');
     div.className = 'msg';
@@ -123,7 +126,12 @@ function addMsg(msg) {
     if (msg.from === myEmail && !msg.deleted) {
         div.innerHTML += '<div class="actions"><button class="edit-btn" onclick="editMsg(\'' + msg.id + '\',\'' + esc(msg.text).replace(/'/g, "\\'") + '\')">✎</button><button class="del-btn" onclick="delMsg(\'' + msg.id + '\')">✕</button></div>';
     }
-    container.appendChild(div);
+
+    if (prepend) {
+        container.insertBefore(div, container.firstChild);
+    } else {
+        container.appendChild(div);
+    }
     container.scrollTop = container.scrollHeight;
 }
 
@@ -191,6 +199,10 @@ function openChat(em) {
     if (!name) name = em.split('@')[0];
     pendingName = null;
     byId('chat-title').innerHTML = name;
+
+    // Сбрасываем кеш загруженных сообщений и загружаем историю заново
+    loadedMessageIds = {};
+    byId('messages').innerHTML = '';
     loadMessages(em);
 }
 
@@ -213,9 +225,10 @@ function loadMessages(to) {
     xhr.onreadystatechange = function() {
         if (xhr.readyState === 4 && xhr.status === 200) {
             var data = JSON.parse(xhr.responseText);
-            byId('messages').innerHTML = '';
             var msgs = data.messages || [];
-            for (var i = 0; i < msgs.length; i++) addMsg(msgs[i]);
+            for (var i = 0; i < msgs.length; i++) {
+                addMsg(msgs[i]);   // addMsg сама проверяет дубликаты
+            }
         }
     };
     xhr.send();
@@ -452,7 +465,7 @@ function setTheme(th) {
     if (byId('theme-select')) byId('theme-select').value = th;
 }
 
-// ====== МЕДИА И ЗАГРУЗКИ ======
+// ====== МЕДИА И ОТПРАВКА ======
 function sendMediaMessage(input) {
     if (!input.files || !input.files[0]) return;
     var file = input.files[0];
@@ -546,17 +559,24 @@ function uploadCustomWallpaper(input) {
     xhr.send(formData);
 }
 
-// ====== ОТПРАВКА ТЕКСТА ======
 function sendMessage() {
     var input = byId('input');
     var text = input.value.trim();
     if (!text || !chatWith || !socket) return;
-    if (editingId) {
-        socket.emit('edit_message', { id: editingId, newText: text });
-        editingId = null;
-    } else {
-        socket.emit('send_message', { to: chatWith, text: text });
-    }
+
+    // Оптимистично показываем сообщение с временным ID
+    var tempId = 'temp-' + Date.now() + Math.random().toString(36).substr(2, 5);
+    var optimisticMsg = {
+        id: tempId,
+        from: myEmail,
+        fromUsername: profile ? (profile.displayName || profile.username) : myEmail.split('@')[0],
+        text: text,
+        timestamp: Date.now(),
+        read: false
+    };
+    addMsg(optimisticMsg);
+
+    socket.emit('send_message', { to: chatWith, text: text });
     input.value = '';
 }
 
@@ -566,8 +586,28 @@ function delMsg(id) { if (confirm('Удалить сообщение?')) socket.
 // ====== СОКЕТ ======
 function connectSocket() {
     socket = io(API, { query: { token: token } });
-    socket.on('receive_message', function(msg) { if (chatWith === msg.from) addMsg(msg); loadContacts(); });
-    socket.on('message_sent', function(msg) { if (chatWith === msg.to) addMsg(msg); loadContacts(); });
+
+    socket.on('receive_message', function(msg) {
+        if (chatWith === msg.from) addMsg(msg);
+        loadContacts();
+    });
+
+    socket.on('message_sent', function(msg) {
+        // Удаляем временное сообщение (если ещё висит) и добавляем настоящее
+        var tempEl = byId('msg-temp-' + msg.id);
+        // Но ID настоящего сообщения не совпадает с временным, поэтому просто ищем последний временный и заменяем
+        var allTemp = document.querySelectorAll('[id^="msg-temp-"]');
+        for (var i = 0; i < allTemp.length; i++) {
+            if (allTemp[i].id.indexOf('temp-') === 0) {
+                // Это наше оптимистичное сообщение – удаляем его
+                allTemp[i].parentNode.removeChild(allTemp[i]);
+                break; // удаляем только одно
+            }
+        }
+        addMsg(msg);
+        loadContacts();
+    });
+
     socket.on('update_message', function(d) { updMsg(d.id, d.text, d.edited); });
     socket.on('remove_message', function(d) { delMsgUI(d.id); });
     socket.on('user_typing', function(data) {

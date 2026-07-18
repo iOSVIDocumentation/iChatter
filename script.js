@@ -70,8 +70,7 @@ var T = {
         langLabel: 'Язык', themeLabel: 'Тема', wallpaper: 'Обои чата',
         nickname: 'Ник (не меняется)', displayName: 'Отображаемое имя',
         age: 'Возраст', about: 'О себе', avatar: 'Аватар', myId: 'Мой ID',
-        devices: 'Устройства', uploadWallpaper: 'Загрузить свой фон',
-        uploadAvatar: 'Загрузить свой аватар', searchPlaceholder: 'Введите ID (6 цифр)'
+        devices: 'Устройства', searchPlaceholder: 'Введите ID (6 цифр)'
     },
     en: {
         chats: 'Chats', archive: 'Archive', settings: 'Settings', back: '← Back',
@@ -83,8 +82,7 @@ var T = {
         langLabel: 'Language', themeLabel: 'Theme', wallpaper: 'Chat Wallpaper',
         nickname: 'Nickname (unchangeable)', displayName: 'Display Name',
         age: 'Age', about: 'About', avatar: 'Avatar', myId: 'My ID',
-        devices: 'Devices', uploadWallpaper: 'Upload Custom',
-        uploadAvatar: 'Upload Custom', searchPlaceholder: 'Enter ID (6 digits)'
+        devices: 'Devices', searchPlaceholder: 'Enter ID (6 digits)'
     }
 };
 function t(k) { return T[lang][k] || k; }
@@ -108,21 +106,10 @@ function addMsg(msg) {
     var text = msg.deleted ? '<i>' + t('deleted') + '</i>' : esc(msg.text);
     var edited = msg.edited ? ' <span class="edited-tag">(' + t('edited') + ')</span>' : '';
 
-    div.innerHTML = '<div class="sender">' + esc(senderName) + '</div>';
-    if (msg.media) {
-        var mediaUrl = API + msg.media.url;
-        var type = msg.media.type;
-        if (type && type.indexOf('image/') === 0) {
-            div.innerHTML += '<img src="' + mediaUrl + '" class="media" style="max-width:200px;max-height:200px;cursor:pointer;" onerror="this.style.display=\'none\'">';
-        } else if (type && type.indexOf('video/') === 0) {
-            div.innerHTML += '<video controls class="media" style="max-width:200px;max-height:200px;"><source src="' + mediaUrl + '" type="' + type + '"></video>';
-        } else if (type && type.indexOf('audio/') === 0) {
-            div.innerHTML += '<audio controls class="media"><source src="' + mediaUrl + '" type="' + type + '"></audio>';
-        } else {
-            div.innerHTML += '<a href="' + mediaUrl + '" target="_blank" class="media">📎 ' + (msg.media.url.split('/').pop()) + '</a>';
-        }
-    }
-    div.innerHTML += '<div class="text">' + text + edited + '</div><span class="time">' + timeStr + '</span>';
+    div.innerHTML = '<div class="sender">' + esc(senderName) + '</div>' +
+                    '<div class="text">' + text + edited + '</div>' +
+                    '<span class="time">' + timeStr + '</span>';
+
     if (msg.from === myEmail && !msg.deleted) {
         div.innerHTML += '<div class="actions"><button class="edit-btn" onclick="editMsg(\'' + msg.id + '\',\'' + esc(msg.text).replace(/'/g, "\\'") + '\')">✎</button><button class="del-btn" onclick="delMsg(\'' + msg.id + '\')">✕</button></div>';
     }
@@ -146,6 +133,46 @@ function delMsgUI(id) {
     if (textDivs.length > 0) textDivs[0].innerHTML = '<i>' + t('deleted') + '</i>';
     var actions = el.getElementsByClassName('actions');
     if (actions.length > 0) actions[0].style.display = 'none';
+}
+
+// ====== ПРОФИЛЬ СОБЕСЕДНИКА ======
+function showPartnerProfile() {
+    if (!chatWith) return;
+    var partner = null;
+    for (var i = 0; i < contacts.length; i++) {
+        if (contacts[i].email === chatWith) { partner = contacts[i]; break; }
+    }
+    if (!partner) {
+        byId('partner-displayname').textContent = chatWith.split('@')[0];
+        byId('partner-username').textContent = chatWith.split('@')[0];
+        byId('partner-id').textContent = '';
+        byId('partner-status').textContent = '';
+        byId('partner-age').textContent = '';
+        byId('partner-about').textContent = '';
+        byId('partner-avatar').src = '';
+        byId('partner-profile-overlay').style.display = 'flex';
+        return;
+    }
+
+    byId('partner-displayname').textContent = partner.displayName || partner.username;
+    byId('partner-username').textContent = partner.username || '';
+    byId('partner-id').textContent = partner.searchId || '';
+    byId('partner-status').textContent = partner.isOnline ? t('online') : t('offline');
+    byId('partner-age').textContent = partner.age ? (t('age') + ': ' + partner.age) : '';
+    byId('partner-about').textContent = partner.about || '';
+
+    if (partner.avatar && partner.avatar.indexOf('/uploads/avatars/') === 0) {
+        byId('partner-avatar').src = API + partner.avatar;
+    } else if (partner.avatar) {
+        byId('partner-avatar').src = API + '/avatars/' + partner.avatar;
+    } else {
+        byId('partner-avatar').src = '';
+    }
+    byId('partner-profile-overlay').style.display = 'flex';
+}
+
+function closePartnerProfile() {
+    byId('partner-profile-overlay').style.display = 'none';
 }
 
 // ====== НАВИГАЦИЯ ======
@@ -194,12 +221,16 @@ function openChat(em) {
     if (!name) name = em.split('@')[0];
     pendingName = null;
     byId('chat-title').innerHTML = name;
+    byId('chat-title').onclick = showPartnerProfile;
     loadedMessageIds = {};
     byId('messages').innerHTML = '';
     loadMessages(em);
 }
 
-function goBack() { showTab('chats'); }
+function goBack() {
+    showTab('chats');
+    byId('chat-title').onclick = null;
+}
 
 function updateNavTexts() {
     byId('nav-chats').textContent = t('chats');
@@ -220,9 +251,7 @@ function loadMessages(to) {
             var data = JSON.parse(xhr.responseText);
             var msgs = data.messages || [];
             for (var i = 0; i < msgs.length; i++) {
-                if (!byId('msg-' + msgs[i].id)) {
-                    addMsg(msgs[i]);
-                }
+                if (!byId('msg-' + msgs[i].id)) addMsg(msgs[i]);
             }
         }
     };
@@ -323,7 +352,7 @@ function findUser() {
     xhr.send();
 }
 
-// ====== НАСТРОЙКИ (без querySelector) ======
+// ====== НАСТРОЙКИ ======
 function loadSettings() {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', API + '/api/my-profile?token=' + token, true);
@@ -460,127 +489,7 @@ function setTheme(th) {
     if (byId('theme-select')) byId('theme-select').value = th;
 }
 
-// ====== ЗАГРУЗКА ФАЙЛОВ ======
-function uploadFileForChat(fileInput, callback) {
-    if (!fileInput.files || !fileInput.files[0]) return;
-    var file = fileInput.files[0];
-
-    if (isOldIOS()) {
-        var iframe = document.createElement('iframe');
-        iframe.name = 'upload-iframe-' + Date.now();
-        iframe.style.display = 'none';
-        document.body.appendChild(iframe);
-
-        var form = document.createElement('form');
-        form.method = 'POST';
-        form.action = API + '/api/upload-media?token=' + token;
-        form.enctype = 'multipart/form-data';
-        form.target = iframe.name;
-        form.style.display = 'none';
-
-        var clone = fileInput.cloneNode(true);
-        clone.name = 'file';
-        form.appendChild(clone);
-        document.body.appendChild(form);
-        form.submit();
-
-        iframe.onload = function() {
-            try {
-                var body = iframe.contentDocument.body.textContent || iframe.contentWindow.document.body.textContent;
-                var response = JSON.parse(body);
-                if (response.success) {
-                    callback(null, response.url, response.type);
-                } else {
-                    callback('Ошибка загрузки');
-                }
-            } catch(e) {
-                callback('Ошибка обработки ответа');
-            }
-            document.body.removeChild(iframe);
-            document.body.removeChild(form);
-            fileInput.value = '';
-        };
-    } else {
-        var formData = new FormData();
-        formData.append('file', file);
-        var xhr = new XMLHttpRequest();
-        xhr.open('POST', API + '/api/upload-media?token=' + token, true);
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState === 4) {
-                if (xhr.status === 200) {
-                    var resp = JSON.parse(xhr.responseText);
-                    if (resp.success) {
-                        callback(null, resp.url, resp.type);
-                    } else {
-                        callback('Ошибка загрузки');
-                    }
-                } else {
-                    callback('Ошибка загрузки');
-                }
-                fileInput.value = '';
-            }
-        };
-        xhr.send(formData);
-    }
-}
-
-function sendMediaMessage(input) {
-    uploadFileForChat(input, function(err, url, type) {
-        if (err) {
-            alert(err);
-            return;
-        }
-        socket.emit('send_message', {
-            to: chatWith,
-            text: '',
-            media: { url: url, type: type }
-        });
-    });
-}
-
-function uploadCustomAvatar(input) {
-    if (!input.files || !input.files[0]) return;
-    var file = input.files[0];
-    var formData = new FormData();
-    formData.append('avatar', file);
-    var xhr = new XMLHttpRequest();
-    xhr.open('POST', API + '/api/upload-avatar?token=' + token, true);
-    xhr.onreadystatechange = function() {
-        if (xhr.readyState === 4 && xhr.status === 200) {
-            var resp = JSON.parse(xhr.responseText);
-            if (resp.success) {
-                alert('Аватар обновлён!');
-                profile.avatar = resp.url;
-                loadAvatars();
-            }
-        }
-        input.value = '';
-    };
-    xhr.send(formData);
-}
-
-function uploadCustomWallpaper(input) {
-    if (!input.files || !input.files[0]) return;
-    var file = input.files[0];
-    var formData = new FormData();
-    formData.append('wallpaper', file);
-    var xhr = new XMLHttpRequest();
-    xhr.open('POST', API + '/api/upload-wallpaper?token=' + token, true);
-    xhr.onreadystatechange = function() {
-        if (xhr.readyState === 4 && xhr.status === 200) {
-            var resp = JSON.parse(xhr.responseText);
-            if (resp.success) {
-                alert('Обои обновлены!');
-                profile.wallpaper = resp.url;
-                byId('messages').style.backgroundImage = 'url(' + API + resp.url + ')';
-                byId('messages').style.backgroundSize = 'cover';
-            }
-        }
-        input.value = '';
-    };
-    xhr.send(formData);
-}
-
+// ====== ОТПРАВКА СООБЩЕНИЙ ======
 function sendMessage() {
     var input = byId('input');
     var text = input.value.trim();
@@ -607,7 +516,6 @@ function connectSocket() {
     });
 
     socket.on('message_sent', function(msg) {
-        // Просто добавляем подтверждённое сообщение (без временных заглушек)
         if (chatWith === msg.to) addMsg(msg);
         loadContacts();
     });

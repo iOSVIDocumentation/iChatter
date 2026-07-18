@@ -1,5 +1,5 @@
 // ==============================================
-// АВТО-РЕДИРЕКТ ДЛЯ iOS 6
+// АВТОМАТИЧЕСКИЙ РЕДИРЕКТ ДЛЯ СТАРЫХ iOS
 // ==============================================
 function isOldIOS() {
     var ua = navigator.userAgent;
@@ -7,21 +7,20 @@ function isOldIOS() {
     return match && parseInt(match[1]) < 10;
 }
 
-// Если открыто через Cloudflare HTTPS на старом устройстве – принудительно идём на HTTP
+// Если страница открыта через HTTPS, а устройство старое – перенаправляем на локальный HTTP сервера
 if (isOldIOS() && window.location.protocol === 'https:') {
-    var localURL = 'http://192.168.1.15:8080' + window.location.pathname + window.location.search;
-    window.location.href = localURL;
+    window.location.href = 'http://192.168.1.9:8080' + window.location.pathname + window.location.search;
 }
 
 // ==============================================
-// НАСТРОЙКА API (локальный HTTP для старых, туннель для новых)
+// НАСТРОЙКА API
 // ==============================================
 var API = isOldIOS()
-    ? 'http://192.168.1.15:8080'                          // iOS 6 работает напрямую
-    : 'https://moss-perspective-stands-copying.trycloudflare.com';  // остальные через туннель
+    ? 'http://192.168.1.9:8080'                           // iOS 6 работает напрямую
+    : 'https://ichatterios6.iosvidocum.workers.dev';      // все остальные через твой домен
 
 // ==============================================
-// УТИЛИТЫ (без изменений)
+// УТИЛИТЫ
 // ==============================================
 function getParam(name) {
     var query = window.location.search.substring(1);
@@ -93,7 +92,7 @@ function t(k) { return T[lang][k] || k; }
 function formatTime(ts) { var d = new Date(ts); var h = d.getHours(); var m = d.getMinutes(); if (m < 10) m = '0' + m; return h + ':' + m; }
 function esc(s) { if (!s) return ''; var div = document.createElement('div'); div.appendChild(document.createTextNode(s)); return div.innerHTML; }
 
-// ====== UI сообщений ======
+// ====== UI СООБЩЕНИЙ ======
 function addMsg(msg) {
     var container = byId('messages');
     var div = document.createElement('div');
@@ -146,7 +145,7 @@ function delMsgUI(id) {
     if (actions.length > 0) actions[0].style.display = 'none';
 }
 
-// ====== Навигация ======
+// ====== НАВИГАЦИЯ ======
 function showTab(tab) {
     byId('chats-panel').style.display = 'none';
     byId('archive-panel').style.display = 'none';
@@ -207,7 +206,7 @@ function updateNavTexts() {
     byId('btn-back').textContent = t('back');
 }
 
-// ====== Загрузка данных ======
+// ====== ЗАГРУЗКА ДАННЫХ ======
 function loadMessages(to) {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', API + '/api/messages?token=' + token + '&chatWith=' + to, true);
@@ -316,7 +315,7 @@ function findUser() {
     xhr.send();
 }
 
-// ====== Настройки ======
+// ====== НАСТРОЙКИ ======
 function loadSettings() {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', API + '/api/my-profile?token=' + token, true);
@@ -453,7 +452,7 @@ function setTheme(th) {
     if (byId('theme-select')) byId('theme-select').value = th;
 }
 
-// ====== Медиа ======
+// ====== МЕДИА И ЗАГРУЗКИ ======
 function sendMediaMessage(input) {
     if (!input.files || !input.files[0]) return;
     var file = input.files[0];
@@ -547,7 +546,7 @@ function uploadCustomWallpaper(input) {
     xhr.send(formData);
 }
 
-// ====== Отправка текста ======
+// ====== ОТПРАВКА ТЕКСТА ======
 function sendMessage() {
     var input = byId('input');
     var text = input.value.trim();
@@ -564,7 +563,7 @@ function sendMessage() {
 function editMsg(id, text) { editingId = id; byId('input').value = text; byId('input').focus(); }
 function delMsg(id) { if (confirm('Удалить сообщение?')) socket.emit('delete_message', { id: id }); }
 
-// ====== Сокет ======
+// ====== СОКЕТ ======
 function connectSocket() {
     socket = io(API, { query: { token: token } });
     socket.on('receive_message', function(msg) { if (chatWith === msg.from) addMsg(msg); loadContacts(); });

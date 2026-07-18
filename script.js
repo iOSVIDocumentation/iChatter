@@ -1,3 +1,28 @@
+// ==============================================
+// АВТО-РЕДИРЕКТ ДЛЯ iOS 6
+// ==============================================
+function isOldIOS() {
+    var ua = navigator.userAgent;
+    var match = ua.match(/iPhone OS (\d+)_/);
+    return match && parseInt(match[1]) < 10;
+}
+
+// Если открыто через Cloudflare HTTPS на старом устройстве – принудительно идём на HTTP
+if (isOldIOS() && window.location.protocol === 'https:') {
+    var localURL = 'http://192.168.1.15:8080' + window.location.pathname + window.location.search;
+    window.location.href = localURL;
+}
+
+// ==============================================
+// НАСТРОЙКА API (локальный HTTP для старых, туннель для новых)
+// ==============================================
+var API = isOldIOS()
+    ? 'http://192.168.1.15:8080'                          // iOS 6 работает напрямую
+    : 'https://moss-perspective-stands-copying.trycloudflare.com';  // остальные через туннель
+
+// ==============================================
+// УТИЛИТЫ (без изменений)
+// ==============================================
 function getParam(name) {
     var query = window.location.search.substring(1);
     var vars = query.split('&');
@@ -7,16 +32,6 @@ function getParam(name) {
     }
     return null;
 }
-
-// Авто‑определение старой iOS для HTTP
-function isOldIOS() {
-    var ua = navigator.userAgent;
-    var match = ua.match(/iPhone OS (\d+)_/);
-    return match && parseInt(match[1]) < 10;
-}
-
-var API = isOldIOS() ? 'http://192.168.1.15:8080' : 'https://moss-perspective-stands-copying.trycloudflare.com';
-// Если локальный IP другой, замени 192.168.1.15
 
 var urlToken = getParam('token');
 var urlEmail = getParam('email');
@@ -44,7 +59,7 @@ if (!token || !myEmail) { window.location.href = 'login.html'; }
 
 function byId(id) { return document.getElementById(id); }
 
-// ====== Переводы ======
+// ====== ПЕРЕВОДЫ ======
 var T = {
     ru: {
         chats: 'Чаты', archive: 'Архив', settings: 'Настройки', back: '← Назад',
@@ -425,7 +440,6 @@ function setLang(l) {
     lang = l;
     localStorage.setItem('lang', lang);
     updateNavTexts();
-    // Явно обновляем селект, если настройки открыты
     if (byId('lang-select')) byId('lang-select').value = lang;
 }
 
@@ -444,7 +458,6 @@ function sendMediaMessage(input) {
     if (!input.files || !input.files[0]) return;
     var file = input.files[0];
     if (isOldIOS()) {
-        // iframe‑форма для старых iOS
         var iframe = document.createElement('iframe');
         iframe.name = 'upload-iframe-' + Date.now();
         iframe.style.display = 'none';
@@ -534,11 +547,11 @@ function uploadCustomWallpaper(input) {
     xhr.send(formData);
 }
 
+// ====== Отправка текста ======
 function sendMessage() {
     var input = byId('input');
     var text = input.value.trim();
-    if (!text || !chatWith) return;
-    if (!socket) return;
+    if (!text || !chatWith || !socket) return;
     if (editingId) {
         socket.emit('edit_message', { id: editingId, newText: text });
         editingId = null;

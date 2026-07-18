@@ -1,10 +1,14 @@
 // ==============================================
-// АВТО-РЕДИРЕКТ ДЛЯ iOS 6 (уже сработал в HTML)
+// АВТО-РЕДИРЕКТ ДЛЯ iOS 6
 // ==============================================
 function isOldIOS() {
     var ua = navigator.userAgent;
     var match = ua.match(/iPhone OS (\d+)_/);
     return match && parseInt(match[1]) < 10;
+}
+
+if (isOldIOS() && window.location.protocol === 'https:') {
+    window.location.href = 'http://192.168.1.9:8080' + window.location.pathname + window.location.search;
 }
 
 // ==============================================
@@ -48,7 +52,7 @@ var editingId = null;
 var profile = null;
 var contacts = [];
 var pendingName = null;
-var loadedMessageIds = {}; // защита от дубликатов
+var loadedMessageIds = {};
 
 if (!token || !myEmail) { window.location.href = 'login.html'; }
 
@@ -90,7 +94,7 @@ function esc(s) { if (!s) return ''; var div = document.createElement('div'); di
 
 // ====== UI сообщений ======
 function addMsg(msg) {
-    if (loadedMessageIds[msg.id]) return;          // уже отображено
+    if (loadedMessageIds[msg.id]) return;
     loadedMessageIds[msg.id] = true;
 
     var container = byId('messages');
@@ -190,8 +194,6 @@ function openChat(em) {
     if (!name) name = em.split('@')[0];
     pendingName = null;
     byId('chat-title').innerHTML = name;
-
-    // Сбрасываем кеш и загружаем историю
     loadedMessageIds = {};
     byId('messages').innerHTML = '';
     loadMessages(em);
@@ -217,7 +219,6 @@ function loadMessages(to) {
         if (xhr.readyState === 4 && xhr.status === 200) {
             var data = JSON.parse(xhr.responseText);
             var msgs = data.messages || [];
-            // Добавляем только те сообщения, которых ещё нет в DOM
             for (var i = 0; i < msgs.length; i++) {
                 if (!byId('msg-' + msgs[i].id)) {
                     addMsg(msgs[i]);
@@ -322,15 +323,143 @@ function findUser() {
     xhr.send();
 }
 
-// ====== НАСТРОЙКИ (без изменений) ======
-function loadSettings() { /* ... */ }
-function loadAvatars() { /* ... */ }
-function loadWallpapers() { /* ... */ }
-function loadDevices() { /* ... */ }
-function logoutDevice(tok) { /* ... */ }
-function saveSettings() { /* ... */ }
-function setLang(l) { /* ... */ }
-function setTheme(th) { /* ... */ }
+// ====== НАСТРОЙКИ (все функции явно) ======
+function loadSettings() {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', API + '/api/my-profile?token=' + token, true);
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+            profile = JSON.parse(xhr.responseText).user;
+            byId('set-username').value = profile.username || '';
+            byId('set-displayname').value = profile.displayName || '';
+            byId('set-age').value = profile.age || '';
+            byId('set-about').value = profile.about || '';
+            byId('lang-select').value = profile.language || lang;
+            var savedTheme = profile.theme || 'dark';
+            byId('theme-select').value = savedTheme;
+            setTheme(savedTheme);
+            // ВОТ ЭТА СТРОКА ОТОБРАЖАЕТ ID
+            byId('my-id-display').innerHTML = profile.searchId || '';
+            loadAvatars();
+            loadWallpapers();
+            loadDevices();
+            updateNavTexts();
+        }
+    };
+    xhr.send();
+}
+
+function loadAvatars() {
+    var grid = byId('avatar-grid');
+    grid.innerHTML = '';
+    for (var i = 1; i <= 10; i++) {
+        var img = document.createElement('img');
+        img.src = API + '/avatars/av' + i + '.png';
+        img.onerror = function() { this.style.display = 'none'; };
+        if (profile.avatar === 'av' + i + '.png') img.className = 'selected';
+        img.onclick = (function(idx) { return function() { var imgs = grid.getElementsByTagName('img'); for (var j = 0; j < imgs.length; j++) imgs[j].className = ''; this.className = 'selected'; profile.avatar = 'av' + idx + '.png'; }; })(i);
+        grid.appendChild(img);
+    }
+    if (profile.avatar && profile.avatar.startsWith('/uploads/avatars/')) {
+        var custImg = document.createElement('img');
+        custImg.src = API + profile.avatar;
+        custImg.className = 'selected';
+        custImg.onclick = function() { var imgs = grid.getElementsByTagName('img'); for (var j = 0; j < imgs.length; j++) imgs[j].className = ''; this.className = 'selected'; profile.avatar = this.src.replace(API, ''); };
+        grid.appendChild(custImg);
+    }
+}
+
+function loadWallpapers() {
+    var grid = byId('wallpaper-grid');
+    grid.innerHTML = '';
+    var walls = ['bg1.jpg','bg2.jpg','bg3.jpg','bg4.jpg','bg5.jpg','bg6.jpg','bg7.jpg','bg8.jpg'];
+    for (var i = 0; i < walls.length; i++) {
+        var img = document.createElement('img');
+        img.src = API + '/wallpapers/' + walls[i];
+        img.onerror = function() { this.style.display = 'none'; };
+        if (profile.wallpaper === walls[i]) img.className = 'selected';
+        img.onclick = (function(w) { return function() { var imgs = grid.getElementsByTagName('img'); for (var k = 0; k < imgs.length; k++) imgs[k].className = ''; this.className = 'selected'; profile.wallpaper = w; byId('messages').style.backgroundImage = 'url(' + API + '/wallpapers/' + w + ')'; byId('messages').style.backgroundSize = 'cover'; }; })(walls[i]);
+        grid.appendChild(img);
+    }
+    if (profile.wallpaper && profile.wallpaper.startsWith('/uploads/wallpapers/')) {
+        var custBg = document.createElement('img');
+        custBg.src = API + profile.wallpaper;
+        custBg.className = 'selected';
+        custBg.onclick = function() { var imgs = grid.getElementsByTagName('img'); for (var j = 0; j < imgs.length; j++) imgs[j].className = ''; this.className = 'selected'; profile.wallpaper = this.src.replace(API, ''); byId('messages').style.backgroundImage = 'url(' + this.src + ')'; byId('messages').style.backgroundSize = 'cover'; };
+        grid.appendChild(custBg);
+    }
+}
+
+function loadDevices() {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', API + '/api/my-devices?token=' + token, true);
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+            var devices = JSON.parse(xhr.responseText).devices || [];
+            var list = byId('devices-list');
+            list.innerHTML = '';
+            for (var i = 0; i < devices.length; i++) {
+                var d = devices[i];
+                var div = document.createElement('div');
+                div.style.padding = '6px 0';
+                var extra = d.isCurrent ? ' <b>[текущий]</b>' : ' <button onclick="logoutDevice(\'' + d.token + '\')" style="font-size:10px;background:#e74c3c;color:white;border:none;padding:3px 8px;border-radius:4px;cursor:pointer;">Выйти</button>';
+                div.innerHTML = d.device + ' (' + new Date(d.created).toLocaleString() + ')' + extra;
+                list.appendChild(div);
+            }
+        }
+    };
+    xhr.send();
+}
+
+function logoutDevice(tok) {
+    if (!confirm('Выйти с устройства?')) return;
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', API + '/api/logout-device', true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.onreadystatechange = function() { if (xhr.readyState === 4) loadDevices(); };
+    xhr.send(JSON.stringify({ token: token, targetToken: tok }));
+}
+
+function saveSettings() {
+    profile.displayName = byId('set-displayname').value;
+    profile.age = parseInt(byId('set-age').value) || 0;
+    profile.about = byId('set-about').value;
+    var newLang = byId('lang-select').value;
+    var newTheme = byId('theme-select').value;
+    lang = newLang;
+    localStorage.setItem('lang', lang);
+    setTheme(newTheme);
+    profile.language = newLang;
+    profile.theme = newTheme;
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', API + '/api/update-profile', true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+            alert(t('saved'));
+            showTab('settings');
+        }
+    };
+    xhr.send(JSON.stringify({ token: token, displayName: profile.displayName, age: profile.age, about: profile.about, avatar: profile.avatar, theme: newTheme, language: newLang, wallpaper: profile.wallpaper }));
+}
+
+function setLang(l) {
+    lang = l;
+    localStorage.setItem('lang', lang);
+    updateNavTexts();
+    if (byId('lang-select')) byId('lang-select').value = lang;
+}
+
+function setTheme(th) {
+    if (th === 'light') {
+        document.body.className = 'light-mode';
+    } else {
+        document.body.className = 'dark-mode';
+    }
+    if (profile) profile.theme = th;
+    if (byId('theme-select')) byId('theme-select').value = th;
+}
 
 // ====== ЗАГРУЗКА ФАЙЛОВ И ОТПРАВКА ======
 function uploadFileForChat(fileInput, callback) {
@@ -350,7 +479,6 @@ function uploadFileForChat(fileInput, callback) {
         form.target = iframe.name;
         form.style.display = 'none';
 
-        // Клонируем текущий input, чтобы не терять выбранный файл
         var clone = fileInput.cloneNode(true);
         clone.name = 'file';
         form.appendChild(clone);
@@ -371,7 +499,7 @@ function uploadFileForChat(fileInput, callback) {
             }
             document.body.removeChild(iframe);
             document.body.removeChild(form);
-            fileInput.value = ''; // очищаем оригинальный input
+            fileInput.value = '';
         };
     } else {
         var formData = new FormData();
@@ -403,13 +531,55 @@ function sendMediaMessage(input) {
             alert(err);
             return;
         }
-        // Только после успешной загрузки отправляем сообщение через сокет
         socket.emit('send_message', {
             to: chatWith,
             text: '',
             media: { url: url, type: type }
         });
     });
+}
+
+function uploadCustomAvatar(input) {
+    if (!input.files || !input.files[0]) return;
+    var file = input.files[0];
+    var formData = new FormData();
+    formData.append('avatar', file);
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', API + '/api/upload-avatar?token=' + token, true);
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+            var resp = JSON.parse(xhr.responseText);
+            if (resp.success) {
+                alert('Аватар обновлён!');
+                profile.avatar = resp.url;
+                loadAvatars();
+            }
+        }
+        input.value = '';
+    };
+    xhr.send(formData);
+}
+
+function uploadCustomWallpaper(input) {
+    if (!input.files || !input.files[0]) return;
+    var file = input.files[0];
+    var formData = new FormData();
+    formData.append('wallpaper', file);
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', API + '/api/upload-wallpaper?token=' + token, true);
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+            var resp = JSON.parse(xhr.responseText);
+            if (resp.success) {
+                alert('Обои обновлены!');
+                profile.wallpaper = resp.url;
+                byId('messages').style.backgroundImage = 'url(' + API + resp.url + ')';
+                byId('messages').style.backgroundSize = 'cover';
+            }
+        }
+        input.value = '';
+    };
+    xhr.send(formData);
 }
 
 function sendMessage() {
@@ -438,14 +608,25 @@ function connectSocket() {
     });
 
     socket.on('message_sent', function(msg) {
-        // Сообщение подтверждено сервером – добавляем, если ещё не в DOM
         if (chatWith === msg.to) addMsg(msg);
         loadContacts();
     });
 
     socket.on('update_message', function(d) { updMsg(d.id, d.text, d.edited); });
     socket.on('remove_message', function(d) { delMsgUI(d.id); });
-    socket.on('user_typing', function(data) { /* ... */ });
+    socket.on('user_typing', function(data) {
+        if (chatWith === data.from && data.isTyping) {
+            byId('chat-title').innerHTML = data.username + ' (' + t('typing') + ')';
+            clearTimeout(window.typingTimer);
+            window.typingTimer = setTimeout(function() {
+                if (chatWith === data.from) {
+                    var name = chatWith.split('@')[0];
+                    for (var i = 0; i < contacts.length; i++) if (contacts[i].email === chatWith) { name = contacts[i].displayName || contacts[i].username; break; }
+                    byId('chat-title').innerHTML = name;
+                }
+            }, 2000);
+        }
+    });
 }
 
 byId('send-btn').onclick = sendMessage;

@@ -52,7 +52,7 @@ var editingId = null;
 var profile = null;
 var contacts = [];
 var pendingName = null;
-var loadedMessageIds = {}; // защита от дублирования сообщений
+var loadedMessageIds = {};
 
 if (!token || !myEmail) { window.location.href = 'login.html'; }
 
@@ -93,8 +93,8 @@ function formatTime(ts) { var d = new Date(ts); var h = d.getHours(); var m = d.
 function esc(s) { if (!s) return ''; var div = document.createElement('div'); div.appendChild(document.createTextNode(s)); return div.innerHTML; }
 
 // ====== UI сообщений ======
-function addMsg(msg, prepend) {
-    if (loadedMessageIds[msg.id]) return;       // уже есть в DOM
+function addMsg(msg) {
+    if (loadedMessageIds[msg.id]) return;
     loadedMessageIds[msg.id] = true;
 
     var container = byId('messages');
@@ -126,12 +126,7 @@ function addMsg(msg, prepend) {
     if (msg.from === myEmail && !msg.deleted) {
         div.innerHTML += '<div class="actions"><button class="edit-btn" onclick="editMsg(\'' + msg.id + '\',\'' + esc(msg.text).replace(/'/g, "\\'") + '\')">✎</button><button class="del-btn" onclick="delMsg(\'' + msg.id + '\')">✕</button></div>';
     }
-
-    if (prepend) {
-        container.insertBefore(div, container.firstChild);
-    } else {
-        container.appendChild(div);
-    }
+    container.appendChild(div);
     container.scrollTop = container.scrollHeight;
 }
 
@@ -199,8 +194,6 @@ function openChat(em) {
     if (!name) name = em.split('@')[0];
     pendingName = null;
     byId('chat-title').innerHTML = name;
-
-    // Сбрасываем кеш загруженных сообщений и загружаем историю заново
     loadedMessageIds = {};
     byId('messages').innerHTML = '';
     loadMessages(em);
@@ -226,9 +219,7 @@ function loadMessages(to) {
         if (xhr.readyState === 4 && xhr.status === 200) {
             var data = JSON.parse(xhr.responseText);
             var msgs = data.messages || [];
-            for (var i = 0; i < msgs.length; i++) {
-                addMsg(msgs[i]);   // addMsg сама проверяет дубликаты
-            }
+            for (var i = 0; i < msgs.length; i++) addMsg(msgs[i]);
         }
     };
     xhr.send();
@@ -465,10 +456,8 @@ function setTheme(th) {
     if (byId('theme-select')) byId('theme-select').value = th;
 }
 
-// ====== МЕДИА И ОТПРАВКА ======
-function sendMediaMessage(input) {
-    if (!input.files || !input.files[0]) return;
-    var file = input.files[0];
+// ====== ЗАГРУЗКА ФАЙЛОВ ======
+function uploadFileForChat(file, callback) {
     if (isOldIOS()) {
         var iframe = document.createElement('iframe');
         iframe.name = 'upload-iframe-' + Date.now();
@@ -480,21 +469,30 @@ function sendMediaMessage(input) {
         form.enctype = 'multipart/form-data';
         form.target = iframe.name;
         form.style.display = 'none';
-        var clone = input.cloneNode(true);
-        clone.name = 'file';
-        form.appendChild(clone);
+        var clone = file; // в функцию передается input.files[0]
+        var fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.name = 'file';
+        // Старый способ: клонируем input
+        var originalInput = byId('media-file');
+        if (originalInput) {
+            form.appendChild(originalInput.cloneNode(true));
+        }
         document.body.appendChild(form);
         form.submit();
         iframe.onload = function() {
             try {
                 var response = JSON.parse(iframe.contentDocument.body.textContent || iframe.contentWindow.document.body.textContent);
-                if (response.success && socket && chatWith) {
-                    socket.emit('send_message', { to: chatWith, text: '', media: { url: response.url, type: response.type } });
+                if (response.success) {
+                    callback(null, response.url, response.type);
+                } else {
+                    callback('Ошибка загрузки');
                 }
-            } catch(e) {}
+            } catch(e) {
+                callback('Ошибка обработки ответа');
+            }
             document.body.removeChild(iframe);
             document.body.removeChild(form);
-            input.value = '';
         };
     } else {
         var formData = new FormData();
@@ -505,15 +503,38 @@ function sendMediaMessage(input) {
             if (xhr.readyState === 4) {
                 if (xhr.status === 200) {
                     var resp = JSON.parse(xhr.responseText);
-                    if (resp.success && socket && chatWith) {
-                        socket.emit('send_message', { to: chatWith, text: '', media: { url: resp.url, type: resp.type } });
+                    if (resp.success) {
+                        callback(null, resp.url, resp.type);
+                    } else {
+                        callback('Ошибка загрузки');
                     }
-                } else { alert('Ошибка загрузки файла'); }
-                input.value = '';
+                } else {
+                    callback('Ошибка загрузки');
+                }
             }
         };
         xhr.send(formData);
     }
+}
+
+function sendMediaMessage(input) {
+    if (!input.files || !input.files[0]) return;
+    var file = input.files[0];
+
+    uploadFileForChat(file, function(err, url, type) {
+        if (err) {
+            alert(err);
+            input.value = '';
+            return;
+        }
+        // Отправляем сообщение с медиа
+        socket.emit('send_message', {
+            to: chatWith,
+            text: '',
+            media: { url: url, type: type }
+        });
+        input.value = '';
+    });
 }
 
 function uploadCustomAvatar(input) {
@@ -559,24 +580,17 @@ function uploadCustomWallpaper(input) {
     xhr.send(formData);
 }
 
+// ====== ОТПРАВКА ТЕКСТА ======
 function sendMessage() {
     var input = byId('input');
     var text = input.value.trim();
     if (!text || !chatWith || !socket) return;
-
-    // Оптимистично показываем сообщение с временным ID
-    var tempId = 'temp-' + Date.now() + Math.random().toString(36).substr(2, 5);
-    var optimisticMsg = {
-        id: tempId,
-        from: myEmail,
-        fromUsername: profile ? (profile.displayName || profile.username) : myEmail.split('@')[0],
-        text: text,
-        timestamp: Date.now(),
-        read: false
-    };
-    addMsg(optimisticMsg);
-
-    socket.emit('send_message', { to: chatWith, text: text });
+    if (editingId) {
+        socket.emit('edit_message', { id: editingId, newText: text });
+        editingId = null;
+    } else {
+        socket.emit('send_message', { to: chatWith, text: text });
+    }
     input.value = '';
 }
 
@@ -586,28 +600,14 @@ function delMsg(id) { if (confirm('Удалить сообщение?')) socket.
 // ====== СОКЕТ ======
 function connectSocket() {
     socket = io(API, { query: { token: token } });
-
     socket.on('receive_message', function(msg) {
         if (chatWith === msg.from) addMsg(msg);
         loadContacts();
     });
-
     socket.on('message_sent', function(msg) {
-        // Удаляем временное сообщение (если ещё висит) и добавляем настоящее
-        var tempEl = byId('msg-temp-' + msg.id);
-        // Но ID настоящего сообщения не совпадает с временным, поэтому просто ищем последний временный и заменяем
-        var allTemp = document.querySelectorAll('[id^="msg-temp-"]');
-        for (var i = 0; i < allTemp.length; i++) {
-            if (allTemp[i].id.indexOf('temp-') === 0) {
-                // Это наше оптимистичное сообщение – удаляем его
-                allTemp[i].parentNode.removeChild(allTemp[i]);
-                break; // удаляем только одно
-            }
-        }
-        addMsg(msg);
+        if (chatWith === msg.to) addMsg(msg);
         loadContacts();
     });
-
     socket.on('update_message', function(d) { updMsg(d.id, d.text, d.edited); });
     socket.on('remove_message', function(d) { delMsgUI(d.id); });
     socket.on('user_typing', function(data) {

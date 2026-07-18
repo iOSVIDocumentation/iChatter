@@ -4,13 +4,64 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>iChatter</title>
-    <script src="https://moss-perspective-stands-copying.trycloudflare.com/socket.io/socket.io.js"></script>
-    <style>
-        body, html {
-            margin: 0; padding: 0; height: 100%;
-            background: #555d65; color: #fff;
-            font-family: Helvetica, sans-serif; overflow: hidden;
+
+    <!-- Жёсткий редирект: если iOS 6 и HTTPS – сразу уходим на локальный HTTP -->
+    <script>
+        if (navigator.userAgent.match(/iPhone OS (\d+)_/) && parseInt(RegExp.$1) < 10 && location.protocol === 'https:') {
+            location.href = 'http://192.168.1.9:8080' + location.pathname + location.search;
         }
+    </script>
+
+    <!-- Socket.io из CDN, чтобы не зависеть от туннеля -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; background: #555d65; color: #fff; font-family: Helvetica, sans-serif; overflow: hidden; }
+        #header { position: absolute; top: 0; left: 0; right: 0; height: 44px; background: #2c3e50; color: white; line-height: 44px; padding: 0 10px; z-index: 10; box-sizing: border-box; display: flex; align-items: center; }
+        #btn-back { background: #4a627a; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; margin-right: 8px; display: none; }
+        #chat-title { font-size: 14px; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        #main-content { position: absolute; top: 44px; bottom: 50px; left: 0; right: 0; overflow: hidden; }
+        #chats-panel, #archive-panel, #settings-panel, #chat-area { position: absolute; top: 0; bottom: 0; left: 0; width: 100%; background: #3b434a; overflow-y: scroll; -webkit-overflow-scrolling: touch; z-index: 2; display: none; }
+        #messages { position: absolute; top: 0; left: 0; right: 0; bottom: 50px; padding: 10px; overflow-y: scroll; -webkit-overflow-scrolling: touch; box-sizing: border-box; background: #555d65; }
+        #form-container { position: absolute; bottom: 0; left: 0; right: 0; height: 50px; background: #3b434a; box-sizing: border-box; padding: 5px; display: block; }
+        #form { display: block; width: 100%; height: 100%; margin: 0; }
+        #input { position: absolute; left: 45px; top: 5px; bottom: 5px; right: 80px; width: auto; box-sizing: border-box; font-size: 16px; border-radius: 4px; border: none; padding: 5px; background: white; color: #222; }
+        .media-btn { position: absolute; left: 5px; top: 5px; bottom: 5px; width: 35px; background: #4a627a; color: white; border: none; border-radius: 4px; font-size: 18px; cursor: pointer; }
+        #send-btn { position: absolute; right: 5px; top: 5px; bottom: 5px; width: 70px; background: #27ae60; color: white; border: none; border-radius: 4px; font-size: 14px; cursor: pointer; }
+        .panel-section { padding: 10px; border-bottom: 1px solid #4a627a; background: #2c3e50; }
+        .panel-section input { width: 58%; padding: 8px; border: none; border-radius: 4px; font-size: 14px; background: white; color: #222; }
+        .panel-section button { width: 30%; padding: 8px; background: #4a627a; color: white; border: none; border-radius: 4px; font-size: 14px; }
+        .chat-item { padding: 12px 10px; border-bottom: 1px solid #4a627a; cursor: pointer; position: relative; }
+        .chat-item .name { font-weight: bold; }
+        .chat-item .status { font-size: 12px; color: #aaa; }
+        .chat-item .status.online { color: #4cd964; }
+        .chat-item .archive-btn { position: absolute; right: 10px; top: 12px; background: #e74c3c; color: white; border: none; padding: 3px 8px; border-radius: 3px; font-size: 10px; cursor: pointer; }
+        .chat-item .unarchive-btn { background: #27ae60; }
+        .msg { padding: 8px 10px; background: #2c3e50; margin-bottom: 6px; border-radius: 8px; word-wrap: break-word; font-size: 14px; position: relative; max-width: 80%; color: #fff; }
+        .msg.my { background: #27ae60; margin-left: 20%; color: #fff; }
+        .msg .sender { font-weight: bold; font-size: 12px; color: #ccc; }
+        .msg .time { font-size: 10px; color: #aaa; margin-left: 5px; }
+        .msg .text { margin-top: 3px; }
+        .msg .edited-tag { font-size: 10px; color: #ddd; font-style: italic; }
+        .msg .actions { display: none; position: absolute; right: 5px; top: 5px; }
+        .msg .actions button { font-size: 10px; padding: 2px 5px; margin-left: 3px; border: none; border-radius: 3px; cursor: pointer; color: white; }
+        .msg .actions .edit-btn { background: #f39c12; }
+        .msg .actions .del-btn { background: #e74c3c; }
+        .msg .media { margin-top: 5px; max-width: 100%; border-radius: 8px; }
+        .settings-row { padding: 12px 10px; border-bottom: 1px solid #4a627a; }
+        .settings-row label { font-weight: bold; display: block; margin-bottom: 5px; font-size: 13px; }
+        .settings-row input, .settings-row select { width: 100%; padding: 8px; border: none; border-radius: 4px; font-size: 14px; box-sizing: border-box; background: white; color: #222; }
+        .settings-row button { width: 100%; padding: 10px; background: #27ae60; color: white; border: none; border-radius: 4px; font-size: 15px; cursor: pointer; }
+        .avatar-grid { overflow: hidden; }
+        .avatar-grid img { width: 44px; height: 44px; border-radius: 22px; margin: 4px; border: 2px solid transparent; cursor: pointer; float: left; }
+        .avatar-grid img.selected { border-color: #27ae60; }
+        .wallpaper-grid { overflow: hidden; }
+        .wallpaper-grid img { width: 70px; height: 44px; margin: 4px; border: 2px solid transparent; cursor: pointer; object-fit: cover; float: left; }
+        .wallpaper-grid img.selected { border-color: #27ae60; }
+        #bottom-nav { position: absolute; bottom: 0; left: 0; right: 0; height: 50px; background: #3b434a; display: table; width: 100%; z-index: 20; }
+        .nav-btn { display: table-cell; text-align: center; vertical-align: middle; background: #2c3e50; color: #aaa; font-size: 12px; cursor: pointer; border-right: 1px solid #4a627a; }
+        .nav-btn:last-child { border-right: none; }
+        .nav-btn.active { background: #4a627a; color: white; font-weight: bold; }
         body.light-mode { background: #E2E7ED; color: #222; }
         body.light-mode #header { background: #2c3e50; }
         body.light-mode #chats-panel, body.light-mode #archive-panel, body.light-mode #settings-panel { background: white; }
@@ -28,140 +79,6 @@
         body.light-mode #bottom-nav { background: #cbd2d9; }
         body.light-mode .nav-btn { background: #2c3e50; border-color: #ccc; }
         body.light-mode .nav-btn.active { background: #4a627a; }
-
-        #header {
-            position: absolute; top: 0; left: 0; right: 0; height: 44px;
-            background: #2c3e50; color: white; line-height: 44px;
-            padding: 0 10px; z-index: 10; box-sizing: border-box;
-            display: flex; align-items: center;
-        }
-        #btn-back {
-            background: #4a627a; color: white; border: none;
-            padding: 6px 12px; border-radius: 4px; font-size: 12px;
-            cursor: pointer; margin-right: 8px; display: none;
-        }
-        #chat-title {
-            font-size: 14px; font-weight: bold; overflow: hidden;
-            text-overflow: ellipsis; white-space: nowrap;
-        }
-        #main-content {
-            position: absolute; top: 44px; bottom: 50px; left: 0; right: 0;
-            overflow: hidden;
-        }
-        #chats-panel, #archive-panel, #settings-panel, #chat-area {
-            position: absolute; top: 0; bottom: 0; left: 0; width: 100%;
-            background: #3b434a; overflow-y: scroll;
-            -webkit-overflow-scrolling: touch; z-index: 2;
-            display: none;
-        }
-        #messages {
-            position: absolute; top: 0; left: 0; right: 0; bottom: 50px;
-            padding: 10px; overflow-y: scroll;
-            -webkit-overflow-scrolling: touch; box-sizing: border-box;
-            background: #555d65;
-        }
-        #form-container {
-            position: absolute; bottom: 0; left: 0; right: 0; height: 50px;
-            background: #3b434a; box-sizing: border-box;
-            padding: 5px; display: block;
-        }
-        #form { display: block; width: 100%; height: 100%; margin: 0; }
-        #input {
-            position: absolute; left: 45px; top: 5px; bottom: 5px;
-            right: 80px; width: auto; box-sizing: border-box;
-            font-size: 16px; border-radius: 4px; border: none;
-            padding: 5px; background: white; color: #222;
-        }
-        .media-btn {
-            position: absolute; left: 5px; top: 5px; bottom: 5px; width: 35px;
-            background: #4a627a; color: white; border: none;
-            border-radius: 4px; font-size: 18px; cursor: pointer;
-        }
-        #send-btn {
-            position: absolute; right: 5px; top: 5px; bottom: 5px; width: 70px;
-            background: #27ae60; color: white; border: none;
-            border-radius: 4px; font-size: 14px; cursor: pointer;
-        }
-        .panel-section {
-            padding: 10px; border-bottom: 1px solid #4a627a;
-            background: #2c3e50;
-        }
-        .panel-section input {
-            width: 58%; padding: 8px; border: none; border-radius: 4px;
-            font-size: 14px; background: white; color: #222;
-        }
-        .panel-section button {
-            width: 30%; padding: 8px; background: #4a627a; color: white;
-            border: none; border-radius: 4px; font-size: 14px;
-        }
-        .chat-item {
-            padding: 12px 10px; border-bottom: 1px solid #4a627a;
-            cursor: pointer; position: relative;
-        }
-        .chat-item .name { font-weight: bold; }
-        .chat-item .status { font-size: 12px; color: #aaa; }
-        .chat-item .status.online { color: #4cd964; }
-        .chat-item .archive-btn {
-            position: absolute; right: 10px; top: 12px;
-            background: #e74c3c; color: white; border: none;
-            padding: 3px 8px; border-radius: 3px; font-size: 10px; cursor: pointer;
-        }
-        .chat-item .unarchive-btn { background: #27ae60; }
-        .msg {
-            padding: 8px 10px; background: #2c3e50; margin-bottom: 6px;
-            border-radius: 8px; word-wrap: break-word; font-size: 14px;
-            position: relative; max-width: 80%; color: #fff;
-        }
-        .msg.my {
-            background: #27ae60; margin-left: 20%; color: #fff;
-        }
-        .msg .sender { font-weight: bold; font-size: 12px; color: #ccc; }
-        .msg .time { font-size: 10px; color: #aaa; margin-left: 5px; }
-        .msg .text { margin-top: 3px; }
-        .msg .edited-tag { font-size: 10px; color: #ddd; font-style: italic; }
-        .msg .actions { display: none; position: absolute; right: 5px; top: 5px; }
-        .msg .actions button {
-            font-size: 10px; padding: 2px 5px; margin-left: 3px;
-            border: none; border-radius: 3px; cursor: pointer; color: white;
-        }
-        .msg .actions .edit-btn { background: #f39c12; }
-        .msg .actions .del-btn { background: #e74c3c; }
-        .msg .media { margin-top: 5px; max-width: 100%; border-radius: 8px; }
-        .settings-row {
-            padding: 12px 10px; border-bottom: 1px solid #4a627a;
-        }
-        .settings-row label { font-weight: bold; display: block; margin-bottom: 5px; font-size: 13px; }
-        .settings-row input, .settings-row select {
-            width: 100%; padding: 8px; border: none; border-radius: 4px;
-            font-size: 14px; box-sizing: border-box; background: white; color: #222;
-        }
-        .settings-row button {
-            width: 100%; padding: 10px; background: #27ae60; color: white;
-            border: none; border-radius: 4px; font-size: 15px; cursor: pointer;
-        }
-        .avatar-grid { overflow: hidden; }
-        .avatar-grid img {
-            width: 44px; height: 44px; border-radius: 22px; margin: 4px;
-            border: 2px solid transparent; cursor: pointer; float: left;
-        }
-        .avatar-grid img.selected { border-color: #27ae60; }
-        .wallpaper-grid { overflow: hidden; }
-        .wallpaper-grid img {
-            width: 70px; height: 44px; margin: 4px;
-            border: 2px solid transparent; cursor: pointer; object-fit: cover; float: left;
-        }
-        .wallpaper-grid img.selected { border-color: #27ae60; }
-        #bottom-nav {
-            position: absolute; bottom: 0; left: 0; right: 0; height: 50px;
-            background: #3b434a; display: table; width: 100%; z-index: 20;
-        }
-        .nav-btn {
-            display: table-cell; text-align: center; vertical-align: middle;
-            background: #2c3e50; color: #aaa; font-size: 12px; cursor: pointer;
-            border-right: 1px solid #4a627a;
-        }
-        .nav-btn:last-child { border-right: none; }
-        .nav-btn.active { background: #4a627a; color: white; font-weight: bold; }
     </style>
 </head>
 <body class="dark-mode">
@@ -259,6 +176,6 @@
         <div class="nav-btn" id="nav-settings" onclick="showTab('settings')">Настр.</div>
     </div>
 
-    <script src="script.js?v=3"></script>
+    <script src="script.js"></script>
 </body>
 </html>

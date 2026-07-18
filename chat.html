@@ -11,11 +11,28 @@
             background: #555d65; color: #fff;
             font-family: Helvetica, sans-serif; overflow: hidden;
         }
+        body.light-mode { background: #E2E7ED; color: #222; }
+        body.light-mode #header { background: #2c3e50; }
+        body.light-mode #chats-panel, body.light-mode #archive-panel, body.light-mode #settings-panel { background: white; }
+        body.light-mode #messages { background: #E2E7ED; }
+        body.light-mode .panel-section { background: #f5f5f5; border-color: #ddd; }
+        body.light-mode .panel-section input { background: white; color: #222; }
+        body.light-mode .chat-item { border-color: #eee; }
+        body.light-mode .msg { background: white; color: #222; }
+        body.light-mode .msg.my { background: #dcf8c6; color: #222; }
+        body.light-mode .msg .sender { color: #555; }
+        body.light-mode .msg .time { color: #999; }
+        body.light-mode #form-container { background: #cbd2d9; }
+        body.light-mode .settings-row { border-color: #eee; }
+        body.light-mode .settings-row input, .settings-row select { background: white; color: #222; }
+        body.light-mode #bottom-nav { background: #cbd2d9; }
+        body.light-mode .nav-btn { background: #2c3e50; border-color: #ccc; }
+        body.light-mode .nav-btn.active { background: #4a627a; }
+
         #header {
             position: absolute; top: 0; left: 0; right: 0; height: 44px;
             background: #2c3e50; color: white; line-height: 44px;
             padding: 0 10px; z-index: 10; box-sizing: border-box;
-            display: flex; align-items: center;
         }
         #btn-back {
             background: #4a627a; color: white; border: none;
@@ -23,9 +40,8 @@
             cursor: pointer; margin-right: 8px; display: none;
         }
         #chat-title {
-            font-size: 14px; font-weight: bold; overflow: hidden;
-            text-overflow: ellipsis; white-space: nowrap;
-            cursor: pointer;
+            font-size: 14px; font-weight: bold; display: inline;
+            cursor: pointer; vertical-align: middle;
         }
         #main-content {
             position: absolute; top: 44px; bottom: 50px; left: 0; right: 0;
@@ -48,14 +64,17 @@
             background: #3b434a; box-sizing: border-box;
             padding: 5px; display: block;
         }
-        #form { display: flex; align-items: center; height: 100%; gap: 5px; }
+        #form { position: relative; width: 100%; height: 100%; }
         #input {
-            flex: 1; padding: 8px; border: none; border-radius: 4px;
-            font-size: 16px; background: white; color: #222;
+            position: absolute; left: 0; top: 5px; bottom: 5px;
+            right: 75px; width: auto; box-sizing: border-box;
+            font-size: 16px; border-radius: 4px; border: none;
+            padding: 5px; background: white; color: #222;
         }
         #send-btn {
-            padding: 8px 15px; background: #27ae60; color: white;
-            border: none; border-radius: 4px; font-size: 14px; cursor: pointer;
+            position: absolute; right: 0; top: 5px; bottom: 5px; width: 70px;
+            background: #27ae60; color: white; border: none;
+            border-radius: 4px; font-size: 14px; cursor: pointer;
         }
         .panel-section {
             padding: 10px; border-bottom: 1px solid #4a627a;
@@ -137,7 +156,7 @@
         .nav-btn:last-child { border-right: none; }
         .nav-btn.active { background: #4a627a; color: white; font-weight: bold; }
 
-        /* Профиль собеседника (модальное окно) */
+        /* Профиль собеседника */
         #partner-profile-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.75); z-index: 9999; display: none;
@@ -146,6 +165,7 @@
         #partner-profile-box {
             background: #3b434a; color: white; width: 280px; padding: 20px;
             border-radius: 12px; text-align: center; position: relative;
+            margin: 50px auto 0;
         }
         #partner-profile-box img {
             width: 80px; height: 80px; border-radius: 50%; margin-bottom: 10px;
@@ -157,14 +177,16 @@
         .partner-detail { margin: 8px 0; font-size: 14px; }
     </style>
 </head>
-<body>
+<body class="dark-mode">
+    <!-- Шапка -->
     <div id="header">
         <button id="btn-back" onclick="goBack()">← Назад</button>
         <span id="chat-title">iChatter</span>
     </div>
 
+    <!-- Основной контент -->
     <div id="main-content">
-        <!-- Панели чатов, архива, настроек (без изменений, только убраны кнопки кастомных загрузок) -->
+        <!-- Чаты -->
         <div id="chats-panel">
             <div class="panel-section">
                 <input type="text" id="search-input" placeholder="Введите ID (6 цифр)">
@@ -173,11 +195,13 @@
             <div id="chats-list"></div>
         </div>
 
+        <!-- Архив -->
         <div id="archive-panel">
             <div style="padding:10px;font-weight:bold;border-bottom:1px solid #4a627a;">Архивные чаты</div>
             <div id="archive-list"></div>
         </div>
 
+        <!-- Настройки -->
         <div id="settings-panel">
             <div style="padding:10px;font-weight:bold;border-bottom:1px solid #4a627a;">Настройки</div>
             <div class="settings-row">
@@ -217,6 +241,8 @@
             <div class="settings-row">
                 <label>Аватар</label>
                 <div class="avatar-grid" id="avatar-grid"></div>
+                <button class="upload-btn" style="margin-top:5px; background:#4a627a; color:white; border:none; padding:8px; border-radius:4px;" onclick="document.getElementById('avatar-file').click()">Загрузить свой аватар</button>
+                <input type="file" id="avatar-file" accept="image/*" style="display:none;" onchange="uploadCustomAvatar(this)">
             </div>
             <div class="settings-row">
                 <label>Мой ID: <b id="my-id-display">...</b></label>
@@ -230,6 +256,7 @@
             </div>
         </div>
 
+        <!-- Область чата -->
         <div id="chat-area">
             <div id="messages"></div>
             <div id="form-container">
@@ -241,13 +268,14 @@
         </div>
     </div>
 
+    <!-- Нижняя навигация -->
     <div id="bottom-nav">
         <div class="nav-btn active" id="nav-chats" onclick="showTab('chats')">Чаты</div>
         <div class="nav-btn" id="nav-archive" onclick="showTab('archive')">Архив</div>
         <div class="nav-btn" id="nav-settings" onclick="showTab('settings')">Настр.</div>
     </div>
 
-    <!-- Модальное окно профиля собеседника -->
+    <!-- Профиль собеседника -->
     <div id="partner-profile-overlay" onclick="closePartnerProfile()">
         <div id="partner-profile-box" onclick="event.stopPropagation()">
             <span class="close-btn" onclick="closePartnerProfile()">×</span>

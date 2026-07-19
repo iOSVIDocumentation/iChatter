@@ -178,15 +178,12 @@
     </style>
 </head>
 <body class="dark-mode">
-    <!-- Шапка -->
     <div id="header">
         <button id="btn-back" onclick="goBack()">← Назад</button>
         <span id="chat-title">iChatter</span>
     </div>
 
-    <!-- Основной контент -->
     <div id="main-content">
-        <!-- Чаты -->
         <div id="chats-panel">
             <div class="panel-section">
                 <input type="text" id="search-input" placeholder="Введите ID (6 цифр)">
@@ -195,13 +192,11 @@
             <div id="chats-list"></div>
         </div>
 
-        <!-- Архив -->
         <div id="archive-panel">
             <div style="padding:10px;font-weight:bold;border-bottom:1px solid #4a627a;">Архивные чаты</div>
             <div id="archive-list"></div>
         </div>
 
-        <!-- Настройки -->
         <div id="settings-panel">
             <div style="padding:10px;font-weight:bold;border-bottom:1px solid #4a627a;">Настройки</div>
             <div class="settings-row">
@@ -256,7 +251,6 @@
             </div>
         </div>
 
-        <!-- Область чата -->
         <div id="chat-area">
             <div id="messages"></div>
             <div id="form-container">
@@ -268,14 +262,12 @@
         </div>
     </div>
 
-    <!-- Нижняя навигация -->
     <div id="bottom-nav">
         <div class="nav-btn active" id="nav-chats" onclick="showTab('chats')">Чаты</div>
         <div class="nav-btn" id="nav-archive" onclick="showTab('archive')">Архив</div>
         <div class="nav-btn" id="nav-settings" onclick="showTab('settings')">Настр.</div>
     </div>
 
-    <!-- Профиль собеседника -->
     <div id="partner-profile-overlay" onclick="closePartnerProfile()">
         <div id="partner-profile-box" onclick="event.stopPropagation()">
             <span class="close-btn" onclick="closePartnerProfile()">×</span>

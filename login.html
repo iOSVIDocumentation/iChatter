@@ -43,8 +43,7 @@
         </div>
     </div>
     <script>
-        // Для всех устройств, кроме старых iOS, используем новый туннель
-        var API = 'https://here-valium-discussion-theory.trycloudflare.com';
+        var API = 'https://here-valium-discussion-theory.trycloudflare.com';  // НОВЫЙ ТУННЕЛЬ
         var currentMode = 'login';
         var currentLang = 'ru';
 
@@ -145,7 +144,6 @@
                         localStorage.setItem('email', email);
                         localStorage.setItem('lang', currentLang);
 
-                        // iOS 6 сразу на локальный HTTP
                         if (isOldIOS()) {
                             window.location.href = 'http://192.168.1.7:8080/chat.html?token=' + data.token + '&email=' + encodeURIComponent(email);
                         } else {

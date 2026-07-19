@@ -1,5 +1,5 @@
 // ==============================================
-// АВТО-РЕДИРЕКТ ДЛЯ iOS 6 (уже сработал в HTML, но для надёжности)
+// АВТО-РЕДИРЕКТ ДЛЯ iOS 6
 // ==============================================
 function isOldIOS() {
     var ua = navigator.userAgent;
@@ -12,11 +12,13 @@ if (isOldIOS() && window.location.protocol === 'https:') {
 }
 
 // ==============================================
-// НАСТРОЙКА API (новый туннель)
+// НАСТРОЙКА URL
 // ==============================================
 var API = isOldIOS()
     ? 'http://192.168.1.7:8080'
     : 'https://here-valium-discussion-theory.trycloudflare.com';
+
+var STATIC_URL = 'https://ichatterios6.iosvidocum.workers.dev'; // обои и аватарки с GitHub
 
 // ==============================================
 // УТИЛИТЫ
@@ -166,7 +168,7 @@ function showPartnerProfile() {
     if (partner.avatar && partner.avatar.indexOf('/uploads/avatars/') === 0) {
         byId('partner-avatar').src = API + partner.avatar;
     } else if (partner.avatar) {
-        byId('partner-avatar').src = API + '/avatars/' + partner.avatar;
+        byId('partner-avatar').src = STATIC_URL + '/avatars/' + partner.avatar;
     } else {
         byId('partner-avatar').src = '';
     }
@@ -244,7 +246,7 @@ function updateNavTexts() {
     byId('btn-back').textContent = t('back');
 }
 
-// ====== ЗАГРУЗКА ДАННЫХ ======
+// ====== ЗАГРУЗКА ДАННЫХ (API) ======
 function loadMessages(to) {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', API + '/api/messages?token=' + token + '&chatWith=' + to, true);
@@ -384,7 +386,7 @@ function loadAvatars() {
     grid.innerHTML = '';
     for (var i = 1; i <= 10; i++) {
         var img = document.createElement('img');
-        img.src = API + '/avatars/av' + i + '.png';
+        img.src = STATIC_URL + '/avatars/av' + i + '.png';
         img.onerror = function() { this.style.display = 'none'; };
         if (profile.avatar === 'av' + i + '.png') img.className = 'selected';
         img.onclick = (function(idx) { return function() { var imgs = grid.getElementsByTagName('img'); for (var j = 0; j < imgs.length; j++) imgs[j].className = ''; this.className = 'selected'; profile.avatar = 'av' + idx + '.png'; }; })(i);
@@ -401,14 +403,15 @@ function loadAvatars() {
 
 function loadWallpapers() {
     var grid = byId('wallpaper-grid');
+    if (!grid) return;
     grid.innerHTML = '';
     var walls = ['bg1.jpg','bg2.jpg','bg3.jpg','bg4.jpg','bg5.jpg','bg6.jpg','bg7.jpg','bg8.jpg'];
     for (var i = 0; i < walls.length; i++) {
         var img = document.createElement('img');
-        img.src = API + '/wallpapers/' + walls[i];
+        img.src = STATIC_URL + '/wallpapers/' + walls[i];
         img.onerror = function() { this.style.display = 'none'; };
         if (profile.wallpaper === walls[i]) img.className = 'selected';
-        img.onclick = (function(w) { return function() { var imgs = grid.getElementsByTagName('img'); for (var k = 0; k < imgs.length; k++) imgs[k].className = ''; this.className = 'selected'; profile.wallpaper = w; byId('messages').style.backgroundImage = 'url(' + API + '/wallpapers/' + w + ')'; byId('messages').style.backgroundSize = 'cover'; }; })(walls[i]);
+        img.onclick = (function(w) { return function() { var imgs = grid.getElementsByTagName('img'); for (var k = 0; k < imgs.length; k++) imgs[k].className = ''; this.className = 'selected'; profile.wallpaper = w; byId('messages').style.backgroundImage = 'url(' + STATIC_URL + '/wallpapers/' + w + ')'; byId('messages').style.backgroundSize = 'cover'; }; })(walls[i]);
         grid.appendChild(img);
     }
     if (profile.wallpaper && profile.wallpaper.indexOf('/uploads/wallpapers/') === 0) {
@@ -491,7 +494,7 @@ function setTheme(th) {
     if (byId('theme-select')) byId('theme-select').value = th;
 }
 
-// ====== ЗАГРУЗКА СВОЕЙ АВАТАРКИ (с поддержкой iOS 6) ======
+// ====== ЗАГРУЗКА СВОЕЙ АВАТАРКИ ======
 function uploadCustomAvatar(input) {
     if (!input.files || !input.files[0]) return;
     var file = input.files[0];

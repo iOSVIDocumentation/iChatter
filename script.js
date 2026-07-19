@@ -15,7 +15,7 @@ if (isOldIOS() && window.location.protocol === 'https:') {
 // НАСТРОЙКА API
 // ==============================================
 var API = isOldIOS()
-    ? 'http://192.168.1.9:8080'
+    ? 'http://192.168.1.7:8080'
     : 'https://ichatterios6.iosvidocum.workers.dev';
 
 // ==============================================

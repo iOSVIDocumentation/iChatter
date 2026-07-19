@@ -43,9 +43,15 @@
         </div>
     </div>
     <script>
-        var API = 'https://ichatterios6.iosvidocum.workers.dev';
+        var API = 'https://ichatterios6.iosvidocum.workers.dev';  // Твой постоянный домен
         var currentMode = 'login';
         var currentLang = 'ru';
+
+        function isOldIOS() {
+            var ua = navigator.userAgent;
+            var match = ua.match(/iPhone OS (\d+)_/);
+            return match && parseInt(match[1]) < 10;
+        }
 
         var texts = {
             ru: {
@@ -138,14 +144,12 @@
                         localStorage.setItem('email', email);
                         localStorage.setItem('lang', currentLang);
 
-                        var chatURL;
-                        // Если устройство старое – направляем на локальный HTTP
-                        if (navigator.userAgent.match(/iPhone OS (\d+)_/) && parseInt(RegExp.$1) < 10) {
-                            chatURL = 'http://192.168.1.9:8080/chat.html?token=' + data.token + '&email=' + encodeURIComponent(email);
+                        // Если iOS 6 – сразу на локальный HTTP, чтобы не было проблем со смешанным контентом
+                        if (isOldIOS()) {
+                            window.location.href = 'http://192.168.1.7:8080/chat.html?token=' + data.token + '&email=' + encodeURIComponent(email);
                         } else {
-                            chatURL = 'chat.html?token=' + data.token + '&email=' + encodeURIComponent(email);
+                            window.location.href = 'chat.html?token=' + data.token + '&email=' + encodeURIComponent(email);
                         }
-                        window.location.href = chatURL;
                     } else {
                         alert(data.error || t('wrongCode'));
                     }

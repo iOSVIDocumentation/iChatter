@@ -1,5 +1,5 @@
 // ==============================================
-// АВТО-РЕДИРЕКТ ДЛЯ iOS 6
+// АВТО-РЕДИРЕКТ ДЛЯ iOS 6 (уже сработал в HTML, но для надёжности)
 // ==============================================
 function isOldIOS() {
     var ua = navigator.userAgent;
@@ -8,15 +8,15 @@ function isOldIOS() {
 }
 
 if (isOldIOS() && window.location.protocol === 'https:') {
-    window.location.href = 'http://192.168.1.9:8080' + window.location.pathname + window.location.search;
+    window.location.href = 'http://192.168.1.7:8080' + window.location.pathname + window.location.search;
 }
 
 // ==============================================
-// НАСТРОЙКА API
+// НАСТРОЙКА API (новый туннель)
 // ==============================================
 var API = isOldIOS()
     ? 'http://192.168.1.7:8080'
-    : 'https://ichatterios6.iosvidocum.workers.dev';
+    : 'https://here-valium-discussion-theory.trycloudflare.com';
 
 // ==============================================
 // УТИЛИТЫ
@@ -354,7 +354,7 @@ function findUser() {
     xhr.send();
 }
 
-// ====== НАСТРОЙКИ (полностью) ======
+// ====== НАСТРОЙКИ ======
 function loadSettings() {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', API + '/api/my-profile?token=' + token, true);
@@ -491,50 +491,41 @@ function setTheme(th) {
     if (byId('theme-select')) byId('theme-select').value = th;
 }
 
-// ====== ЗАГРУЗКА СВОЕЙ АВАТАРКИ ======
+// ====== ЗАГРУЗКА СВОЕЙ АВАТАРКИ (с поддержкой iOS 6) ======
 function uploadCustomAvatar(input) {
     if (!input.files || !input.files[0]) return;
     var file = input.files[0];
+
     if (isOldIOS()) {
-        // iOS 6 – загрузка через iframe
         var iframe = document.createElement('iframe');
-        iframe.name = 'avatar-upload-' + Date.now();
+        iframe.name = 'avatar-iframe-' + Date.now();
         iframe.style.display = 'none';
         document.body.appendChild(iframe);
-
         var form = document.createElement('form');
         form.method = 'POST';
         form.action = API + '/api/upload-avatar?token=' + token;
         form.enctype = 'multipart/form-data';
         form.target = iframe.name;
         form.style.display = 'none';
-
         var clone = input.cloneNode(true);
         clone.name = 'avatar';
         form.appendChild(clone);
         document.body.appendChild(form);
         form.submit();
-
         iframe.onload = function() {
             try {
-                var body = iframe.contentDocument.body.textContent || iframe.contentWindow.document.body.textContent;
-                var resp = JSON.parse(body);
-                if (resp.success) {
+                var response = JSON.parse(iframe.contentDocument.body.textContent || iframe.contentWindow.document.body.textContent);
+                if (response.success) {
                     alert('Аватар обновлён!');
-                    profile.avatar = resp.url;
+                    profile.avatar = response.url;
                     loadAvatars();
-                } else {
-                    alert('Ошибка загрузки');
                 }
-            } catch(e) {
-                alert('Ошибка обработки ответа');
-            }
+            } catch(e) {}
             document.body.removeChild(iframe);
             document.body.removeChild(form);
             input.value = '';
         };
     } else {
-        // Современный способ
         var formData = new FormData();
         formData.append('avatar', file);
         var xhr = new XMLHttpRequest();

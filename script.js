@@ -18,7 +18,7 @@ var API = isOldIOS()
     ? 'http://192.168.1.7:8080'
     : 'https://here-valium-discussion-theory.trycloudflare.com';
 
-var STATIC_URL = 'https://ichatterios6.iosvidocum.workers.dev'; // обои и аватарки с GitHub
+var STATIC_URL = 'https://ichatterios6.iosvidocum.workers.dev'; // обои берутся отсюда
 
 // ==============================================
 // УТИЛИТЫ
@@ -168,7 +168,16 @@ function showPartnerProfile() {
     if (partner.avatar && partner.avatar.indexOf('/uploads/avatars/') === 0) {
         byId('partner-avatar').src = API + partner.avatar;
     } else if (partner.avatar) {
-        byId('partner-avatar').src = STATIC_URL + '/avatars/' + partner.avatar;
+        // Генерируем цветной кружок или стандартную U
+        var idx = parseInt(partner.avatar.replace('av', '')) - 1;
+        var colors = ['#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#1abc9c', '#3498db', '#9b59b6', '#e91e63', '#95a5a6', '#2c3e50'];
+        var svg;
+        if (!isNaN(idx) && idx >= 0 && idx < 10) {
+            svg = '<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44"><circle cx="22" cy="22" r="20" fill="' + colors[idx] + '" /></svg>';
+        } else {
+            svg = '<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44"><circle cx="22" cy="22" r="20" fill="#95a5a6" /><text x="22" y="28" text-anchor="middle" fill="white" font-size="20" font-family="Helvetica">U</text></svg>';
+        }
+        byId('partner-avatar').src = 'data:image/svg+xml,' + encodeURIComponent(svg);
     } else {
         byId('partner-avatar').src = '';
     }
@@ -381,22 +390,64 @@ function loadSettings() {
     xhr.send();
 }
 
+// ====== НОВАЯ loadAvatars (одна стандартная + 10 цветных, без файлов) ======
 function loadAvatars() {
     var grid = byId('avatar-grid');
     grid.innerHTML = '';
-    for (var i = 1; i <= 10; i++) {
+
+    // Стандартная аватарка (серая с буквой U)
+    var defaultSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44">' +
+                     '<circle cx="22" cy="22" r="20" fill="#95a5a6" />' +
+                     '<text x="22" y="28" text-anchor="middle" fill="white" font-size="20" font-family="Helvetica">U</text>' +
+                     '</svg>';
+    var defaultImg = document.createElement('img');
+    defaultImg.src = 'data:image/svg+xml,' + encodeURIComponent(defaultSvg);
+    defaultImg.className = 'selected';
+    defaultImg.onclick = function() {
+        var imgs = grid.getElementsByTagName('img');
+        for (var j = 0; j < imgs.length; j++) imgs[j].className = '';
+        this.className = 'selected';
+        profile.avatar = 'av1.png';
+    };
+    grid.appendChild(defaultImg);
+
+    // Цветные варианты
+    var colors = ['#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#1abc9c', '#3498db', '#9b59b6', '#e91e63', '#95a5a6', '#2c3e50'];
+    for (var i = 0; i < 10; i++) {
         var img = document.createElement('img');
-        img.src = STATIC_URL + '/avatars/av' + i + '.png';
-        img.onerror = function() { this.style.display = 'none'; };
-        if (profile.avatar === 'av' + i + '.png') img.className = 'selected';
-        img.onclick = (function(idx) { return function() { var imgs = grid.getElementsByTagName('img'); for (var j = 0; j < imgs.length; j++) imgs[j].className = ''; this.className = 'selected'; profile.avatar = 'av' + idx + '.png'; }; })(i);
+        var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44">' +
+                  '<circle cx="22" cy="22" r="20" fill="' + colors[i] + '" />' +
+                  '</svg>';
+        img.src = 'data:image/svg+xml,' + encodeURIComponent(svg);
+        if (profile.avatar === 'av' + (i + 1) + '.png') {
+            defaultImg.className = '';
+            img.className = 'selected';
+        }
+        img.onclick = (function(idx) {
+            return function() {
+                var imgs = grid.getElementsByTagName('img');
+                for (var j = 0; j < imgs.length; j++) imgs[j].className = '';
+                this.className = 'selected';
+                profile.avatar = 'av' + (idx + 1) + '.png';
+            };
+        })(i);
         grid.appendChild(img);
     }
+
+    // Кастомная аватарка (загруженная)
     if (profile.avatar && profile.avatar.indexOf('/uploads/avatars/') === 0) {
         var custImg = document.createElement('img');
         custImg.src = API + profile.avatar;
         custImg.className = 'selected';
-        custImg.onclick = function() { var imgs = grid.getElementsByTagName('img'); for (var j = 0; j < imgs.length; j++) imgs[j].className = ''; this.className = 'selected'; profile.avatar = this.src.replace(API, ''); };
+        var allImgs = grid.getElementsByTagName('img');
+        for (var k = 0; k < allImgs.length; k++) allImgs[k].className = '';
+        custImg.className = 'selected';
+        custImg.onclick = function() {
+            var imgs = grid.getElementsByTagName('img');
+            for (var j = 0; j < imgs.length; j++) imgs[j].className = '';
+            this.className = 'selected';
+            profile.avatar = this.src.replace(API, '');
+        };
         grid.appendChild(custImg);
     }
 }

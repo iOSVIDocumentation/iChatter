@@ -18,7 +18,7 @@ var API = isOldIOS()
     ? 'http://192.168.1.7:8080'
     : 'https://here-valium-discussion-theory.trycloudflare.com';
 
-var STATIC_URL = 'https://ichatterios6.iosvidocum.workers.dev'; // обои берутся отсюда
+var STATIC_URL = 'https://ichatterios6.iosvidocum.workers.dev'; // обои и статика
 
 // ==============================================
 // УТИЛИТЫ
@@ -94,6 +94,33 @@ function t(k) { return T[lang][k] || k; }
 function formatTime(ts) { var d = new Date(ts); var h = d.getHours(); var m = d.getMinutes(); if (m < 10) m = '0' + m; return h + ':' + m; }
 function esc(s) { if (!s) return ''; var div = document.createElement('div'); div.appendChild(document.createTextNode(s)); return div.innerHTML; }
 
+// ====== ГЕНЕРАТОР АВАТАРОК ======
+function getInitial(name) {
+    if (!name) return '@';
+    var first = name.charAt(0).toUpperCase();
+    if (/[A-Z0-9]/.test(first)) return first;
+    return '@';
+}
+
+function getColorForName(name) {
+    var hash = 0;
+    if (name) {
+        for (var i = 0; i < name.length; i++) {
+            hash = name.charCodeAt(i) + ((hash << 5) - hash);
+        }
+    }
+    var colors = ['#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#1abc9c', '#3498db', '#9b59b6', '#e91e63', '#95a5a6', '#2c3e50'];
+    var idx = Math.abs(hash) % colors.length;
+    return colors[idx];
+}
+
+function generateAvatarSVG(letter, color) {
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44">' +
+           '<circle cx="22" cy="22" r="20" fill="' + color + '" />' +
+           '<text x="22" y="28" text-anchor="middle" fill="white" font-size="20" font-family="Helvetica">' + letter + '</text>' +
+           '</svg>';
+}
+
 // ====== UI сообщений ======
 function addMsg(msg) {
     if (loadedMessageIds[msg.id]) return;
@@ -165,22 +192,18 @@ function showPartnerProfile() {
     byId('partner-age').textContent = partner.age ? (t('age') + ': ' + partner.age) : '';
     byId('partner-about').textContent = partner.about || '';
 
+    // Аватарка собеседника
+    var avUrl = '';
     if (partner.avatar && partner.avatar.indexOf('/uploads/avatars/') === 0) {
-        byId('partner-avatar').src = API + partner.avatar;
-    } else if (partner.avatar) {
-        // Генерируем цветной кружок или стандартную U
-        var idx = parseInt(partner.avatar.replace('av', '')) - 1;
-        var colors = ['#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#1abc9c', '#3498db', '#9b59b6', '#e91e63', '#95a5a6', '#2c3e50'];
-        var svg;
-        if (!isNaN(idx) && idx >= 0 && idx < 10) {
-            svg = '<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44"><circle cx="22" cy="22" r="20" fill="' + colors[idx] + '" /></svg>';
-        } else {
-            svg = '<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44"><circle cx="22" cy="22" r="20" fill="#95a5a6" /><text x="22" y="28" text-anchor="middle" fill="white" font-size="20" font-family="Helvetica">U</text></svg>';
-        }
-        byId('partner-avatar').src = 'data:image/svg+xml,' + encodeURIComponent(svg);
+        avUrl = API + partner.avatar;
     } else {
-        byId('partner-avatar').src = '';
+        var nameForAvatar = partner.username || partner.email || '';
+        var letter = getInitial(nameForAvatar);
+        var color = getColorForName(nameForAvatar);
+        var svg = generateAvatarSVG(letter, color);
+        avUrl = 'data:image/svg+xml,' + encodeURIComponent(svg);
     }
+    byId('partner-avatar').src = avUrl;
     byId('partner-profile-overlay').style.display = 'flex';
 }
 
@@ -390,37 +413,50 @@ function loadSettings() {
     xhr.send();
 }
 
-// ====== НОВАЯ loadAvatars (одна стандартная + 10 цветных, без файлов) ======
+// ====== АВАТАРКИ (динамические) ======
 function loadAvatars() {
     var grid = byId('avatar-grid');
     grid.innerHTML = '';
 
-    // Стандартная аватарка (серая с буквой U)
-    var defaultSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44">' +
-                     '<circle cx="22" cy="22" r="20" fill="#95a5a6" />' +
-                     '<text x="22" y="28" text-anchor="middle" fill="white" font-size="20" font-family="Helvetica">U</text>' +
-                     '</svg>';
-    var defaultImg = document.createElement('img');
-    defaultImg.src = 'data:image/svg+xml,' + encodeURIComponent(defaultSvg);
-    defaultImg.className = 'selected';
-    defaultImg.onclick = function() {
-        var imgs = grid.getElementsByTagName('img');
-        for (var j = 0; j < imgs.length; j++) imgs[j].className = '';
-        this.className = 'selected';
-        profile.avatar = 'av1.png';
-    };
-    grid.appendChild(defaultImg);
+    var currentName = profile.username || myEmail || '';
+    var defaultLetter = getInitial(currentName);
+    var defaultColor = getColorForName(currentName);
 
-    // Цветные варианты
+    // Если аватарка стандартная (или ещё не выбрана) – показываем дефолтную
+    if (!profile.avatar || profile.avatar === 'av1.png') {
+        var defaultImg = document.createElement('img');
+        defaultImg.src = 'data:image/svg+xml,' + encodeURIComponent(generateAvatarSVG(defaultLetter, defaultColor));
+        defaultImg.className = 'selected';
+        defaultImg.onclick = function() {
+            var imgs = grid.getElementsByTagName('img');
+            for (var j = 0; j < imgs.length; j++) imgs[j].className = '';
+            this.className = 'selected';
+            profile.avatar = 'av1.png';
+        };
+        grid.appendChild(defaultImg);
+    } else if (profile.avatar && profile.avatar.indexOf('/uploads/avatars/') === 0) {
+        // Кастомная аватарка
+        var custImg = document.createElement('img');
+        custImg.src = API + profile.avatar;
+        custImg.className = 'selected';
+        custImg.onclick = function() {
+            var imgs = grid.getElementsByTagName('img');
+            for (var j = 0; j < imgs.length; j++) imgs[j].className = '';
+            this.className = 'selected';
+            profile.avatar = this.src.replace(API, '');
+        };
+        grid.appendChild(custImg);
+    }
+
+    // Цветные варианты (10 штук)
     var colors = ['#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#1abc9c', '#3498db', '#9b59b6', '#e91e63', '#95a5a6', '#2c3e50'];
     for (var i = 0; i < 10; i++) {
         var img = document.createElement('img');
-        var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44">' +
-                  '<circle cx="22" cy="22" r="20" fill="' + colors[i] + '" />' +
-                  '</svg>';
+        var svg = generateAvatarSVG(defaultLetter, colors[i]);
         img.src = 'data:image/svg+xml,' + encodeURIComponent(svg);
         if (profile.avatar === 'av' + (i + 1) + '.png') {
-            defaultImg.className = '';
+            var imgs = grid.getElementsByTagName('img');
+            for (var j = 0; j < imgs.length; j++) imgs[j].className = '';
             img.className = 'selected';
         }
         img.onclick = (function(idx) {
@@ -433,25 +469,9 @@ function loadAvatars() {
         })(i);
         grid.appendChild(img);
     }
-
-    // Кастомная аватарка (загруженная)
-    if (profile.avatar && profile.avatar.indexOf('/uploads/avatars/') === 0) {
-        var custImg = document.createElement('img');
-        custImg.src = API + profile.avatar;
-        custImg.className = 'selected';
-        var allImgs = grid.getElementsByTagName('img');
-        for (var k = 0; k < allImgs.length; k++) allImgs[k].className = '';
-        custImg.className = 'selected';
-        custImg.onclick = function() {
-            var imgs = grid.getElementsByTagName('img');
-            for (var j = 0; j < imgs.length; j++) imgs[j].className = '';
-            this.className = 'selected';
-            profile.avatar = this.src.replace(API, '');
-        };
-        grid.appendChild(custImg);
-    }
 }
 
+// ====== ОБОИ (из GitHub) ======
 function loadWallpapers() {
     var grid = byId('wallpaper-grid');
     if (!grid) return;
@@ -465,6 +485,7 @@ function loadWallpapers() {
         img.onclick = (function(w) { return function() { var imgs = grid.getElementsByTagName('img'); for (var k = 0; k < imgs.length; k++) imgs[k].className = ''; this.className = 'selected'; profile.wallpaper = w; byId('messages').style.backgroundImage = 'url(' + STATIC_URL + '/wallpapers/' + w + ')'; byId('messages').style.backgroundSize = 'cover'; }; })(walls[i]);
         grid.appendChild(img);
     }
+    // Кастомный фон, загруженный пользователем
     if (profile.wallpaper && profile.wallpaper.indexOf('/uploads/wallpapers/') === 0) {
         var custBg = document.createElement('img');
         custBg.src = API + profile.wallpaper;
@@ -474,6 +495,7 @@ function loadWallpapers() {
     }
 }
 
+// ====== УСТРОЙСТВА ======
 function loadDevices() {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', API + '/api/my-devices?token=' + token, true);

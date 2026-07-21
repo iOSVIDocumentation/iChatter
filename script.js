@@ -1,23 +1,7 @@
 // ==============================================
-// АВТО-РЕДИРЕКТ ДЛЯ iOS 6
+// НАСТРОЙКА URL (все через туннель)
 // ==============================================
-function isOldIOS() {
-    var ua = navigator.userAgent;
-    var match = ua.match(/iPhone OS (\d+)_/);
-    return match && parseInt(match[1]) < 10;
-}
-
-if (isOldIOS() && window.location.protocol === 'https:') {
-    window.location.href = 'http://192.168.1.14:8080' + window.location.pathname + window.location.search;
-}
-
-// ==============================================
-// НАСТРОЙКА URL
-// ==============================================
-var API = isOldIOS()
-    ? 'http://192.168.1.14:8080'
-    : 'https://merry-universal-manually-suspected.trycloudflare.com';
-
+var API = 'https://merry-universal-manually-suspected.trycloudflare.com';
 var STATIC_URL = 'https://ichatterios6.iosvidocum.workers.dev'; // обои с GitHub
 
 // ==============================================
@@ -94,7 +78,7 @@ function t(k) { return T[lang][k] || k; }
 function formatTime(ts) { var d = new Date(ts); var h = d.getHours(); var m = d.getMinutes(); if (m < 10) m = '0' + m; return h + ':' + m; }
 function esc(s) { if (!s) return ''; var div = document.createElement('div'); div.appendChild(document.createTextNode(s)); return div.innerHTML; }
 
-// ====== ПУСТАЯ АВАТАРКА (генерируется один раз) ======
+// ====== ПУСТАЯ АВАТАРКА ======
 var emptyAvatarPNG = (function() {
     var size = 44;
     var canvas = document.createElement('canvas');
@@ -403,23 +387,19 @@ function loadAvatars() {
     var grid = byId('avatar-grid');
     grid.innerHTML = '';
 
-    // Показываем текущее состояние аватара
     if (profile.avatar && profile.avatar.indexOf('/uploads/avatars/') === 0) {
-        // Кастомная аватарка
         var custImg = document.createElement('img');
         custImg.src = API + profile.avatar;
         custImg.className = 'selected';
         custImg.title = t('avatar');
         grid.appendChild(custImg);
     } else {
-        // Пустая иконка
         var emptyImg = document.createElement('img');
         emptyImg.src = emptyAvatarPNG;
         emptyImg.className = 'selected';
         emptyImg.title = t('noAvatar');
         grid.appendChild(emptyImg);
     }
-    // Кнопка загрузки своей аватарки уже есть в HTML, она не трогается
 }
 
 // ====== ОБОИ (из GitHub) ======
@@ -517,58 +497,27 @@ function setTheme(th) {
     if (byId('theme-select')) byId('theme-select').value = th;
 }
 
-// ====== ЗАГРУЗКА СВОЕЙ АВАТАРКИ ======
+// ====== ЗАГРУЗКА СВОЕЙ АВАТАРКИ (только современный способ) ======
 function uploadCustomAvatar(input) {
     if (!input.files || !input.files[0]) return;
     var file = input.files[0];
 
-    if (isOldIOS()) {
-        var iframe = document.createElement('iframe');
-        iframe.name = 'avatar-iframe-' + Date.now();
-        iframe.style.display = 'none';
-        document.body.appendChild(iframe);
-        var form = document.createElement('form');
-        form.method = 'POST';
-        form.action = API + '/api/upload-avatar?token=' + token;
-        form.enctype = 'multipart/form-data';
-        form.target = iframe.name;
-        form.style.display = 'none';
-        var clone = input.cloneNode(true);
-        clone.name = 'avatar';
-        form.appendChild(clone);
-        document.body.appendChild(form);
-        form.submit();
-        iframe.onload = function() {
-            try {
-                var response = JSON.parse(iframe.contentDocument.body.textContent || iframe.contentWindow.document.body.textContent);
-                if (response.success) {
-                    alert('Аватар обновлён!');
-                    profile.avatar = response.url;
-                    loadAvatars();
-                }
-            } catch(e) {}
-            document.body.removeChild(iframe);
-            document.body.removeChild(form);
-            input.value = '';
-        };
-    } else {
-        var formData = new FormData();
-        formData.append('avatar', file);
-        var xhr = new XMLHttpRequest();
-        xhr.open('POST', API + '/api/upload-avatar?token=' + token, true);
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState === 4 && xhr.status === 200) {
-                var resp = JSON.parse(xhr.responseText);
-                if (resp.success) {
-                    alert('Аватар обновлён!');
-                    profile.avatar = resp.url;
-                    loadAvatars();
-                }
+    var formData = new FormData();
+    formData.append('avatar', file);
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', API + '/api/upload-avatar?token=' + token, true);
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+            var resp = JSON.parse(xhr.responseText);
+            if (resp.success) {
+                alert('Аватар обновлён!');
+                profile.avatar = resp.url;
+                loadAvatars();
             }
-            input.value = '';
-        };
-        xhr.send(formData);
-    }
+        }
+        input.value = '';
+    };
+    xhr.send(formData);
 }
 
 // ====== ОТПРАВКА СООБЩЕНИЙ ======
@@ -622,6 +571,19 @@ function connectSocket() {
 byId('send-btn').onclick = sendMessage;
 byId('input').onkeydown = function(e) { if (e.keyCode === 13) { e.preventDefault(); sendMessage(); } };
 byId('input').oninput = function() { if (chatWith && socket) socket.emit('typing', { to: chatWith, isTyping: true }); };
+
+// ====== ФИКС КЛАВИАТУРЫ НА МОБИЛЬНЫХ ======
+byId('input').onfocus = function() {
+    if (byId('chat-area').style.display === 'block') {
+        byId('main-content').style.paddingBottom = '250px';
+        setTimeout(function() {
+            byId('messages').scrollTop = byId('messages').scrollHeight;
+        }, 100);
+    }
+};
+byId('input').onblur = function() {
+    byId('main-content').style.paddingBottom = '0px';
+};
 
 connectSocket();
 showTab('chats');

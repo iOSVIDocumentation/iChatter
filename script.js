@@ -8,15 +8,15 @@ function isOldIOS() {
 }
 
 if (isOldIOS() && window.location.protocol === 'https:') {
-    window.location.href = 'http://192.168.1.7:8080' + window.location.pathname + window.location.search;
+    window.location.href = 'http://192.168.1.14:8080' + window.location.pathname + window.location.search;
 }
 
 // ==============================================
 // НАСТРОЙКА URL
 // ==============================================
 var API = isOldIOS()
-    ? 'http://192.168.1.7:8080'
-    : 'https://here-valium-discussion-theory.trycloudflare.com';
+    ? 'http://192.168.1.14:8080'
+    : 'https://merry-universal-manually-suspected.trycloudflare.com';
 
 var STATIC_URL = 'https://ichatterios6.iosvidocum.workers.dev'; // обои с GitHub
 

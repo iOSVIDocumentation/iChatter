@@ -43,15 +43,10 @@
         </div>
     </div>
     <script>
-        var API = 'https://merry-universal-manually-suspected.trycloudflare.com';  // НОВЫЙ ТУННЕЛЬ
+        // Используем Workers как единую точку входа
+        var API = 'https://ichatterios6.iosvidocum.workers.dev';
         var currentMode = 'login';
         var currentLang = 'ru';
-
-        function isOldIOS() {
-            var ua = navigator.userAgent;
-            var match = ua.match(/iPhone OS (\d+)_/);
-            return match && parseInt(match[1]) < 10;
-        }
 
         var texts = {
             ru: {
@@ -143,12 +138,8 @@
                         localStorage.setItem('token', data.token);
                         localStorage.setItem('email', email);
                         localStorage.setItem('lang', currentLang);
-
-                        if (isOldIOS()) {
-                            window.location.href = 'http://192.168.1.14:8080/chat.html?token=' + data.token + '&email=' + encodeURIComponent(email);
-                        } else {
-                            window.location.href = 'chat.html?token=' + data.token + '&email=' + encodeURIComponent(email);
-                        }
+                        // Все устройства переходят на чат через Workers
+                        window.location.href = 'chat.html?token=' + data.token + '&email=' + encodeURIComponent(email);
                     } else {
                         alert(data.error || t('wrongCode'));
                     }

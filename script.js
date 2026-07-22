@@ -1,57 +1,5 @@
 var API = 'https://ichatterios6.iosvidocum.workers.dev';
 var STATIC_URL = 'https://ichatterios6.iosvidocum.workers.dev';
-var CRYPTO_KEY_SIZE = 2048;
-var KEY_STORAGE = 'ichatter_e2ee_keys';
-
-var userKeys = { privateKey: null, publicKey: null };
-
-function initEncryption() {
-    var stored = localStorage.getItem(KEY_STORAGE);
-    if (stored) {
-        try {
-            var keys = JSON.parse(stored);
-            var cryptPriv = new JSEncrypt();
-            cryptPriv.setPrivateKey(keys.privateKey);
-            var cryptPub = new JSEncrypt();
-            cryptPub.setPublicKey(keys.publicKey);
-            userKeys.privateKey = cryptPriv;
-            userKeys.publicKey = cryptPub;
-            if (!keys.publicKey || !keys.privateKey) throw new Error('invalid');
-            return;
-        } catch (e) {
-            localStorage.removeItem(KEY_STORAGE);
-        }
-    }
-    var crypt = new JSEncrypt({default_key_size: CRYPTO_KEY_SIZE});
-    var privateKeyPEM = crypt.getPrivateKey();
-    var publicKeyPEM = crypt.getPublicKey();
-    var privCrypt = new JSEncrypt();
-    privCrypt.setPrivateKey(privateKeyPEM);
-    var pubCrypt = new JSEncrypt();
-    pubCrypt.setPublicKey(publicKeyPEM);
-    userKeys.privateKey = privCrypt;
-    userKeys.publicKey = pubCrypt;
-    localStorage.setItem(KEY_STORAGE, JSON.stringify({ privateKey: privateKeyPEM, publicKey: publicKeyPEM }));
-    sendPublicKeyToServer(publicKeyPEM);
-}
-
-function sendPublicKeyToServer(pubKeyPEM) {
-    var xhr = new XMLHttpRequest();
-    xhr.open('POST', API + '/api/update-public-key', true);
-    xhr.setRequestHeader('Content-Type', 'application/json');
-    xhr.send(JSON.stringify({ token: token, publicKey: pubKeyPEM }));
-}
-
-function encryptWithPublicKey(publicKeyPEM, plainText) {
-    var crypt = new JSEncrypt();
-    crypt.setPublicKey(publicKeyPEM);
-    return crypt.encrypt(plainText);
-}
-
-function decryptWithPrivateKey(encryptedBase64) {
-    if (!userKeys.privateKey) return null;
-    try { return userKeys.privateKey.decrypt(encryptedBase64) || null; } catch (e) { return null; }
-}
 
 function getParam(name) {
     var query = window.location.search.substring(1);
@@ -151,17 +99,7 @@ function addMsg(msg) {
     div.id = 'msg-' + msg.id;
     var senderName = msg.fromUsername || msg.from.split('@')[0];
     var timeStr = formatTime(msg.timestamp);
-    var displayText = '';
-    if (msg.text && msg.text.length > 50 && msg.text.indexOf(' ') === -1 && /^[A-Za-z0-9+/=]+$/.test(msg.text)) {
-        var decrypted = decryptWithPrivateKey(msg.text);
-        if (decrypted !== null && decrypted !== false) {
-            displayText = decrypted;
-        } else {
-            displayText = msg.text;
-        }
-    } else {
-        displayText = msg.text;
-    }
+    var displayText = msg.text || '';
     var text = msg.deleted ? '<i>' + t('deleted') + '</i>' : esc(displayText);
     var edited = msg.edited ? ' <span class="edited-tag">(' + t('edited') + ')</span>' : '';
     div.innerHTML = '<div class="sender">' + esc(senderName) + '</div>' +
@@ -535,23 +473,11 @@ function sendMessage() {
     var input = byId('input');
     var text = input.value.trim();
     if (!text || !chatWith || !socket) return;
-    var partnerKeyPEM = null;
-    for (var i = 0; i < contacts.length; i++) {
-        if (contacts[i].email === chatWith && contacts[i].publicKey) {
-            partnerKeyPEM = contacts[i].publicKey;
-            break;
-        }
-    }
-    var finalText = text;
-    if (partnerKeyPEM) {
-        var encrypted = encryptWithPublicKey(partnerKeyPEM, text);
-        if (encrypted) { finalText = encrypted; }
-    }
     if (editingId) {
-        socket.emit('edit_message', { id: editingId, newText: finalText });
+        socket.emit('edit_message', { id: editingId, newText: text });
         editingId = null;
     } else {
-        socket.emit('send_message', { to: chatWith, text: finalText });
+        socket.emit('send_message', { to: chatWith, text: text });
     }
     input.value = '';
 }
@@ -583,8 +509,6 @@ function connectSocket() {
 byId('send-btn').onclick = sendMessage;
 byId('input').onkeydown = function(e) { if (e.keyCode === 13) { e.preventDefault(); sendMessage(); } };
 byId('input').oninput = function() { if (chatWith && socket) socket.emit('typing', { to: chatWith, isTyping: true }); };
-
-initEncryption();
 
 byId('input').onfocus = function() {
     if (byId('chat-area').style.display === 'block') {

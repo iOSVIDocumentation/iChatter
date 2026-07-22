@@ -211,7 +211,6 @@ function openChat(em) {
     byId('chat-title').onclick = showPartnerProfile;
     loadedMessageIds = {};
     byId('messages').innerHTML = '';
-    loadMessages(em);
 }
 
 function goBack() { showTab('chats'); byId('chat-title').onclick = null; }
@@ -226,21 +225,7 @@ function updateNavTexts() {
     byId('btn-back').textContent = t('back');
 }
 
-function loadMessages(to) {
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', API + '/api/messages?token=' + token + '&chatWith=' + to, true);
-    xhr.onreadystatechange = function() {
-        if (xhr.readyState === 4 && xhr.status === 200) {
-            var data = JSON.parse(xhr.responseText);
-            var msgs = data.messages || [];
-            for (var i = 0; i < msgs.length; i++) {
-                if (!byId('msg-' + msgs[i].id)) addMsg(msgs[i]);
-            }
-        }
-    };
-    xhr.send();
-}
-
+// loadMessages больше не нужна – история не загружается
 function loadContacts() {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', API + '/api/contacts?token=' + token, true);
@@ -487,8 +472,8 @@ function delMsg(id) { if (confirm('Удалить сообщение?')) socket.
 
 function connectSocket() {
     socket = io(API, { query: { token: token } });
-    socket.on('receive_message', function(msg) { if (chatWith === msg.from) addMsg(msg); loadContacts(); });
-    socket.on('message_sent', function(msg) { if (chatWith === msg.to) addMsg(msg); loadContacts(); });
+    socket.on('receive_message', function(msg) { if (chatWith === msg.from) addMsg(msg); });
+    socket.on('message_sent', function(msg) { if (chatWith === msg.to) addMsg(msg); });
     socket.on('update_message', function(d) { updMsg(d.id, d.text, d.edited); });
     socket.on('remove_message', function(d) { delMsgUI(d.id); });
     socket.on('user_typing', function(data) {

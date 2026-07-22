@@ -1,19 +1,9 @@
-// ==============================================
-// НАСТРОЙКИ
-// ==============================================
 var API = 'https://ichatterios6.iosvidocum.workers.dev';
 var STATIC_URL = 'https://ichatterios6.iosvidocum.workers.dev';
-
-// ==============================================
-// E2EE НА JSENCRYPT (работает на iOS 6)
-// ==============================================
 var CRYPTO_KEY_SIZE = 2048;
 var KEY_STORAGE = 'ichatter_e2ee_keys';
 
-var userKeys = {
-    privateKey: null,
-    publicKey: null
-};
+var userKeys = { privateKey: null, publicKey: null };
 
 function initEncryption() {
     var stored = localStorage.getItem(KEY_STORAGE);
@@ -32,24 +22,16 @@ function initEncryption() {
             localStorage.removeItem(KEY_STORAGE);
         }
     }
-
     var crypt = new JSEncrypt({default_key_size: CRYPTO_KEY_SIZE});
     var privateKeyPEM = crypt.getPrivateKey();
     var publicKeyPEM = crypt.getPublicKey();
-
     var privCrypt = new JSEncrypt();
     privCrypt.setPrivateKey(privateKeyPEM);
     var pubCrypt = new JSEncrypt();
     pubCrypt.setPublicKey(publicKeyPEM);
-
     userKeys.privateKey = privCrypt;
     userKeys.publicKey = pubCrypt;
-
-    localStorage.setItem(KEY_STORAGE, JSON.stringify({
-        privateKey: privateKeyPEM,
-        publicKey: publicKeyPEM
-    }));
-
+    localStorage.setItem(KEY_STORAGE, JSON.stringify({ privateKey: privateKeyPEM, publicKey: publicKeyPEM }));
     sendPublicKeyToServer(publicKeyPEM);
 }
 
@@ -68,16 +50,9 @@ function encryptWithPublicKey(publicKeyPEM, plainText) {
 
 function decryptWithPrivateKey(encryptedBase64) {
     if (!userKeys.privateKey) return null;
-    try {
-        return userKeys.privateKey.decrypt(encryptedBase64) || null;
-    } catch (e) {
-        return null;
-    }
+    try { return userKeys.privateKey.decrypt(encryptedBase64) || null; } catch (e) { return null; }
 }
 
-// ==============================================
-// УТИЛИТЫ
-// ==============================================
 function getParam(name) {
     var query = window.location.search.substring(1);
     var vars = query.split('&');
@@ -115,7 +90,6 @@ if (!token || !myEmail) { window.location.href = 'login.html'; }
 
 function byId(id) { return document.getElementById(id); }
 
-// ====== ПЕРЕВОДЫ ======
 var T = {
     ru: {
         chats: 'Чаты', archive: 'Архив', settings: 'Настройки', back: '← Назад',
@@ -128,8 +102,7 @@ var T = {
         nickname: 'Ник (не меняется)', displayName: 'Отображаемое имя',
         age: 'Возраст', about: 'О себе', avatar: 'Аватар', myId: 'Мой ID',
         devices: 'Устройства', searchPlaceholder: 'Введите ID (6 цифр)',
-        uploadAvatar: 'Загрузить свой аватар', noAvatar: 'Аватар не установлен',
-        encryptionError: 'Ошибка шифрования', encrypted: '[зашифровано]'
+        uploadAvatar: 'Загрузить свой аватар', noAvatar: 'Аватар не установлен'
     },
     en: {
         chats: 'Chats', archive: 'Archive', settings: 'Settings', back: '← Back',
@@ -142,8 +115,7 @@ var T = {
         nickname: 'Nickname (unchangeable)', displayName: 'Display Name',
         age: 'Age', about: 'About', avatar: 'Avatar', myId: 'My ID',
         devices: 'Devices', searchPlaceholder: 'Enter ID (6 digits)',
-        uploadAvatar: 'Upload Custom Avatar', noAvatar: 'No avatar',
-        encryptionError: 'Encryption error', encrypted: '[encrypted]'
+        uploadAvatar: 'Upload Custom Avatar', noAvatar: 'No avatar'
     }
 };
 function t(k) { return T[lang][k] || k; }
@@ -151,7 +123,6 @@ function t(k) { return T[lang][k] || k; }
 function formatTime(ts) { var d = new Date(ts); var h = d.getHours(); var m = d.getMinutes(); if (m < 10) m = '0' + m; return h + ':' + m; }
 function esc(s) { if (!s) return ''; var div = document.createElement('div'); div.appendChild(document.createTextNode(s)); return div.innerHTML; }
 
-// ====== ПУСТАЯ АВАТАРКА ======
 var emptyAvatarPNG = (function() {
     var size = 44;
     var canvas = document.createElement('canvas');
@@ -170,48 +141,33 @@ var emptyAvatarPNG = (function() {
     return canvas.toDataURL('image/png');
 })();
 
-// ====== UI сообщений (исправлено) ======
 function addMsg(msg) {
     if (loadedMessageIds[msg.id]) return;
     loadedMessageIds[msg.id] = true;
-
     var container = byId('messages');
     var div = document.createElement('div');
     div.className = 'msg';
     if (msg.from === myEmail) div.className += ' my';
     div.id = 'msg-' + msg.id;
-
     var senderName = msg.fromUsername || msg.from.split('@')[0];
     var timeStr = formatTime(msg.timestamp);
-
-    // Определяем, зашифрован ли текст (длинная строка без пробелов, похожа на base64)
-    var isEncrypted = false;
-    if (msg.text && msg.text.length > 50 && msg.text.indexOf(' ') === -1 && /^[A-Za-z0-9+/=]+$/.test(msg.text)) {
-        isEncrypted = true;
-    }
-
     var displayText = '';
-    if (isEncrypted) {
+    if (msg.text && msg.text.length > 50 && msg.text.indexOf(' ') === -1 && /^[A-Za-z0-9+/=]+$/.test(msg.text)) {
         var decrypted = decryptWithPrivateKey(msg.text);
         if (decrypted !== null && decrypted !== false) {
             displayText = decrypted;
         } else {
-            // Не удалось расшифровать – показываем исходный шифротекст с пометкой
-            displayText = t('encrypted') + ' ' + msg.text.substring(0, 30) + '...';
+            displayText = msg.text;
         }
     } else {
-        displayText = msg.text; // обычное сообщение
+        displayText = msg.text;
     }
-
     var text = msg.deleted ? '<i>' + t('deleted') + '</i>' : esc(displayText);
     var edited = msg.edited ? ' <span class="edited-tag">(' + t('edited') + ')</span>' : '';
-
     div.innerHTML = '<div class="sender">' + esc(senderName) + '</div>' +
                     '<div class="text">' + text + edited + '</div>' +
                     '<span class="time">' + timeStr + '</span>';
-
     if (msg.from === myEmail && !msg.deleted) {
-        // Для своих сообщений мы не можем редактировать зашифрованное – кнопки оставляем, но предупредим
         div.innerHTML += '<div class="actions"><button class="edit-btn" onclick="editMsg(\'' + msg.id + '\',\'' + esc(displayText).replace(/'/g, "\\'") + '\')">✎</button><button class="del-btn" onclick="delMsg(\'' + msg.id + '\')">✕</button></div>';
     }
     container.appendChild(div);
@@ -236,7 +192,6 @@ function delMsgUI(id) {
     if (actions.length > 0) actions[0].style.display = 'none';
 }
 
-// ====== ПРОФИЛЬ СОБЕСЕДНИКА ======
 function showPartnerProfile() {
     if (!chatWith) return;
     var partner = null;
@@ -254,14 +209,12 @@ function showPartnerProfile() {
         byId('partner-profile-overlay').style.display = 'flex';
         return;
     }
-
     byId('partner-displayname').textContent = partner.displayName || partner.username;
     byId('partner-username').textContent = partner.username || '';
     byId('partner-id').textContent = partner.searchId || '';
     byId('partner-status').textContent = partner.isOnline ? t('online') : t('offline');
     byId('partner-age').textContent = partner.age ? (t('age') + ': ' + partner.age) : '';
     byId('partner-about').textContent = partner.about || '';
-
     var avUrl = emptyAvatarPNG;
     if (partner.avatar && partner.avatar.indexOf('/uploads/avatars/') === 0) {
         avUrl = API + partner.avatar;
@@ -274,7 +227,6 @@ function closePartnerProfile() {
     byId('partner-profile-overlay').style.display = 'none';
 }
 
-// ====== НАВИГАЦИЯ ======
 function showTab(tab) {
     byId('chats-panel').style.display = 'none';
     byId('archive-panel').style.display = 'none';
@@ -285,7 +237,6 @@ function showTab(tab) {
     byId('bottom-nav').style.display = 'table';
     byId('btn-back').style.display = 'none';
     byId('chat-title').innerHTML = 'iChatter';
-
     if (tab === 'chats') {
         byId('chats-panel').style.display = 'block';
         byId('nav-chats').className = 'nav-btn active';
@@ -310,7 +261,6 @@ function openChat(em) {
     byId('chat-area').style.display = 'block';
     byId('bottom-nav').style.display = 'none';
     byId('btn-back').style.display = 'block';
-
     var name = pendingName;
     if (!name) {
         for (var i = 0; i < contacts.length; i++) {
@@ -326,10 +276,7 @@ function openChat(em) {
     loadMessages(em);
 }
 
-function goBack() {
-    showTab('chats');
-    byId('chat-title').onclick = null;
-}
+function goBack() { showTab('chats'); byId('chat-title').onclick = null; }
 
 function updateNavTexts() {
     byId('nav-chats').textContent = t('chats');
@@ -341,7 +288,6 @@ function updateNavTexts() {
     byId('btn-back').textContent = t('back');
 }
 
-// ====== ЗАГРУЗКА ДАННЫХ ======
 function loadMessages(to) {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', API + '/api/messages?token=' + token + '&chatWith=' + to, true);
@@ -441,17 +387,12 @@ function findUser() {
                 if (d.user.email === myEmail) { alert(t('selfSearch')); return; }
                 pendingName = d.user.displayName || d.user.username;
                 openChat(d.user.email);
-            } else if (d.error) {
-                alert(d.error);
-            } else {
-                alert(t('notFound'));
-            }
+            } else if (d.error) { alert(d.error); } else { alert(t('notFound')); }
         }
     };
     xhr.send();
 }
 
-// ====== НАСТРОЙКИ ======
 function loadSettings() {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', API + '/api/my-profile?token=' + token, true);
@@ -479,7 +420,6 @@ function loadSettings() {
 function loadAvatars() {
     var grid = byId('avatar-grid');
     grid.innerHTML = '';
-
     if (profile.avatar && profile.avatar.indexOf('/uploads/avatars/') === 0) {
         var custImg = document.createElement('img');
         custImg.src = API + profile.avatar;
@@ -558,41 +498,25 @@ function saveSettings() {
     setTheme(newTheme);
     profile.language = newLang;
     profile.theme = newTheme;
-
     var xhr = new XMLHttpRequest();
     xhr.open('POST', API + '/api/update-profile', true);
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.onreadystatechange = function() {
-        if (xhr.readyState === 4 && xhr.status === 200) {
-            alert(t('saved'));
-            showTab('settings');
-        }
+        if (xhr.readyState === 4 && xhr.status === 200) { alert(t('saved')); showTab('settings'); }
     };
     xhr.send(JSON.stringify({ token: token, displayName: profile.displayName, age: profile.age, about: profile.about, avatar: profile.avatar, theme: newTheme, language: newLang, wallpaper: profile.wallpaper }));
 }
 
-function setLang(l) {
-    lang = l;
-    localStorage.setItem('lang', lang);
-    updateNavTexts();
-    if (byId('lang-select')) byId('lang-select').value = lang;
-}
-
+function setLang(l) { lang = l; localStorage.setItem('lang', lang); updateNavTexts(); if (byId('lang-select')) byId('lang-select').value = lang; }
 function setTheme(th) {
-    if (th === 'light') {
-        document.body.className = 'light-mode';
-    } else {
-        document.body.className = 'dark-mode';
-    }
+    if (th === 'light') { document.body.className = 'light-mode'; } else { document.body.className = 'dark-mode'; }
     if (profile) profile.theme = th;
     if (byId('theme-select')) byId('theme-select').value = th;
 }
 
-// ====== ЗАГРУЗКА СВОЕЙ АВАТАРКИ ======
 function uploadCustomAvatar(input) {
     if (!input.files || !input.files[0]) return;
     var file = input.files[0];
-
     var formData = new FormData();
     formData.append('avatar', file);
     var xhr = new XMLHttpRequest();
@@ -600,23 +524,17 @@ function uploadCustomAvatar(input) {
     xhr.onreadystatechange = function() {
         if (xhr.readyState === 4 && xhr.status === 200) {
             var resp = JSON.parse(xhr.responseText);
-            if (resp.success) {
-                alert('Аватар обновлён!');
-                profile.avatar = resp.url;
-                loadAvatars();
-            }
+            if (resp.success) { alert('Аватар обновлён!'); profile.avatar = resp.url; loadAvatars(); }
         }
         input.value = '';
     };
     xhr.send(formData);
 }
 
-// ====== ОТПРАВКА СООБЩЕНИЙ С ШИФРОВАНИЕМ ======
 function sendMessage() {
     var input = byId('input');
     var text = input.value.trim();
     if (!text || !chatWith || !socket) return;
-
     var partnerKeyPEM = null;
     for (var i = 0; i < contacts.length; i++) {
         if (contacts[i].email === chatWith && contacts[i].publicKey) {
@@ -624,23 +542,16 @@ function sendMessage() {
             break;
         }
     }
-
-    if (!partnerKeyPEM) {
-        alert('Невозможно отправить зашифрованное сообщение: у собеседника нет публичного ключа.');
-        return;
+    var finalText = text;
+    if (partnerKeyPEM) {
+        var encrypted = encryptWithPublicKey(partnerKeyPEM, text);
+        if (encrypted) { finalText = encrypted; }
     }
-
-    var encrypted = encryptWithPublicKey(partnerKeyPEM, text);
-    if (!encrypted) {
-        alert(t('encryptionError'));
-        return;
-    }
-
     if (editingId) {
-        socket.emit('edit_message', { id: editingId, newText: encrypted });
+        socket.emit('edit_message', { id: editingId, newText: finalText });
         editingId = null;
     } else {
-        socket.emit('send_message', { to: chatWith, text: encrypted });
+        socket.emit('send_message', { to: chatWith, text: finalText });
     }
     input.value = '';
 }
@@ -648,20 +559,10 @@ function sendMessage() {
 function editMsg(id, text) { editingId = id; byId('input').value = text; byId('input').focus(); }
 function delMsg(id) { if (confirm('Удалить сообщение?')) socket.emit('delete_message', { id: id }); }
 
-// ====== СОКЕТ ======
 function connectSocket() {
     socket = io(API, { query: { token: token } });
-
-    socket.on('receive_message', function(msg) {
-        if (chatWith === msg.from) addMsg(msg);
-        loadContacts();
-    });
-
-    socket.on('message_sent', function(msg) {
-        if (chatWith === msg.to) addMsg(msg);
-        loadContacts();
-    });
-
+    socket.on('receive_message', function(msg) { if (chatWith === msg.from) addMsg(msg); loadContacts(); });
+    socket.on('message_sent', function(msg) { if (chatWith === msg.to) addMsg(msg); loadContacts(); });
     socket.on('update_message', function(d) { updMsg(d.id, d.text, d.edited); });
     socket.on('remove_message', function(d) { delMsgUI(d.id); });
     socket.on('user_typing', function(data) {
@@ -683,19 +584,15 @@ byId('send-btn').onclick = sendMessage;
 byId('input').onkeydown = function(e) { if (e.keyCode === 13) { e.preventDefault(); sendMessage(); } };
 byId('input').oninput = function() { if (chatWith && socket) socket.emit('typing', { to: chatWith, isTyping: true }); };
 
-// ====== ИНИЦИАЛИЗАЦИЯ КЛЮЧЕЙ ======
 initEncryption();
 
-// ====== ФИКС КЛАВИАТУРЫ ======
 byId('input').onfocus = function() {
     if (byId('chat-area').style.display === 'block') {
         byId('main-content').style.paddingBottom = '250px';
         setTimeout(function() { byId('messages').scrollTop = byId('messages').scrollHeight; }, 100);
     }
 };
-byId('input').onblur = function() {
-    byId('main-content').style.paddingBottom = '0px';
-};
+byId('input').onblur = function() { byId('main-content').style.paddingBottom = '0px'; };
 
 connectSocket();
 showTab('chats');

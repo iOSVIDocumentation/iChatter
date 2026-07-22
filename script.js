@@ -1,5 +1,60 @@
 var API = 'https://ichatterios6.iosvidocum.workers.dev';
 var STATIC_URL = 'https://ichatterios6.iosvidocum.workers.dev';
+var CRYPTO_KEY_SIZE = 2048;
+var KEY_STORAGE = 'ichatter_e2ee_keys';
+
+var userKeys = { privateKey: null, publicKey: null };
+
+function initEncryption() {
+    if (typeof JSEncrypt === 'undefined') return;
+    var stored = localStorage.getItem(KEY_STORAGE);
+    if (stored) {
+        try {
+            var keys = JSON.parse(stored);
+            var cryptPriv = new JSEncrypt();
+            cryptPriv.setPrivateKey(keys.privateKey);
+            var cryptPub = new JSEncrypt();
+            cryptPub.setPublicKey(keys.publicKey);
+            userKeys.privateKey = cryptPriv;
+            userKeys.publicKey = cryptPub;
+            if (!keys.publicKey || !keys.privateKey) throw new Error('invalid');
+            sendPublicKeyToServer(keys.publicKey);
+            return;
+        } catch (e) {
+            localStorage.removeItem(KEY_STORAGE);
+        }
+    }
+    var crypt = new JSEncrypt({default_key_size: CRYPTO_KEY_SIZE});
+    var privateKeyPEM = crypt.getPrivateKey();
+    var publicKeyPEM = crypt.getPublicKey();
+    var privCrypt = new JSEncrypt();
+    privCrypt.setPrivateKey(privateKeyPEM);
+    var pubCrypt = new JSEncrypt();
+    pubCrypt.setPublicKey(publicKeyPEM);
+    userKeys.privateKey = privCrypt;
+    userKeys.publicKey = pubCrypt;
+    localStorage.setItem(KEY_STORAGE, JSON.stringify({ privateKey: privateKeyPEM, publicKey: publicKeyPEM }));
+    sendPublicKeyToServer(publicKeyPEM);
+}
+
+function sendPublicKeyToServer(pubKeyPEM) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', API + '/api/update-public-key', true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.send(JSON.stringify({ token: token, publicKey: pubKeyPEM }));
+}
+
+function encryptWithPublicKey(publicKeyPEM, plainText) {
+    if (typeof JSEncrypt === 'undefined') return null;
+    var crypt = new JSEncrypt();
+    crypt.setPublicKey(publicKeyPEM);
+    return crypt.encrypt(plainText);
+}
+
+function decryptWithPrivateKey(encryptedBase64) {
+    if (!userKeys.privateKey) return null;
+    try { return userKeys.privateKey.decrypt(encryptedBase64) || null; } catch (e) { return null; }
+}
 
 function getParam(name) {
     var query = window.location.search.substring(1);
@@ -99,7 +154,17 @@ function addMsg(msg) {
     div.id = 'msg-' + msg.id;
     var senderName = msg.fromUsername || msg.from.split('@')[0];
     var timeStr = formatTime(msg.timestamp);
-    var displayText = msg.text || '';
+    var displayText = '';
+    if (msg.text && msg.text.length > 50 && msg.text.indexOf(' ') === -1 && /^[A-Za-z0-9+/=]+$/.test(msg.text)) {
+        var decrypted = decryptWithPrivateKey(msg.text);
+        if (decrypted !== null && decrypted !== false) {
+            displayText = decrypted;
+        } else {
+            displayText = msg.text;
+        }
+    } else {
+        displayText = msg.text;
+    }
     var text = msg.deleted ? '<i>' + t('deleted') + '</i>' : esc(displayText);
     var edited = msg.edited ? ' <span class="edited-tag">(' + t('edited') + ')</span>' : '';
     div.innerHTML = '<div class="sender">' + esc(senderName) + '</div>' +
@@ -211,6 +276,7 @@ function openChat(em) {
     byId('chat-title').onclick = showPartnerProfile;
     loadedMessageIds = {};
     byId('messages').innerHTML = '';
+    loadMessages(em);
 }
 
 function goBack() { showTab('chats'); byId('chat-title').onclick = null; }
@@ -225,7 +291,21 @@ function updateNavTexts() {
     byId('btn-back').textContent = t('back');
 }
 
-// loadMessages больше не нужна – история не загружается
+function loadMessages(to) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', API + '/api/messages?token=' + token + '&chatWith=' + to, true);
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+            var data = JSON.parse(xhr.responseText);
+            var msgs = data.messages || [];
+            for (var i = 0; i < msgs.length; i++) {
+                if (!byId('msg-' + msgs[i].id)) addMsg(msgs[i]);
+            }
+        }
+    };
+    xhr.send();
+}
+
 function loadContacts() {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', API + '/api/contacts?token=' + token, true);
@@ -458,11 +538,23 @@ function sendMessage() {
     var input = byId('input');
     var text = input.value.trim();
     if (!text || !chatWith || !socket) return;
+    var finalText = text;
+    var partnerKeyPEM = null;
+    for (var i = 0; i < contacts.length; i++) {
+        if (contacts[i].email === chatWith && contacts[i].publicKey) {
+            partnerKeyPEM = contacts[i].publicKey;
+            break;
+        }
+    }
+    if (partnerKeyPEM) {
+        var encrypted = encryptWithPublicKey(partnerKeyPEM, text);
+        if (encrypted) { finalText = encrypted; }
+    }
     if (editingId) {
-        socket.emit('edit_message', { id: editingId, newText: text });
+        socket.emit('edit_message', { id: editingId, newText: finalText });
         editingId = null;
     } else {
-        socket.emit('send_message', { to: chatWith, text: text });
+        socket.emit('send_message', { to: chatWith, text: finalText });
     }
     input.value = '';
 }
@@ -472,8 +564,8 @@ function delMsg(id) { if (confirm('Удалить сообщение?')) socket.
 
 function connectSocket() {
     socket = io(API, { query: { token: token } });
-    socket.on('receive_message', function(msg) { if (chatWith === msg.from) addMsg(msg); });
-    socket.on('message_sent', function(msg) { if (chatWith === msg.to) addMsg(msg); });
+    socket.on('receive_message', function(msg) { if (chatWith === msg.from) addMsg(msg); loadContacts(); });
+    socket.on('message_sent', function(msg) { if (chatWith === msg.to) addMsg(msg); loadContacts(); });
     socket.on('update_message', function(d) { updMsg(d.id, d.text, d.edited); });
     socket.on('remove_message', function(d) { delMsgUI(d.id); });
     socket.on('user_typing', function(data) {
@@ -494,6 +586,8 @@ function connectSocket() {
 byId('send-btn').onclick = sendMessage;
 byId('input').onkeydown = function(e) { if (e.keyCode === 13) { e.preventDefault(); sendMessage(); } };
 byId('input').oninput = function() { if (chatWith && socket) socket.emit('typing', { to: chatWith, isTyping: true }); };
+
+initEncryption();
 
 byId('input').onfocus = function() {
     if (byId('chat-area').style.display === 'block') {

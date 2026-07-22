@@ -8,36 +8,31 @@ var STATIC_URL = 'https://ichatterios6.iosvidocum.workers.dev';
 // E2EE НА JSENCRYPT (работает на iOS 6)
 // ==============================================
 var CRYPTO_KEY_SIZE = 2048;
-var KEY_STORAGE = 'ichatter_e2ee_keys'; // localStorage
+var KEY_STORAGE = 'ichatter_e2ee_keys';
 
-// Глобальный объект для наших ключей
 var userKeys = {
-    privateKey: null,   // JSEncryptKey (приватный)
-    publicKey: null     // JSEncryptKey (публичный)
+    privateKey: null,
+    publicKey: null
 };
 
-// Инициализация или загрузка ключей
 function initEncryption() {
     var stored = localStorage.getItem(KEY_STORAGE);
     if (stored) {
         try {
             var keys = JSON.parse(stored);
-            // Восстанавливаем объекты JSEncrypt
             var cryptPriv = new JSEncrypt();
             cryptPriv.setPrivateKey(keys.privateKey);
             var cryptPub = new JSEncrypt();
             cryptPub.setPublicKey(keys.publicKey);
             userKeys.privateKey = cryptPriv;
             userKeys.publicKey = cryptPub;
-            // Если публичный ключ не установлен, генерируем заново
             if (!keys.publicKey || !keys.privateKey) throw new Error('invalid');
-            return true;
+            return;
         } catch (e) {
             localStorage.removeItem(KEY_STORAGE);
         }
     }
 
-    // Генерация новой пары
     var crypt = new JSEncrypt({default_key_size: CRYPTO_KEY_SIZE});
     var privateKeyPEM = crypt.getPrivateKey();
     var publicKeyPEM = crypt.getPublicKey();
@@ -50,38 +45,34 @@ function initEncryption() {
     userKeys.privateKey = privCrypt;
     userKeys.publicKey = pubCrypt;
 
-    // Сохраняем в localStorage
     localStorage.setItem(KEY_STORAGE, JSON.stringify({
         privateKey: privateKeyPEM,
         publicKey: publicKeyPEM
     }));
 
-    // Отправляем публичный ключ на сервер
     sendPublicKeyToServer(publicKeyPEM);
-    return false; // новые ключи созданы
 }
 
 function sendPublicKeyToServer(pubKeyPEM) {
     var xhr = new XMLHttpRequest();
     xhr.open('POST', API + '/api/update-public-key', true);
     xhr.setRequestHeader('Content-Type', 'application/json');
-    xhr.onreadystatechange = function() {
-        // ничего не делаем
-    };
     xhr.send(JSON.stringify({ token: token, publicKey: pubKeyPEM }));
 }
 
-// Шифрование сообщения публичным ключом собеседника
 function encryptWithPublicKey(publicKeyPEM, plainText) {
     var crypt = new JSEncrypt();
     crypt.setPublicKey(publicKeyPEM);
     return crypt.encrypt(plainText);
 }
 
-// Расшифровка сообщения своим приватным ключом
 function decryptWithPrivateKey(encryptedBase64) {
-    if (!userKeys.privateKey) return '[no key]';
-    return userKeys.privateKey.decrypt(encryptedBase64);
+    if (!userKeys.privateKey) return null;
+    try {
+        return userKeys.privateKey.decrypt(encryptedBase64) || null;
+    } catch (e) {
+        return null;
+    }
 }
 
 // ==============================================
@@ -138,7 +129,7 @@ var T = {
         age: 'Возраст', about: 'О себе', avatar: 'Аватар', myId: 'Мой ID',
         devices: 'Устройства', searchPlaceholder: 'Введите ID (6 цифр)',
         uploadAvatar: 'Загрузить свой аватар', noAvatar: 'Аватар не установлен',
-        encryptionError: 'Ошибка шифрования'
+        encryptionError: 'Ошибка шифрования', encrypted: '[зашифровано]'
     },
     en: {
         chats: 'Chats', archive: 'Archive', settings: 'Settings', back: '← Back',
@@ -152,7 +143,7 @@ var T = {
         age: 'Age', about: 'About', avatar: 'Avatar', myId: 'My ID',
         devices: 'Devices', searchPlaceholder: 'Enter ID (6 digits)',
         uploadAvatar: 'Upload Custom Avatar', noAvatar: 'No avatar',
-        encryptionError: 'Encryption error'
+        encryptionError: 'Encryption error', encrypted: '[encrypted]'
     }
 };
 function t(k) { return T[lang][k] || k; }
@@ -179,7 +170,7 @@ var emptyAvatarPNG = (function() {
     return canvas.toDataURL('image/png');
 })();
 
-// ====== UI сообщений (с расшифровкой) ======
+// ====== UI сообщений (исправлено) ======
 function addMsg(msg) {
     if (loadedMessageIds[msg.id]) return;
     loadedMessageIds[msg.id] = true;
@@ -193,22 +184,26 @@ function addMsg(msg) {
     var senderName = msg.fromUsername || msg.from.split('@')[0];
     var timeStr = formatTime(msg.timestamp);
 
-    // Расшифровка текста, если он зашифрован (Base64)
-    var plainText = '';
-    if (msg.text && msg.text.length > 0 && msg.text.indexOf(' ') === -1) { // простое определение: нет пробелов, похоже на base64
-        try {
-            plainText = decryptWithPrivateKey(msg.text);
-            if (plainText === false || plainText === null) {
-                plainText = t('encryptionError');
-            }
-        } catch (e) {
-            plainText = t('encryptionError');
-        }
-    } else {
-        plainText = msg.text; // не зашифровано (например, старые сообщения)
+    // Определяем, зашифрован ли текст (длинная строка без пробелов, похожа на base64)
+    var isEncrypted = false;
+    if (msg.text && msg.text.length > 50 && msg.text.indexOf(' ') === -1 && /^[A-Za-z0-9+/=]+$/.test(msg.text)) {
+        isEncrypted = true;
     }
 
-    var text = msg.deleted ? '<i>' + t('deleted') + '</i>' : esc(plainText);
+    var displayText = '';
+    if (isEncrypted) {
+        var decrypted = decryptWithPrivateKey(msg.text);
+        if (decrypted !== null && decrypted !== false) {
+            displayText = decrypted;
+        } else {
+            // Не удалось расшифровать – показываем исходный шифротекст с пометкой
+            displayText = t('encrypted') + ' ' + msg.text.substring(0, 30) + '...';
+        }
+    } else {
+        displayText = msg.text; // обычное сообщение
+    }
+
+    var text = msg.deleted ? '<i>' + t('deleted') + '</i>' : esc(displayText);
     var edited = msg.edited ? ' <span class="edited-tag">(' + t('edited') + ')</span>' : '';
 
     div.innerHTML = '<div class="sender">' + esc(senderName) + '</div>' +
@@ -216,7 +211,8 @@ function addMsg(msg) {
                     '<span class="time">' + timeStr + '</span>';
 
     if (msg.from === myEmail && !msg.deleted) {
-        div.innerHTML += '<div class="actions"><button class="edit-btn" onclick="editMsg(\'' + msg.id + '\',\'' + esc(plainText).replace(/'/g, "\\'") + '\')">✎</button><button class="del-btn" onclick="delMsg(\'' + msg.id + '\')">✕</button></div>';
+        // Для своих сообщений мы не можем редактировать зашифрованное – кнопки оставляем, но предупредим
+        div.innerHTML += '<div class="actions"><button class="edit-btn" onclick="editMsg(\'' + msg.id + '\',\'' + esc(displayText).replace(/'/g, "\\'") + '\')">✎</button><button class="del-btn" onclick="delMsg(\'' + msg.id + '\')">✕</button></div>';
     }
     container.appendChild(div);
     container.scrollTop = container.scrollHeight;
@@ -592,7 +588,7 @@ function setTheme(th) {
     if (byId('theme-select')) byId('theme-select').value = th;
 }
 
-// ====== ЗАГРУЗКА СВОЕЙ АВАТАРКИ (обычный способ) ======
+// ====== ЗАГРУЗКА СВОЕЙ АВАТАРКИ ======
 function uploadCustomAvatar(input) {
     if (!input.files || !input.files[0]) return;
     var file = input.files[0];
@@ -621,23 +617,19 @@ function sendMessage() {
     var text = input.value.trim();
     if (!text || !chatWith || !socket) return;
 
-    // Ищем публичный ключ собеседника
     var partnerKeyPEM = null;
     for (var i = 0; i < contacts.length; i++) {
-        if (contacts[i].email === chatWith) {
-            if (contacts[i].publicKey) {
-                partnerKeyPEM = contacts[i].publicKey;
-            }
+        if (contacts[i].email === chatWith && contacts[i].publicKey) {
+            partnerKeyPEM = contacts[i].publicKey;
             break;
         }
     }
 
     if (!partnerKeyPEM) {
-        alert('Невозможно отправить сообщение: у собеседника нет публичного ключа.');
+        alert('Невозможно отправить зашифрованное сообщение: у собеседника нет публичного ключа.');
         return;
     }
 
-    // Шифруем
     var encrypted = encryptWithPublicKey(partnerKeyPEM, text);
     if (!encrypted) {
         alert(t('encryptionError'));

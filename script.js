@@ -1,3 +1,15 @@
+// Очищаем старые зашифрованные данные, чтобы JSON.parse не падал
+localStorage.removeItem('ichatter_aes_key');
+localStorage.removeItem('ichatter_e2ee_keys');
+var keysToRemove = [];
+for (var i = 0; i < localStorage.length; i++) {
+    var k = localStorage.key(i);
+    if (k && k.indexOf('ichatter_msg_') === 0) keysToRemove.push(k);
+}
+for (var j = 0; j < keysToRemove.length; j++) {
+    localStorage.removeItem(keysToRemove[j]);
+}
+
 var API = 'https://ichatterios6.iosvidocum.workers.dev';
 var STATIC_URL = 'https://ichatterios6.iosvidocum.workers.dev';
 
@@ -535,7 +547,8 @@ function connectSocket() {
         if (chatWith === msg.from) addMsg(msg);
         var target = msg.from === myEmail ? msg.to : msg.from;
         var raw = localStorage.getItem('ichatter_msg_' + target);
-        var arr = raw ? JSON.parse(raw) : [];
+        var arr = [];
+        try { arr = JSON.parse(raw) || []; } catch (e) { arr = []; }
         arr.push(msg);
         if (arr.length > 500) arr = arr.slice(-500);
         localStorage.setItem('ichatter_msg_' + target, JSON.stringify(arr));
@@ -549,7 +562,8 @@ function connectSocket() {
     socket.on('message_sent', function (msg) {
         if (chatWith === msg.to) addMsg(msg);
         var raw = localStorage.getItem('ichatter_msg_' + msg.to);
-        var arr = raw ? JSON.parse(raw) : [];
+        var arr = [];
+        try { arr = JSON.parse(raw) || []; } catch (e) { arr = []; }
         arr.push(msg);
         if (arr.length > 500) arr = arr.slice(-500);
         localStorage.setItem('ichatter_msg_' + msg.to, JSON.stringify(arr));
@@ -564,7 +578,8 @@ function connectSocket() {
         updMsg(d.id, d.text, d.edited);
         var raw = localStorage.getItem('ichatter_msg_' + chatWith);
         if (raw) {
-            var arr = JSON.parse(raw);
+            var arr = [];
+            try { arr = JSON.parse(raw) || []; } catch (e) { arr = []; }
             for (var i = 0; i < arr.length; i++) {
                 if (arr[i].id === d.id) { arr[i].text = d.text; arr[i].edited = d.edited; break; }
             }
@@ -576,7 +591,8 @@ function connectSocket() {
         delMsgUI(d.id);
         var raw = localStorage.getItem('ichatter_msg_' + chatWith);
         if (raw) {
-            var arr = JSON.parse(raw);
+            var arr = [];
+            try { arr = JSON.parse(raw) || []; } catch (e) { arr = []; }
             for (var i = 0; i < arr.length; i++) {
                 if (arr[i].id === d.id) { arr[i].deleted = true; arr[i].text = ''; break; }
             }

@@ -1,5 +1,5 @@
-var API = 'https://stops-waiting-papers-pens.trycloudflare.com';
-var STATIC_URL = 'https://stops-waiting-papers-pens.trycloudflare.com';
+var API = window.location.origin;
+var STATIC_URL = window.location.origin;
 
 // ==============================================
 // БЕЗОПАСНЫЙ BASE64 (работает с любыми байтами)
@@ -133,7 +133,7 @@ function loadLocalEncrypted(chat) {
 }
 
 // ==============================================
-// ОСНОВНОЙ КОД (без удаления сообщений)
+// ОСНОВНОЙ КОД
 // ==============================================
 function getParam(name) {
     var query = window.location.search.substring(1);
@@ -349,6 +349,16 @@ function openChat(em) {
     byId('chat-title').onclick = showPartnerProfile;
     loadedMessageIds = {};
     byId('messages').innerHTML = '';
+
+    // Применяем обои, если они сохранены в профиле
+    if (profile && profile.wallpaper) {
+        var wp = profile.wallpaper;
+        var wpUrl = (wp.indexOf('/uploads/') === 0) ? API + wp : STATIC_URL + '/wallpapers/' + wp;
+        byId('messages').style.backgroundImage = 'url(' + wpUrl + ')';
+        byId('messages').style.backgroundSize = 'cover';
+    } else {
+        byId('messages').style.backgroundImage = '';
+    }
 
     if (!hasContact(em)) {
         addContactToServer(em);
@@ -724,13 +734,12 @@ byId('send-btn').onclick = sendMessage;
 byId('input').onkeydown = function (e) { if (e.keyCode === 13) { e.preventDefault(); sendMessage(); } };
 byId('input').oninput = function () { if (chatWith && socket) socket.emit('typing', { to: chatWith, isTyping: true }); };
 
-byId('input').onfocus = function () {
-    if (byId('chat-area').style.display === 'block') {
-        byId('main-content').style.paddingBottom = '250px';
-        setTimeout(function () { byId('messages').scrollTop = byId('messages').scrollHeight; }, 100);
-    }
-};
-byId('input').onblur = function () { byId('main-content').style.paddingBottom = '0px'; };
+// Фокус на поле ввода просто скроллит вниз, без изменения размеров
+byId('input').addEventListener('focus', function () {
+    setTimeout(function () {
+        byId('messages').scrollTop = byId('messages').scrollHeight;
+    }, 100);
+});
 
 connectSocket();
 showTab('chats');

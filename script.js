@@ -71,14 +71,11 @@ function t(k) { return T[lang][k] || k; }
 function formatTime(ts) { var d = new Date(ts); var h = d.getHours(); var m = d.getMinutes(); if (m < 10) m = '0' + m; return h + ':' + m; }
 function esc(s) { if (!s) return ''; var div = document.createElement('div'); div.appendChild(document.createTextNode(s)); return div.innerHTML; }
 
-// Генератор аватарки, совместимый с iOS 6 (canvas временно в DOM)
-function generateEmptyAvatar() {
+var emptyAvatarPNG = (function() {
     var size = 44;
     var canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;
-    canvas.style.display = 'none';
-    document.body.appendChild(canvas);
     var ctx = canvas.getContext('2d');
     ctx.fillStyle = '#95a5a6';
     ctx.beginPath();
@@ -89,10 +86,8 @@ function generateEmptyAvatar() {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('U', size/2, size/2+1);
-    var dataUrl = canvas.toDataURL('image/png');
-    document.body.removeChild(canvas);
-    return dataUrl;
-}
+    return canvas.toDataURL('image/png');
+})();
 
 function addMsg(msg) {
     if (loadedMessageIds[msg.id]) return;
@@ -148,7 +143,7 @@ function showPartnerProfile() {
         byId('partner-status').textContent = '';
         byId('partner-age').textContent = '';
         byId('partner-about').textContent = '';
-        byId('partner-avatar').src = generateEmptyAvatar();
+        byId('partner-avatar').src = emptyAvatarPNG;
         byId('partner-profile-overlay').style.display = 'flex';
         return;
     }
@@ -158,7 +153,7 @@ function showPartnerProfile() {
     byId('partner-status').textContent = partner.isOnline ? t('online') : t('offline');
     byId('partner-age').textContent = partner.age ? (t('age') + ': ' + partner.age) : '';
     byId('partner-about').textContent = partner.about || '';
-    var avUrl = generateEmptyAvatar();
+    var avUrl = emptyAvatarPNG;
     if (partner.avatar && partner.avatar.indexOf('/uploads/avatars/') === 0) {
         avUrl = API + partner.avatar;
     }
@@ -371,7 +366,7 @@ function loadAvatars() {
         grid.appendChild(custImg);
     } else {
         var emptyImg = document.createElement('img');
-        emptyImg.src = generateEmptyAvatar();
+        emptyImg.src = emptyAvatarPNG;
         emptyImg.className = 'selected';
         emptyImg.title = t('noAvatar');
         grid.appendChild(emptyImg);

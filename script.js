@@ -1,5 +1,5 @@
 var API = 'https://stops-waiting-papers-pens.trycloudflare.com';
-var STATIC_URL = 'https://stops-waiting-papers-pens.trycloudflare.com';
+var STATIC_URL = 'https://raw.githubusercontent.com/iOSVIDocumentation/ichatter/main';
 
 // ==============================================
 // БЕЗОПАСНЫЙ BASE64 (работает с любыми байтами)
@@ -133,7 +133,7 @@ function loadLocalEncrypted(chat) {
 }
 
 // ==============================================
-// ОСНОВНОЙ КОД (без удаления сообщений)
+// ОСНОВНОЙ КОД
 // ==============================================
 function getParam(name) {
     var query = window.location.search.substring(1);

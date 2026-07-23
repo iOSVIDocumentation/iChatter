@@ -1,6 +1,3 @@
-// ==============================================
-// ВСТРОЕННАЯ БИБЛИОТЕКА CRYPTOJS (AES-256-CBC)
-// ==============================================
 var CryptoJS = CryptoJS || (function (h, s) { var f = {}, t = f.lib = {}, g = function () { }, j = t.Base = { extend: function (a) { g.prototype = this; var c = new g; a && c.mixIn(a); c.hasOwnProperty("init") || (c.init = function () { c.$super.init.apply(this, arguments) }); c.init.prototype = c; c.$super = this; return c }, create: function () { var a = this.extend(); a.init.apply(a, arguments); return a }, init: function () { }, mixIn: function (a) { for (var c in a) a.hasOwnProperty(c) && (this[c] = a[c]); a.hasOwnProperty("toString") && (this.toString = a.toString) }, clone: function () { return this.init.prototype.extend(this) } }, q = t.WordArray = j.extend({ init: function (a, c) { a = this.words = a || []; this.sigBytes = c != s ? c : 4 * a.length }, toString: function (a) { return (a || p).stringify(this) }, concat: function (a) { var c = this.words, d = a.words, b = this.sigBytes; a = a.sigBytes; this.clamp(); if (b % 4) for (var e = 0; e < a; e++) c[b + e >>> 2] |= (d[e >>> 2] >>> 24 - 8 * (e % 4) & 255) << 24 - 8 * ((b + e) % 4); else if (65535 < d.length) for (e = 0; e < a; e += 4) c[b + e >>> 2] = d[e >>> 2]; else c.push.apply(c, d); this.sigBytes += a; return this }, clamp: function () { var a = this.words, c = this.sigBytes; a[c >>> 2] &= 4294967295 << 32 - 8 * (c % 4); a.length = h.ceil(c / 4) }, clone: function () { var a = j.clone.call(this); a.words = this.words.slice(0); return a }, random: function (a) { for (var c = [], d = 0; d < a; d += 4) c.push(4294967296 * h.random() | 0); return new q.init(c, a) } }), v = f.enc = {}, p = v.Hex = { stringify: function (a) { var c = a.words; a = a.sigBytes; for (var d = [], b = 0; b < a; b++) { var e = c[b >>> 2] >>> 24 - 8 * (b % 4) & 255; d.push((e >>> 4).toString(16)); d.push((e & 15).toString(16)) } return d.join("") }, parse: function (a) { for (var c = a.length, d = [], b = 0; b < c; b += 2) d[b >>> 3] |= parseInt(a.substr(b, 2), 16) << 24 - 4 * (b % 8); return new q.init(d, c / 2) } }, b = v.Latin1 = { stringify: function (a) { var c = a.words; a = a.sigBytes; for (var d = [], b = 0; b < a; b++) d.push(String.fromCharCode(c[b >>> 2] >>> 24 - 8 * (b % 4) & 255)); return d.join("") }, parse: function (a) { for (var c = a.length, d = [], b = 0; b < c; b++) d[b >>> 2] |= (a.charCodeAt(b) & 255) << 24 - 8 * (b % 4); return new q.init(d, c) } }, l = v.Utf8 = { stringify: function (a) { try { return decodeURIComponent(escape(b.stringify(a))) } catch (c) { throw Error("Malformed UTF-8 data") } }, parse: function (a) { return b.parse(unescape(encodeURIComponent(a))) } }, x = t.BufferedBlockAlgorithm = j.extend({ reset: function () { this._data = new q.init; this._nDataBytes = 0 }, _append: function (a) { "string" == typeof a && (a = l.parse(a)); this._data.concat(a); this._nDataBytes += a.sigBytes }, _process: function (a) { var c = this._data, d = c.words, b = c.sigBytes, e = this.blockSize, f = b / (4 * e), f = a ? h.ceil(f) : h.max((f | 0) - this._minBufferSize, 0); a = f * e; b = h.min(4 * a, b); if (a) { for (var g = 0; g < a; g += e) this._doProcessBlock(d, g); g = d.splice(0, a); c.sigBytes -= b } return new q.init(g, b) }, clone: function () { var a = j.clone.call(this); a._data = this._data.clone(); return a }, _minBufferSize: 0 }); t.Hasher = x.extend({ cfg: j.extend(), init: function (a) { this.cfg = this.cfg.extend(a); this.reset() }, reset: function () { x.reset.call(this); this._doReset() }, update: function (a) { this._append(a); this._process(); return this }, finalize: function (a) { a && this._append(a); return this._doFinalize() }, blockSize: 16, _createHelper: function (a) { return function (c, d) { return (new a.init(d)).finalize(c) } }, _createHmacHelper: function (a) { return function (c, d) { return (new k.HMAC.init(a, d)).finalize(c) } } }); var k = f.algo = {}; return f })(Math);
 (function () { var h = CryptoJS, s = h.lib.WordArray; h.enc.Base64 = { stringify: function (f) { var t = f.words, g = f.sigBytes, j = this._map; f.clamp(); f = []; for (var q = 0; q < g; q += 3) for (var v = (t[q >>> 2] >>> 24 - 8 * (q % 4) & 255) << 16 | (t[q + 1 >>> 2] >>> 24 - 8 * ((q + 1) % 4) & 255) << 8 | t[q + 2 >>> 2] >>> 24 - 8 * ((q + 2) % 4) & 255, p = 0; 4 > p && q + 0.75 * p < g; p++) f.push(j.charAt(v >>> 6 * (3 - p) & 63)); if (t = j.charAt(64)) for (; f.length % 4;) f.push(t); return f.join("") }, parse: function (f) { var t = f.length, g = this._map, j = g.charAt(64); j && (j = f.indexOf(j), -1 != j && (t = j)); for (var j = [], q = 0, v = 0; v < t; v++) if (v % 4) { var p = g.indexOf(f.charAt(v - 1)) << 2 * (v % 4), b = g.indexOf(f.charAt(v)) >>> 6 - 2 * (v % 4); j[q >>> 2] |= (p | b) << 24 - 8 * (q % 4); q++ } return s.create(j, q) }, _map: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=" } })();
 (function () { var h = CryptoJS, s = h.lib, f = s.WordArray, t = s.Hasher, g = h.algo, j = []; (function () { for (var s = 0; 256 > s; s++) { var f = s, t = s; t = (t << 1 | t >>> 31) & 255; t = (t << 1 | t >>> 31) & 255; t = (t << 1 | t >>> 31) & 255; t = (t << 1 | t >>> 31) & 255; for (var g = 0; 8 > g; g++) { var v = (t >>> 24 & 255) << 24 | (t >>> 16 & 255) << 16 | (t >>> 8 & 255) << 8 | t & 255; v = (v << 1 | v >>> 31) & 4294967295; t ^= v } j[s] = t } })(); var q = [], v = []; for (var p = 0; 256 > p; p++) { var b = j[p]; v[p] = (b >>> 24 & 255) << 24 | (b >>> 16 & 255) << 16 | (b >>> 8 & 255) << 8 | b & 255; q[p] = (b >>> 24 & 255) << 24 | (b >>> 16 & 255) << 16 | (b >>> 8 & 255) << 8 | b & 255 } var l = [0, 1, 2, 4, 8, 16, 32, 64, 128, 27, 54], x = g.AES = t.extend({ _doReset: function () { for (var a = this._key, c = a.words, d = a.sigBytes / 4, a = 4 * ((this._nRounds = d + 6) + 1), b = this._keySchedule = [], e = 0; e < a; e++) if (e < d) b[e] = c[e]; else { var f = b[e - 1]; e % d ? 6 < d && 4 == e % d && (f = v[f >>> 24] << 24 | v[f >>> 16 & 255] << 16 | v[f >>> 8 & 255] << 8 | v[f & 255]) : (f = v[(f = f << 8 | f >>> 24) >>> 24] << 24 | v[f >>> 16 & 255] << 16 | v[f >>> 8 & 255] << 8 | v[f & 255], f ^= l[e / d | 0] << 24); b[e] = b[e - d] ^ f } c = this._invKeySchedule = []; for (d = 0; d < a; d++) e = a - d, f = d % 4 ? b[e] : b[e - 4], c[d] = 4 > d || 4 >= e ? f : q[v[f >>> 24]] ^ v[v[f >>> 16 & 255]] ^ v[v[f >>> 8 & 255]] ^ v[v[f & 255]] }, encryptBlock: function (a, c) { this._doCryptBlock(a, c, this._keySchedule, v, q) }, decryptBlock: function (a, c) { var d = a[c + 1]; a[c + 1] = a[c + 3]; a[c + 3] = d; this._doCryptBlock(a, c, this._invKeySchedule, q, v); d = a[c + 1]; a[c + 1] = a[c + 3]; a[c + 3] = d }, _doCryptBlock: function (a, c, d, b, e) { for (var f = this._nRounds, g = a[c] ^ d[0], h = a[c + 1] ^ d[1], j = a[c + 2] ^ d[2], k = a[c + 3] ^ d[3], l = 4, m = 1; m < f; m++) { var n = b[g >>> 24] ^ b[h >>> 16 & 255] ^ b[j >>> 8 & 255] ^ b[k & 255] ^ d[l++]; var o = b[h >>> 24] ^ b[j >>> 16 & 255] ^ b[k >>> 8 & 255] ^ b[g & 255] ^ d[l++]; var p = b[j >>> 24] ^ b[k >>> 16 & 255] ^ b[g >>> 8 & 255] ^ b[h & 255] ^ d[l++]; k = b[k >>> 24] ^ b[g >>> 16 & 255] ^ b[h >>> 8 & 255] ^ b[j & 255] ^ d[l++]; g = n; h = o; j = p } n = (e[g >>> 24] << 24 | e[h >>> 16 & 255] << 16 | e[j >>> 8 & 255] << 8 | e[k & 255]) ^ d[l++]; o = (e[h >>> 24] << 24 | e[j >>> 16 & 255] << 16 | e[k >>> 8 & 255] << 8 | e[g & 255]) ^ d[l++]; p = (e[j >>> 24] << 24 | e[k >>> 16 & 255] << 16 | e[g >>> 8 & 255] << 8 | e[h & 255]) ^ d[l++]; k = (e[k >>> 24] << 24 | e[g >>> 16 & 255] << 16 | e[h >>> 8 & 255] << 8 | e[j & 255]) ^ d[l++]; a[c] = n; a[c + 1] = o; a[c + 2] = p; a[c + 3] = k }, keySize: 8 }); h.AES = t._createHelper(x) })();
@@ -12,115 +9,9 @@ var CryptoJS = CryptoJS || (function (h, s) { var f = {}, t = f.lib = {}, g = fu
 (function () { var h = CryptoJS, s = h.lib, f = s.WordArray, t = s.Hasher, g = h.algo, j = [], q = []; (function () { function s(a) { for (var c = h.enc.Utf8.parse(a), d = 0; d < c.sigBytes; d++) j[d >>> 2] |= (c.words[d >>> 2] >>> 24 - 8 * (d % 4) & 255) << 24 - 8 * ((d + 1) % 4); c.sigBytes % 4 && (j[c.sigBytes >>> 2] |= 128 << 24 - 8 * (c.sigBytes % 4)) } s("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"); for (var v = 0; v < 256; v++) q[v] = j[v >>> 2] >>> 24 - 8 * (v % 4) & 255 })(); var p = g.SHA3 = t.extend({ cfg: t.cfg.extend({ outputLength: 512 }), _doReset: function () { this._state = []; for (var a = 0; 5 > a; a++) this._state[a] = [] }, _doProcessBlock: function (a, c) { for (var d = this._state, b = this.cfg.outputLength / 32, e = 0; 5 > e; e++) for (var f = 0; 5 > f; f++) d[e][f] = 0; for (e = 0; 17 > e; e++) for (f = 0; 5 > f; f++) d[f][e] ^= a[c + 5 * e + f]; for (var g = 0; 24 > g; g++) { for (var h = [], j = 0; 5 > j; j++) { h[j] = []; for (var k = 0; 5 > k; k++) h[j][k] = d[j][k] } for (j = 0; 5 > j; j++) for (k = 0; 5 > k; k++) d[j][k] ^= h[(j + 1) % 5][k] ^ h[(j + 4) % 5][k]; for (j = 0; 5 > j; j++) { var l = [d[j][0], d[j][1], d[j][2], d[j][3], d[j][4]]; for (k = 0; 5 > k; k++) d[j][k] = l[(2 * k + 3 * j) % 5] } for (j = 0; 5 > j; j++) for (k = 0; 5 > k; k++) d[j][k] = (d[j][k] << 1 | d[j][k] >>> 31) & 4294967295; for (j = 0; 5 > j; j++) for (k = 0; 5 > k; k++) if (0 !== j || 0 !== k) { var m = d[j][k], n = d[0][0]; d[j][k] = m ^ ((n << 1 | n >>> 31) ^ (n << 2 | n >>> 30) ^ (n << 3 | n >>> 29) ^ (n << 4 | n >>> 28)) } } for (e = 0; 5 > e; e++) for (f = 0; 5 > f; f++) a[c + 5 * e + f] = d[e][f] }, _doFinalize: function () { var a = this._data, c = a.words, d = 8 * this._nDataBytes, b = 8 * a.sigBytes; c[b >>> 5] |= 128 << 24 - b % 32; c[(b + 64 >>> 9 << 4) + 14] = Math.floor(d / 4294967296); c[(b + 64 >>> 9 << 4) + 15] = d; a.sigBytes = 4 * c.length; this._process(); return this._hash }, clone: function () { var a = t.clone.call(this); a._state = this._state.slice(); return a } }); h.SHA3 = t._createHelper(p); h.HmacSHA3 = t._createHmacHelper(p) })();
 (function () { var h = CryptoJS, s = h.lib, f = s.WordArray, t = h.enc, g = t.Utf8, j = t.Base64, q = h.algo, v = q.PBKDF2, p = q.AES, b = h.mode, l = b.CBC, x = h.pad, k = x.Pkcs7; h.AES.encrypt = function (a, c, d) { var b = (d && d.iv) ? f.create(d.iv) : f.random(16); c = v.create({ keySize: 256 / 32, iterations: (d && d.iterations) || 1 }).compute(c, b); var e = g.parse(a); a = l.encrypt(e, c, { iv: b }); return b.concat(a).toString(j) }; h.AES.decrypt = function (a, c, d) { var b = j.parse(a); a = b.clone(); b.sigBytes = 16; b.clamp(); var e = b; a.words.splice(0, 4); a.sigBytes -= 16; c = v.create({ keySize: 256 / 32, iterations: (d && d.iterations) || 1 }).compute(c, e); return l.decrypt(a, c, { iv: e }).toString(g) } })();
 
-// ==============================================
-// НАСТРОЙКА URL
-// ==============================================
 var API = 'https://ichatterios6.iosvidocum.workers.dev';
 var STATIC_URL = 'https://ichatterios6.iosvidocum.workers.dev';
 
-// ==============================================
-// ЛОКАЛЬНОЕ ШИФРОВАНИЕ (AES-256-CBC)
-// ==============================================
-var LOCAL_KEY_STORAGE = 'ichatter_local_key';
-var MSG_STORAGE_PREFIX = 'ichatter_msg_'; // + email собеседника
-
-function getLocalKey() {
-    var key = localStorage.getItem(LOCAL_KEY_STORAGE);
-    if (!key) {
-        key = CryptoJS.lib.WordArray.random(32).toString();
-        localStorage.setItem(LOCAL_KEY_STORAGE, key);
-    }
-    return key;
-}
-
-function encryptText(plainText, key) {
-    return CryptoJS.AES.encrypt(plainText, key).toString();
-}
-
-function decryptText(cipherText, key) {
-    var bytes = CryptoJS.AES.decrypt(cipherText, key);
-    return bytes.toString(CryptoJS.enc.Utf8);
-}
-
-function getChatStorageKey(chatWith) {
-    return MSG_STORAGE_PREFIX + chatWith;
-}
-
-function loadLocalMessages(chatWith) {
-    var key = getLocalKey();
-    var storageKey = getChatStorageKey(chatWith);
-    var encrypted = localStorage.getItem(storageKey);
-    if (!encrypted) return [];
-    try {
-        var json = decryptText(encrypted, key);
-        return JSON.parse(json);
-    } catch (e) {
-        return [];
-    }
-}
-
-function saveLocalMessages(chatWith, messages) {
-    var key = getLocalKey();
-    var storageKey = getChatStorageKey(chatWith);
-    var json = JSON.stringify(messages);
-    var encrypted = encryptText(json, key);
-    try {
-        localStorage.setItem(storageKey, encrypted);
-    } catch (e) {
-        // localStorage переполнено – удаляем старые чаты
-        var keys = [];
-        for (var i = 0; i < localStorage.length; i++) {
-            var k = localStorage.key(i);
-            if (k && k.indexOf(MSG_STORAGE_PREFIX) === 0) keys.push(k);
-        }
-        if (keys.length > 10) {
-            localStorage.removeItem(keys[0]); // удаляем самый старый
-            saveLocalMessages(chatWith, messages);
-        }
-    }
-}
-
-function addLocalMessage(chatWith, msg) {
-    var messages = loadLocalMessages(chatWith);
-    // не добавляем дубликат
-    for (var i = 0; i < messages.length; i++) {
-        if (messages[i].id === msg.id) return;
-    }
-    messages.push(msg);
-    // сортируем по времени
-    messages.sort(function (a, b) { return a.timestamp - b.timestamp; });
-    // храним не более 500 сообщений на чат
-    if (messages.length > 500) messages = messages.slice(-500);
-    saveLocalMessages(chatWith, messages);
-}
-
-function updateLocalMessage(chatWith, id, newText, edited) {
-    var messages = loadLocalMessages(chatWith);
-    for (var i = 0; i < messages.length; i++) {
-        if (messages[i].id === id) {
-            messages[i].text = newText;
-            messages[i].edited = edited;
-            break;
-        }
-    }
-    saveLocalMessages(chatWith, messages);
-}
-
-function deleteLocalMessage(chatWith, id) {
-    var messages = loadLocalMessages(chatWith);
-    for (var i = 0; i < messages.length; i++) {
-        if (messages[i].id === id) {
-            messages[i].deleted = true;
-            messages[i].text = '';
-            break;
-        }
-    }
-    saveLocalMessages(chatWith, messages);
-}
-
-// ==============================================
-// ОСНОВНОЙ КОД (без изменений, кроме loadMessages и openChat)
-// ==============================================
 function getParam(name) {
     var query = window.location.search.substring(1);
     var vars = query.split('&');
@@ -191,13 +82,11 @@ function t(k) { return T[lang][k] || k; }
 function formatTime(ts) { var d = new Date(ts); var h = d.getHours(); var m = d.getMinutes(); if (m < 10) m = '0' + m; return h + ':' + m; }
 function esc(s) { if (!s) return ''; var div = document.createElement('div'); div.appendChild(document.createTextNode(s)); return div.innerHTML; }
 
-function generateEmptyAvatar() {
+var emptyAvatarPNG = (function() {
     var size = 44;
     var canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;
-    canvas.style.display = 'none';
-    document.body.appendChild(canvas);
     var ctx = canvas.getContext('2d');
     ctx.fillStyle = '#95a5a6';
     ctx.beginPath();
@@ -208,10 +97,8 @@ function generateEmptyAvatar() {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('U', size/2, size/2+1);
-    var dataUrl = canvas.toDataURL('image/png');
-    document.body.removeChild(canvas);
-    return dataUrl;
-}
+    return canvas.toDataURL('image/png');
+})();
 
 function addMsg(msg) {
     if (loadedMessageIds[msg.id]) return;
@@ -267,7 +154,7 @@ function showPartnerProfile() {
         byId('partner-status').textContent = '';
         byId('partner-age').textContent = '';
         byId('partner-about').textContent = '';
-        byId('partner-avatar').src = generateEmptyAvatar();
+        byId('partner-avatar').src = emptyAvatarPNG;
         byId('partner-profile-overlay').style.display = 'flex';
         return;
     }
@@ -277,7 +164,7 @@ function showPartnerProfile() {
     byId('partner-status').textContent = partner.isOnline ? t('online') : t('offline');
     byId('partner-age').textContent = partner.age ? (t('age') + ': ' + partner.age) : '';
     byId('partner-about').textContent = partner.about || '';
-    var avUrl = generateEmptyAvatar();
+    var avUrl = emptyAvatarPNG;
     if (partner.avatar && partner.avatar.indexOf('/uploads/avatars/') === 0) {
         avUrl = API + partner.avatar;
     }
@@ -335,12 +222,7 @@ function openChat(em) {
     byId('chat-title').onclick = showPartnerProfile;
     loadedMessageIds = {};
     byId('messages').innerHTML = '';
-
-    // Загружаем локальную историю
-    var localMsgs = loadLocalMessages(em);
-    for (var j = 0; j < localMsgs.length; j++) {
-        addMsg(localMsgs[j]);
-    }
+    loadMessages(em);
 }
 
 function goBack() { showTab('chats'); byId('chat-title').onclick = null; }
@@ -355,7 +237,20 @@ function updateNavTexts() {
     byId('btn-back').textContent = t('back');
 }
 
-// loadMessages больше не нужна – удалена
+function loadMessages(to) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', API + '/api/messages?token=' + token + '&chatWith=' + to, true);
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+            var data = JSON.parse(xhr.responseText);
+            var msgs = data.messages || [];
+            for (var i = 0; i < msgs.length; i++) {
+                if (!byId('msg-' + msgs[i].id)) addMsg(msgs[i]);
+            }
+        }
+    };
+    xhr.send();
+}
 
 function loadContacts() {
     var xhr = new XMLHttpRequest();
@@ -482,7 +377,7 @@ function loadAvatars() {
         grid.appendChild(custImg);
     } else {
         var emptyImg = document.createElement('img');
-        emptyImg.src = generateEmptyAvatar();
+        emptyImg.src = emptyAvatarPNG;
         emptyImg.className = 'selected';
         emptyImg.title = t('noAvatar');
         grid.appendChild(emptyImg);
@@ -590,7 +485,7 @@ function sendMessage() {
     var text = input.value.trim();
     if (!text || !chatWith || !socket) return;
     if (editingId) {
-        socket.emit('edit_message', { id: editingId, newText: text, to: chatWith });
+        socket.emit('edit_message', { id: editingId, newText: text });
         editingId = null;
     } else {
         socket.emit('send_message', { to: chatWith, text: text });
@@ -599,38 +494,14 @@ function sendMessage() {
 }
 
 function editMsg(id, text) { editingId = id; byId('input').value = text; byId('input').focus(); }
-function delMsg(id) { if (confirm('Удалить сообщение?')) socket.emit('delete_message', { id: id, to: chatWith }); }
+function delMsg(id) { if (confirm('Удалить сообщение?')) socket.emit('delete_message', { id: id }); }
 
 function connectSocket() {
     socket = io(API, { query: { token: token } });
-
-    socket.on('receive_message', function(msg) {
-        if (chatWith === msg.from) addMsg(msg);
-        // сохраняем локально
-        if (msg.from === myEmail) {
-            addLocalMessage(msg.to, msg);
-        } else {
-            addLocalMessage(msg.from, msg);
-        }
-        loadContacts();
-    });
-
-    socket.on('message_sent', function(msg) {
-        if (chatWith === msg.to) addMsg(msg);
-        addLocalMessage(msg.to, msg);
-        loadContacts();
-    });
-
-    socket.on('update_message', function(d) {
-        updMsg(d.id, d.text, d.edited);
-        updateLocalMessage(chatWith, d.id, d.text, d.edited);
-    });
-
-    socket.on('remove_message', function(d) {
-        delMsgUI(d.id);
-        deleteLocalMessage(chatWith, d.id);
-    });
-
+    socket.on('receive_message', function(msg) { if (chatWith === msg.from) addMsg(msg); loadContacts(); });
+    socket.on('message_sent', function(msg) { if (chatWith === msg.to) addMsg(msg); loadContacts(); });
+    socket.on('update_message', function(d) { updMsg(d.id, d.text, d.edited); });
+    socket.on('remove_message', function(d) { delMsgUI(d.id); });
     socket.on('user_typing', function(data) {
         if (chatWith === data.from && data.isTyping) {
             byId('chat-title').innerHTML = data.username + ' (' + t('typing') + ')';

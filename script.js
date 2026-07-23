@@ -1,17 +1,5 @@
-// Очищаем старые зашифрованные данные, чтобы JSON.parse не падал
-localStorage.removeItem('ichatter_aes_key');
-localStorage.removeItem('ichatter_e2ee_keys');
-var keysToRemove = [];
-for (var i = 0; i < localStorage.length; i++) {
-    var k = localStorage.key(i);
-    if (k && k.indexOf('ichatter_msg_') === 0) keysToRemove.push(k);
-}
-for (var j = 0; j < keysToRemove.length; j++) {
-    localStorage.removeItem(keysToRemove[j]);
-}
-
-var API = 'https://ichatterios6.iosvidocum.workers.dev';
-var STATIC_URL = 'https://ichatterios6.iosvidocum.workers.dev';
+var API = 'https://stops-waiting-papers-pens.trycloudflare.com';
+var STATIC_URL = 'https://stops-waiting-papers-pens.trycloudflare.com';
 
 // ==============================================
 // БЕЗОПАСНЫЙ BASE64 (работает с любыми байтами)
@@ -145,7 +133,7 @@ function loadLocalEncrypted(chat) {
 }
 
 // ==============================================
-// ОСНОВНОЙ КОД
+// ОСНОВНОЙ КОД (без удаления сообщений)
 // ==============================================
 function getParam(name) {
     var query = window.location.search.substring(1);

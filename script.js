@@ -1,4 +1,170 @@
-// Очищаем старые зашифрованные данные, чтобы JSON.parse не падал
+// ==============================================
+// ВСТРОЕННАЯ БИБЛИОТЕКА AES (CBC, 256 бит, PKCS7)
+// ==============================================
+var Aes = {
+    cipher: function (input, w) {
+        var Nb = 4;
+        var Nr = w.length / Nb - 1;
+        var state = [[], [], [], []];
+        for (var i = 0; i < 4 * Nb; i++) state[i % 4][Math.floor(i / 4)] = input[i];
+        state = Aes.addRoundKey(state, w, 0, Nb);
+        for (var round = 1; round < Nr; round++) {
+            state = Aes.subBytes(state, Nb);
+            state = Aes.shiftRows(state, Nb);
+            state = Aes.mixColumns(state, Nb);
+            state = Aes.addRoundKey(state, w, round, Nb);
+        }
+        state = Aes.subBytes(state, Nb);
+        state = Aes.shiftRows(state, Nb);
+        state = Aes.addRoundKey(state, w, Nr, Nb);
+        var output = new Array(4 * Nb);
+        for (var i = 0; i < 4 * Nb; i++) output[i] = state[i % 4][Math.floor(i / 4)];
+        return output;
+    },
+    keyExpansion: function (key) {
+        var Nb = 4;
+        var Nk = key.length / 4;
+        var Nr = Nk + 6;
+        var w = new Array(Nb * (Nr + 1));
+        var temp = new Array(4);
+        for (var i = 0; i < Nk; i++) {
+            var r = [key[4 * i], key[4 * i + 1], key[4 * i + 2], key[4 * i + 3]];
+            w[i] = r;
+        }
+        for (var i = Nk; i < (Nb * (Nr + 1)); i++) {
+            w[i] = new Array(4);
+            for (var t = 0; t < 4; t++) temp[t] = w[i - 1][t];
+            if (i % Nk == 0) {
+                temp = Aes.subWord(Aes.rotWord(temp));
+                for (var t = 0; t < 4; t++) temp[t] ^= Aes.rCon[i / Nk][t];
+            } else if (Nk > 6 && i % Nk == 4) {
+                temp = Aes.subWord(temp);
+            }
+            for (var t = 0; t < 4; t++) w[i][t] = w[i - Nk][t] ^ temp[t];
+        }
+        return w;
+    },
+    subBytes: function (s, Nb) {
+        for (var r = 0; r < 4; r++)
+            for (var c = 0; c < Nb; c++) s[r][c] = Aes.sBox[s[r][c]];
+        return s;
+    },
+    shiftRows: function (s, Nb) {
+        var t = new Array(4);
+        for (var r = 1; r < 4; r++) {
+            for (var c = 0; c < 4; c++) t[c] = s[r][(c + r) % Nb];
+            for (var c = 0; c < 4; c++) s[r][c] = t[c];
+        }
+        return s;
+    },
+    mixColumns: function (s, Nb) {
+        for (var c = 0; c < 4; c++) {
+            var a = new Array(4);
+            var b = new Array(4);
+            for (var i = 0; i < 4; i++) {
+                a[i] = s[i][c];
+                b[i] = s[i][c] & 0x80 ? s[i][c] << 1 ^ 0x011b : s[i][c] << 1;
+            }
+            s[0][c] = b[0] ^ a[1] ^ b[1] ^ a[2] ^ a[3];
+            s[1][c] = a[0] ^ b[1] ^ a[2] ^ b[2] ^ a[3];
+            s[2][c] = a[0] ^ a[1] ^ b[2] ^ a[3] ^ b[3];
+            s[3][c] = a[0] ^ b[0] ^ a[1] ^ a[2] ^ b[3];
+        }
+        return s;
+    },
+    addRoundKey: function (state, w, rnd, Nb) {
+        for (var r = 0; r < 4; r++)
+            for (var c = 0; c < Nb; c++) state[r][c] ^= w[rnd * 4 + c][r];
+        return state;
+    },
+    subWord: function (w) {
+        for (var i = 0; i < 4; i++) w[i] = Aes.sBox[w[i]];
+        return w;
+    },
+    rotWord: function (w) {
+        var tmp = w[0];
+        for (var i = 0; i < 3; i++) w[i] = w[i + 1];
+        w[3] = tmp;
+        return w;
+    },
+    sBox: [0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
+        0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0,
+        0xb7, 0xfd, 0x93, 0x26, 0x36, 0x3f, 0xf7, 0xcc, 0x34, 0xa5, 0xe5, 0xf1, 0x71, 0xd8, 0x31, 0x15,
+        0x04, 0xc7, 0x23, 0xc3, 0x18, 0x96, 0x05, 0x9a, 0x07, 0x12, 0x80, 0xe2, 0xeb, 0x27, 0xb2, 0x75,
+        0x09, 0x83, 0x2c, 0x1a, 0x1b, 0x6e, 0x5a, 0xa0, 0x52, 0x3b, 0xd6, 0xb3, 0x29, 0xe3, 0x2f, 0x84,
+        0x53, 0xd1, 0x00, 0xed, 0x20, 0xfc, 0xb1, 0x5b, 0x6a, 0xcb, 0xbe, 0x39, 0x4a, 0x4c, 0x58, 0xcf,
+        0xd0, 0xef, 0xaa, 0xfb, 0x43, 0x4d, 0x33, 0x85, 0x45, 0xf9, 0x02, 0x7f, 0x50, 0x3c, 0x9f, 0xa8,
+        0x51, 0xa3, 0x40, 0x8f, 0x92, 0x9d, 0x38, 0xf5, 0xbc, 0xb6, 0xda, 0x21, 0x10, 0xff, 0xf3, 0xd2,
+        0xcd, 0x0c, 0x13, 0xec, 0x5f, 0x97, 0x44, 0x17, 0xc4, 0xa7, 0x7e, 0x3d, 0x64, 0x5d, 0x19, 0x73,
+        0x60, 0x81, 0x4f, 0xdc, 0x22, 0x2a, 0x90, 0x88, 0x46, 0xee, 0xb8, 0x14, 0xde, 0x5e, 0x0b, 0xdb,
+        0xe0, 0x32, 0x3a, 0x0a, 0x49, 0x06, 0x24, 0x5c, 0xc2, 0xd3, 0xac, 0x62, 0x91, 0x95, 0xe4, 0x79,
+        0xe7, 0xc8, 0x37, 0x6d, 0x8d, 0xd5, 0x4e, 0xa9, 0x6c, 0x56, 0xf4, 0xea, 0x65, 0x7a, 0xae, 0x08,
+        0xba, 0x78, 0x25, 0x2e, 0x1c, 0xa6, 0xb4, 0xc6, 0xe8, 0xdd, 0x74, 0x1f, 0x4b, 0xbd, 0x8b, 0x8a,
+        0x70, 0x3e, 0xb5, 0x66, 0x48, 0x03, 0xf6, 0x0e, 0x61, 0x35, 0x57, 0xb9, 0x86, 0xc1, 0x1d, 0x9e,
+        0xe1, 0xf8, 0x98, 0x11, 0x69, 0xd9, 0x8e, 0x94, 0x9b, 0x1e, 0x87, 0xe9, 0xce, 0x55, 0x28, 0xdf,
+        0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16],
+    rCon: [[0x00, 0x00, 0x00, 0x00], [0x01, 0x00, 0x00, 0x00], [0x02, 0x00, 0x00, 0x00],
+        [0x04, 0x00, 0x00, 0x00], [0x08, 0x00, 0x00, 0x00], [0x10, 0x00, 0x00, 0x00],
+        [0x20, 0x00, 0x00, 0x00], [0x40, 0x00, 0x00, 0x00], [0x80, 0x00, 0x00, 0x00],
+        [0x1b, 0x00, 0x00, 0x00], [0x36, 0x00, 0x00, 0x00]]
+};
+
+function pkcs7Pad(data, blockSize) {
+    var pad = blockSize - data.length % blockSize;
+    var arr = [];
+    for (var i = 0; i < data.length; i++) arr.push(data[i]);
+    for (var i = 0; i < pad; i++) arr.push(pad);
+    return arr;
+}
+function pkcs7Unpad(data) {
+    var pad = data[data.length - 1];
+    return data.slice(0, data.length - pad);
+}
+
+function aesEncrypt(plainBytes, keyBytes, ivBytes) {
+    var w = Aes.keyExpansion(keyBytes);
+    var plainBlocks = [];
+    var padded = pkcs7Pad(plainBytes, 16);
+    for (var i = 0; i < padded.length; i += 16) {
+        var block = [];
+        for (var j = 0; j < 16; j++) block.push(padded[i + j]);
+        if (i === 0) {
+            for (var j = 0; j < 16; j++) block[j] ^= ivBytes[j];
+        } else {
+            for (var j = 0; j < 16; j++) block[j] ^= plainBlocks[i / 16 - 1][j];
+        }
+        var encBlock = Aes.cipher(block, w);
+        plainBlocks.push(encBlock);
+    }
+    var cipher = [];
+    for (var i = 0; i < plainBlocks.length; i++) {
+        for (var j = 0; j < 16; j++) cipher.push(plainBlocks[i][j]);
+    }
+    return cipher;
+}
+
+function aesDecrypt(cipherBytes, keyBytes, ivBytes) {
+    var w = Aes.keyExpansion(keyBytes);
+    var cipherBlocks = [];
+    for (var i = 0; i < cipherBytes.length; i += 16) {
+        var block = [];
+        for (var j = 0; j < 16; j++) block.push(cipherBytes[i + j]);
+        cipherBlocks.push(block);
+    }
+    var decrypted = [];
+    for (var i = 0; i < cipherBlocks.length; i++) {
+        var decBlock = Aes.cipher(cipherBlocks[i], w);
+        if (i === 0) {
+            for (var j = 0; j < 16; j++) decBlock[j] ^= ivBytes[j];
+        } else {
+            for (var j = 0; j < 16; j++) decBlock[j] ^= cipherBlocks[i - 1][j];
+        }
+        decrypted = decrypted.concat(decBlock);
+    }
+    return pkcs7Unpad(decrypted);
+}
+
+// Очищаем старые зашифрованные данные
 localStorage.removeItem('ichatter_aes_key');
 localStorage.removeItem('ichatter_e2ee_keys');
 var keysToRemove = [];
@@ -10,49 +176,99 @@ for (var j = 0; j < keysToRemove.length; j++) {
     localStorage.removeItem(keysToRemove[j]);
 }
 
-// ==============================================
-// ВСТРОЕННАЯ БИБЛИОТЕКА CRYPTOJS (AES-256-CBC)
-// ==============================================
-var CryptoJS = CryptoJS || (function (h, s) { var f = {}, t = f.lib = {}, g = function () { }, j = t.Base = { extend: function (a) { g.prototype = this; var c = new g; a && c.mixIn(a); c.hasOwnProperty("init") || (c.init = function () { c.$super.init.apply(this, arguments) }); c.init.prototype = c; c.$super = this; return c }, create: function () { var a = this.extend(); a.init.apply(a, arguments); return a }, init: function () { }, mixIn: function (a) { for (var c in a) a.hasOwnProperty(c) && (this[c] = a[c]); a.hasOwnProperty("toString") && (this.toString = a.toString) }, clone: function () { return this.init.prototype.extend(this) } }, q = t.WordArray = j.extend({ init: function (a, c) { a = this.words = a || []; this.sigBytes = c != s ? c : 4 * a.length }, toString: function (a) { return (a || p).stringify(this) }, concat: function (a) { var c = this.words, d = a.words, b = this.sigBytes; a = a.sigBytes; this.clamp(); if (b % 4) for (var e = 0; e < a; e++) c[b + e >>> 2] |= (d[e >>> 2] >>> 24 - 8 * (e % 4) & 255) << 24 - 8 * ((b + e) % 4); else if (65535 < d.length) for (e = 0; e < a; e += 4) c[b + e >>> 2] = d[e >>> 2]; else c.push.apply(c, d); this.sigBytes += a; return this }, clamp: function () { var a = this.words, c = this.sigBytes; a[c >>> 2] &= 4294967295 << 32 - 8 * (c % 4); a.length = h.ceil(c / 4) }, clone: function () { var a = j.clone.call(this); a.words = this.words.slice(0); return a }, random: function (a) { for (var c = [], d = 0; d < a; d += 4) c.push(4294967296 * h.random() | 0); return new q.init(c, a) } }), v = f.enc = {}, p = v.Hex = { stringify: function (a) { var c = a.words; a = a.sigBytes; for (var d = [], b = 0; b < a; b++) { var e = c[b >>> 2] >>> 24 - 8 * (b % 4) & 255; d.push((e >>> 4).toString(16)); d.push((e & 15).toString(16)) } return d.join("") }, parse: function (a) { for (var c = a.length, d = [], b = 0; b < c; b += 2) d[b >>> 3] |= parseInt(a.substr(b, 2), 16) << 24 - 4 * (b % 8); return new q.init(d, c / 2) } }, b = v.Latin1 = { stringify: function (a) { var c = a.words; a = a.sigBytes; for (var d = [], b = 0; b < a; b++) d.push(String.fromCharCode(c[b >>> 2] >>> 24 - 8 * (b % 4) & 255)); return d.join("") }, parse: function (a) { for (var c = a.length, d = [], b = 0; b < c; b++) d[b >>> 2] |= (a.charCodeAt(b) & 255) << 24 - 8 * (b % 4); return new q.init(d, c) } }, l = v.Utf8 = { stringify: function (a) { try { return decodeURIComponent(escape(b.stringify(a))) } catch (c) { throw Error("Malformed UTF-8 data") } }, parse: function (a) { return b.parse(unescape(encodeURIComponent(a))) } }, x = t.BufferedBlockAlgorithm = j.extend({ reset: function () { this._data = new q.init; this._nDataBytes = 0 }, _append: function (a) { "string" == typeof a && (a = l.parse(a)); this._data.concat(a); this._nDataBytes += a.sigBytes }, _process: function (a) { var c = this._data, d = c.words, b = c.sigBytes, e = this.blockSize, f = b / (4 * e), f = a ? h.ceil(f) : h.max((f | 0) - this._minBufferSize, 0); a = f * e; b = h.min(4 * a, b); if (a) { for (var g = 0; g < a; g += e) this._doProcessBlock(d, g); g = d.splice(0, a); c.sigBytes -= b } return new q.init(g, b) }, clone: function () { var a = j.clone.call(this); a._data = this._data.clone(); return a }, _minBufferSize: 0 }); t.Hasher = x.extend({ cfg: j.extend(), init: function (a) { this.cfg = this.cfg.extend(a); this.reset() }, reset: function () { x.reset.call(this); this._doReset() }, update: function (a) { this._append(a); this._process(); return this }, finalize: function (a) { a && this._append(a); return this._doFinalize() }, blockSize: 16, _createHelper: function (a) { return function (c, d) { return (new a.init(d)).finalize(c) } }, _createHmacHelper: function (a) { return function (c, d) { return (new k.HMAC.init(a, d)).finalize(c) } } }); var k = f.algo = {}; return f })(Math);
-(function () { var h = CryptoJS, s = h.lib.WordArray; h.enc.Base64 = { stringify: function (f) { var t = f.words, g = f.sigBytes, j = this._map; f.clamp(); f = []; for (var q = 0; q < g; q += 3) for (var v = (t[q >>> 2] >>> 24 - 8 * (q % 4) & 255) << 16 | (t[q + 1 >>> 2] >>> 24 - 8 * ((q + 1) % 4) & 255) << 8 | t[q + 2 >>> 2] >>> 24 - 8 * ((q + 2) % 4) & 255, p = 0; 4 > p && q + 0.75 * p < g; p++) f.push(j.charAt(v >>> 6 * (3 - p) & 63)); if (t = j.charAt(64)) for (; f.length % 4;) f.push(t); return f.join("") }, parse: function (f) { var t = f.length, g = this._map, j = g.charAt(64); j && (j = f.indexOf(j), -1 != j && (t = j)); for (var j = [], q = 0, v = 0; v < t; v++) if (v % 4) { var p = g.indexOf(f.charAt(v - 1)) << 2 * (v % 4), b = g.indexOf(f.charAt(v)) >>> 6 - 2 * (v % 4); j[q >>> 2] |= (p | b) << 24 - 8 * (q % 4); q++ } return s.create(j, q) }, _map: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=" } })();
-(function () { var h = CryptoJS, s = h.lib, f = s.WordArray, t = s.Hasher, g = h.algo, j = []; (function () { for (var s = 0; 256 > s; s++) { var f = s, t = s; t = (t << 1 | t >>> 31) & 255; t = (t << 1 | t >>> 31) & 255; t = (t << 1 | t >>> 31) & 255; t = (t << 1 | t >>> 31) & 255; for (var g = 0; 8 > g; g++) { var v = (t >>> 24 & 255) << 24 | (t >>> 16 & 255) << 16 | (t >>> 8 & 255) << 8 | t & 255; v = (v << 1 | v >>> 31) & 4294967295; t ^= v } j[s] = t } })(); var q = [], v = []; for (var p = 0; 256 > p; p++) { var b = j[p]; v[p] = (b >>> 24 & 255) << 24 | (b >>> 16 & 255) << 16 | (b >>> 8 & 255) << 8 | b & 255; q[p] = (b >>> 24 & 255) << 24 | (b >>> 16 & 255) << 16 | (b >>> 8 & 255) << 8 | b & 255 } var l = [0, 1, 2, 4, 8, 16, 32, 64, 128, 27, 54], x = g.AES = t.extend({ _doReset: function () { for (var a = this._key, c = a.words, d = a.sigBytes / 4, a = 4 * ((this._nRounds = d + 6) + 1), b = this._keySchedule = [], e = 0; e < a; e++) if (e < d) b[e] = c[e]; else { var f = b[e - 1]; e % d ? 6 < d && 4 == e % d && (f = v[f >>> 24] << 24 | v[f >>> 16 & 255] << 16 | v[f >>> 8 & 255] << 8 | v[f & 255]) : (f = v[(f = f << 8 | f >>> 24) >>> 24] << 24 | v[f >>> 16 & 255] << 16 | v[f >>> 8 & 255] << 8 | v[f & 255], f ^= l[e / d | 0] << 24); b[e] = b[e - d] ^ f } c = this._invKeySchedule = []; for (d = 0; d < a; d++) e = a - d, f = d % 4 ? b[e] : b[e - 4], c[d] = 4 > d || 4 >= e ? f : q[v[f >>> 24]] ^ v[v[f >>> 16 & 255]] ^ v[v[f >>> 8 & 255]] ^ v[v[f & 255]] }, encryptBlock: function (a, c) { this._doCryptBlock(a, c, this._keySchedule, v, q) }, decryptBlock: function (a, c) { var d = a[c + 1]; a[c + 1] = a[c + 3]; a[c + 3] = d; this._doCryptBlock(a, c, this._invKeySchedule, q, v); d = a[c + 1]; a[c + 1] = a[c + 3]; a[c + 3] = d }, _doCryptBlock: function (a, c, d, b, e) { for (var f = this._nRounds, g = a[c] ^ d[0], h = a[c + 1] ^ d[1], j = a[c + 2] ^ d[2], k = a[c + 3] ^ d[3], l = 4, m = 1; m < f; m++) { var n = b[g >>> 24] ^ b[h >>> 16 & 255] ^ b[j >>> 8 & 255] ^ b[k & 255] ^ d[l++]; var o = b[h >>> 24] ^ b[j >>> 16 & 255] ^ b[k >>> 8 & 255] ^ b[g & 255] ^ d[l++]; var p = b[j >>> 24] ^ b[k >>> 16 & 255] ^ b[g >>> 8 & 255] ^ b[h & 255] ^ d[l++]; k = b[k >>> 24] ^ b[g >>> 16 & 255] ^ b[h >>> 8 & 255] ^ b[j & 255] ^ d[l++]; g = n; h = o; j = p } n = (e[g >>> 24] << 24 | e[h >>> 16 & 255] << 16 | e[j >>> 8 & 255] << 8 | e[k & 255]) ^ d[l++]; o = (e[h >>> 24] << 24 | e[j >>> 16 & 255] << 16 | e[k >>> 8 & 255] << 8 | e[g & 255]) ^ d[l++]; p = (e[j >>> 24] << 24 | e[k >>> 16 & 255] << 16 | e[g >>> 8 & 255] << 8 | e[h & 255]) ^ d[l++]; k = (e[k >>> 24] << 24 | e[g >>> 16 & 255] << 16 | e[h >>> 8 & 255] << 8 | e[j & 255]) ^ d[l++]; a[c] = n; a[c + 1] = o; a[c + 2] = p; a[c + 3] = k }, keySize: 8 }); h.AES = t._createHelper(x) })();
-(function () { var h = CryptoJS, s = h.lib, f = s.WordArray, t = s.Hasher, g = h.algo, j = f.create([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63]), q = f.create([63, 62, 61, 60, 59, 58, 57, 56, 55, 54, 53, 52, 51, 50, 49, 48, 47, 46, 45, 44, 43, 42, 41, 40, 39, 38, 37, 36, 35, 34, 33, 32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0]); var v = g.SHA256 = t.extend({ _doReset: function () { this._hash = new f.init([1779033703, 3144134277, 1013904242, 2773480762, 1359893119, 2600822924, 528734635, 1541459225]) }, _doProcessBlock: function (a, c) { for (var d = this._hash.words, b = d[0], e = d[1], f = d[2], g = d[3], h = d[4], j = d[5], k = d[6], l = d[7], m = 0; 64 > m; m++) { if (16 > m) v[m] = a[c + m] | 0; else { var n = v[m - 15], o = v[m - 2]; v[m] = ((n << 25 | n >>> 7) ^ (n << 14 | n >>> 18) ^ n >>> 3) + v[m - 7] + ((o << 15 | o >>> 17) ^ (o << 13 | o >>> 19) ^ o >>> 10) + v[m - 16] } n = l + ((h << 26 | h >>> 6) ^ (h << 21 | h >>> 11) ^ (h << 7 | h >>> 25)) + (h & j ^ ~h & k) + j[m] + v[m]; o = ((b << 30 | b >>> 2) ^ (b << 19 | b >>> 13) ^ (b << 10 | b >>> 22)) + (b & e ^ b & f ^ e & f); l = k; k = j; j = h; h = g + n | 0; g = f; f = e; e = b; b = n + o | 0 } d[0] = d[0] + b | 0; d[1] = d[1] + e | 0; d[2] = d[2] + f | 0; d[3] = d[3] + g | 0; d[4] = d[4] + h | 0; d[5] = d[5] + j | 0; d[6] = d[6] + k | 0; d[7] = d[7] + l | 0 }, _doFinalize: function () { var a = this._data, c = a.words, d = 8 * this._nDataBytes, b = 8 * a.sigBytes; c[b >>> 5] |= 128 << 24 - b % 32; c[(b + 64 >>> 9 << 4) + 14] = h.floor(d / 4294967296); c[(b + 64 >>> 9 << 4) + 15] = d; a.sigBytes = 4 * c.length; this._process(); return this._hash }, clone: function () { var a = t.clone.call(this); a._hash = this._hash.clone(); return a } }); h.SHA256 = t._createHelper(v); h.HmacSHA256 = t._createHmacHelper(v) })();
-(function () { var h = CryptoJS, s = h.lib, f = s.Base, t = s.WordArray, g = h.algo, j = g.HMAC, q = g.PBKDF2 = f.extend({ cfg: f.extend({ keySize: 4, hasher: g.SHA256, iterations: 1 }), init: function (a) { this.cfg = this.cfg.extend(a) }, compute: function (a, c) { for (var d = this.cfg, b = j.create(d.hasher, a), e = t.create(), f = t.create([0]), g = q; e.sigBytes < 4 * d.keySize;) { var h = b.update(c).finalize(f); b.reset(); for (var k = h, l = 1; l < d.iterations; l++) { k = b.update(k).finalize(f); for (var m = 0; m < h.sigBytes; m++) h.words[m] ^= k.words[m] } e.concat(h); f.words[0]++ } e.sigBytes = 4 * d.keySize; return e } }); h.PBKDF2 = function (a, c, d) { return q.create(d).compute(a, c) } })();
-(function () { var h = CryptoJS, s = h.lib, f = s.WordArray, t = h.enc, g = t.Utf8, j = t.Base64, q = h.algo, v = q.PBKDF2, p = q.AES, b = h.mode, l = b.CBC, x = h.pad, k = x.Pkcs7; h.AES.encrypt = function (a, c, d) { var b = (d && d.iv) ? f.create(d.iv) : f.random(16); c = v.create({ keySize: 256 / 32, iterations: (d && d.iterations) || 1 }).compute(c, b); var e = g.parse(a); a = l.encrypt(e, c, { iv: b }); return b.concat(a).toString(j) }; h.AES.decrypt = function (a, c, d) { var b = j.parse(a); a = b.clone(); b.sigBytes = 16; b.clamp(); var e = b; a.words.splice(0, 4); a.sigBytes -= 16; c = v.create({ keySize: 256 / 32, iterations: (d && d.iterations) || 1 }).compute(c, e); return l.decrypt(a, c, { iv: e }).toString(g) } })();
-
 var API = 'https://ichatterios6.iosvidocum.workers.dev';
 var STATIC_URL = 'https://ichatterios6.iosvidocum.workers.dev';
 
 // ==============================================
-// ЛОКАЛЬНОЕ ШИФРОВАНИЕ (CryptoJS, AES-256-CBC)
+// ЛОКАЛЬНОЕ ХРАНЕНИЕ С AES-256-CBC
 // ==============================================
-var LOCAL_KEY_STORAGE = 'ichatter_cryptojs_key';
-var MSG_PREFIX = 'ichatter_msg_';
+var AES_KEY_STORAGE = 'ichatter_aes_key';
 
-function getLocalKey() {
-    var key = localStorage.getItem(LOCAL_KEY_STORAGE);
-    if (!key) {
-        key = CryptoJS.lib.WordArray.random(32).toString();
-        localStorage.setItem(LOCAL_KEY_STORAGE, key);
+function getAesKey() {
+    var keyHex = localStorage.getItem(AES_KEY_STORAGE);
+    if (!keyHex) {
+        var bytes = [];
+        for (var i = 0; i < 32; i++) bytes.push(Math.floor(Math.random() * 256));
+        keyHex = '';
+        for (var i = 0; i < bytes.length; i++) keyHex += ('00' + bytes[i].toString(16)).slice(-2);
+        localStorage.setItem(AES_KEY_STORAGE, keyHex);
     }
-    return key;
+    var keyBytes = [];
+    for (var i = 0; i < keyHex.length; i += 2) keyBytes.push(parseInt(keyHex.substr(i, 2), 16));
+    return keyBytes;
 }
 
-function saveLocalEncrypted(chat, msgs) {
-    var key = getLocalKey();
-    var encrypted = CryptoJS.AES.encrypt(JSON.stringify(msgs), key).toString();
-    localStorage.setItem(MSG_PREFIX + chat, encrypted);
+function generateIV() {
+    var iv = [];
+    for (var i = 0; i < 16; i++) iv.push(Math.floor(Math.random() * 256));
+    return iv;
+}
+
+function bytesToString(byteArray) {
+    var str = '';
+    for (var i = 0; i < byteArray.length; i++) {
+        str += String.fromCharCode(byteArray[i] & 0xFF);
+    }
+    return str;
+}
+
+function stringToBytes(str) {
+    var bytes = [];
+    for (var i = 0; i < str.length; i++) {
+        bytes.push(str.charCodeAt(i) & 0xFF);
+    }
+    return bytes;
+}
+
+function encryptData(plainText, key) {
+    var plainBytes = stringToBytes(plainText);
+    var iv = generateIV();
+    var cipher = aesEncrypt(plainBytes, key, iv);
+    var result = iv.concat(cipher);
+    var base64 = btoa(bytesToString(result));
+    return base64;
+}
+
+function decryptData(base64, key) {
+    try {
+        var raw = atob(base64);
+    } catch (e) { return ''; }
+    var bytes = stringToBytes(raw);
+    if (bytes.length < 16) return '';
+    var iv = bytes.slice(0, 16);
+    var cipher = bytes.slice(16);
+    var decrypted = aesDecrypt(cipher, key, iv);
+    var text = '';
+    for (var i = 0; i < decrypted.length; i++) text += String.fromCharCode(decrypted[i] & 0xFF);
+    return text;
 }
 
 function loadLocalEncrypted(chat) {
-    var encrypted = localStorage.getItem(MSG_PREFIX + chat);
+    var encrypted = localStorage.getItem('ichatter_msg_' + chat);
     if (!encrypted) return [];
     try {
-        var key = getLocalKey();
-        var decrypted = CryptoJS.AES.decrypt(encrypted, key).toString(CryptoJS.enc.Utf8);
-        if (!decrypted) return [];
-        return JSON.parse(decrypted) || [];
+        var json = decryptData(encrypted, getAesKey());
+        if (!json) return [];
+        return JSON.parse(json) || [];
     } catch (e) { return []; }
+}
+
+function saveLocalEncrypted(chat, msgs) {
+    var json = JSON.stringify(msgs);
+    var encrypted = encryptData(json, getAesKey());
+    try {
+        localStorage.setItem('ichatter_msg_' + chat, encrypted);
+    } catch (e) {
+        var keys = [];
+        for (var i = 0; i < localStorage.length; i++) {
+            var k = localStorage.key(i);
+            if (k && k.indexOf('ichatter_msg_') === 0) keys.push(k);
+        }
+        if (keys.length > 10) {
+            localStorage.removeItem(keys[0]);
+            saveLocalEncrypted(chat, msgs);
+        }
+    }
 }
 
 // ==============================================

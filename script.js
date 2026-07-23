@@ -274,6 +274,9 @@ function saveLocalEncrypted(chat, msgs) {
 // ==============================================
 // ОСНОВНОЙ КОД
 // ==============================================
+var API = 'https://ichatterios6.iosvidocum.workers.dev';
+var STATIC_URL = 'https://ichatterios6.iosvidocum.workers.dev';
+
 function getParam(name) {
     var query = window.location.search.substring(1);
     var vars = query.split('&');
@@ -344,27 +347,23 @@ function t(k) { return T[lang][k] || k; }
 function formatTime(ts) { var d = new Date(ts); var h = d.getHours(); var m = d.getMinutes(); if (m < 10) m = '0' + m; return h + ':' + m; }
 function esc(s) { if (!s) return ''; var div = document.createElement('div'); div.appendChild(document.createTextNode(s)); return div.innerHTML; }
 
-function generateEmptyAvatar() {
+var emptyAvatarPNG = (function() {
     var size = 44;
     var canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;
-    canvas.style.display = 'none';
-    document.body.appendChild(canvas);
     var ctx = canvas.getContext('2d');
     ctx.fillStyle = '#95a5a6';
     ctx.beginPath();
-    ctx.arc(size / 2, size / 2, size / 2 - 2, 0, Math.PI * 2);
+    ctx.arc(size/2, size/2, size/2-2, 0, Math.PI*2);
     ctx.fill();
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 20px Helvetica, Arial, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('U', size / 2, size / 2 + 1);
-    var dataUrl = canvas.toDataURL('image/png');
-    document.body.removeChild(canvas);
-    return dataUrl;
-}
+    ctx.fillText('U', size/2, size/2+1);
+    return canvas.toDataURL('image/png');
+})();
 
 function addMsg(msg) {
     if (loadedMessageIds[msg.id]) return;
@@ -420,7 +419,7 @@ function showPartnerProfile() {
         byId('partner-status').textContent = '';
         byId('partner-age').textContent = '';
         byId('partner-about').textContent = '';
-        byId('partner-avatar').src = generateEmptyAvatar();
+        byId('partner-avatar').src = emptyAvatarPNG;
         byId('partner-profile-overlay').style.display = 'flex';
         return;
     }
@@ -430,7 +429,7 @@ function showPartnerProfile() {
     byId('partner-status').textContent = partner.isOnline ? t('online') : t('offline');
     byId('partner-age').textContent = partner.age ? (t('age') + ': ' + partner.age) : '';
     byId('partner-about').textContent = partner.about || '';
-    var avUrl = generateEmptyAvatar();
+    var avUrl = emptyAvatarPNG;
     if (partner.avatar && partner.avatar.indexOf('/uploads/avatars/') === 0) {
         avUrl = API + partner.avatar;
     }
@@ -488,26 +487,7 @@ function openChat(em) {
     byId('chat-title').onclick = showPartnerProfile;
     loadedMessageIds = {};
     byId('messages').innerHTML = '';
-
-    if (!hasContact(em)) {
-        addContactToServer(em);
-        contacts.push({
-            email: em,
-            username: em.split('@')[0],
-            displayName: em.split('@')[0],
-            searchId: '',
-            avatar: 'av1.png',
-            age: 0,
-            about: '',
-            isOnline: false
-        });
-        renderContacts();
-    }
-
-    var msgs = loadLocalEncrypted(em);
-    for (var j = 0; j < msgs.length; j++) {
-        addMsg(msgs[j]);
-    }
+    loadMessages(em);
 }
 
 function goBack() { showTab('chats'); byId('chat-title').onclick = null; }
@@ -522,24 +502,25 @@ function updateNavTexts() {
     byId('btn-back').textContent = t('back');
 }
 
-function addContactToServer(email) {
+function loadMessages(to) {
     var xhr = new XMLHttpRequest();
-    xhr.open('POST', API + '/api/add-contact', true);
-    xhr.setRequestHeader('Content-Type', 'application/json');
-    xhr.send(JSON.stringify({ token: token, email: email }));
-}
-
-function hasContact(email) {
-    for (var i = 0; i < contacts.length; i++) {
-        if (contacts[i].email === email) return true;
-    }
-    return false;
+    xhr.open('GET', API + '/api/messages?token=' + token + '&chatWith=' + to, true);
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+            var data = JSON.parse(xhr.responseText);
+            var msgs = data.messages || [];
+            for (var i = 0; i < msgs.length; i++) {
+                if (!byId('msg-' + msgs[i].id)) addMsg(msgs[i]);
+            }
+        }
+    };
+    xhr.send();
 }
 
 function loadContacts() {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', API + '/api/contacts?token=' + token, true);
-    xhr.onreadystatechange = function () {
+    xhr.onreadystatechange = function() {
         if (xhr.readyState === 4 && xhr.status === 200) {
             contacts = JSON.parse(xhr.responseText).contacts || [];
             renderContacts();
@@ -561,7 +542,7 @@ function renderContacts() {
         div.className = 'chat-item';
         var statusClass = c.isOnline ? 'online' : '';
         div.innerHTML = '<div class="name">' + esc(c.displayName || c.username) + '</div><div class="status ' + statusClass + '">' + (c.isOnline ? t('online') : t('offline')) + '</div><button class="archive-btn" onclick="event.stopPropagation();archiveChat(\'' + c.email + '\')">📦</button>';
-        div.onclick = (function (email) { return function () { openChat(email); }; })(c.email);
+        div.onclick = (function(email) { return function() { openChat(email); }; })(c.email);
         list.appendChild(div);
     }
 }
@@ -569,7 +550,7 @@ function renderContacts() {
 function loadArchive() {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', API + '/api/archived-chats?token=' + token, true);
-    xhr.onreadystatechange = function () {
+    xhr.onreadystatechange = function() {
         if (xhr.readyState === 4 && xhr.status === 200) {
             var data = JSON.parse(xhr.responseText).contacts || [];
             var list = byId('archive-list');
@@ -583,7 +564,7 @@ function loadArchive() {
                 var div = document.createElement('div');
                 div.className = 'chat-item';
                 div.innerHTML = '<div class="name">' + esc(c.displayName || c.username) + '</div><button class="archive-btn unarchive-btn" onclick="event.stopPropagation();unarchiveChat(\'' + c.email + '\')">↩</button>';
-                div.onclick = (function (email, name) { return function () { pendingName = name; openChat(email); }; })(c.email, c.displayName || c.username);
+                div.onclick = (function(email, name) { return function() { pendingName = name; openChat(email); }; })(c.email, c.displayName || c.username);
                 list.appendChild(div);
             }
         }
@@ -595,7 +576,7 @@ function archiveChat(em) {
     var xhr = new XMLHttpRequest();
     xhr.open('POST', API + '/api/archive-chat', true);
     xhr.setRequestHeader('Content-Type', 'application/json');
-    xhr.onreadystatechange = function () { if (xhr.readyState === 4 && xhr.status === 200) loadContacts(); };
+    xhr.onreadystatechange = function() { if (xhr.readyState === 4 && xhr.status === 200) loadContacts(); };
     xhr.send(JSON.stringify({ token: token, email: em }));
 }
 
@@ -603,7 +584,7 @@ function unarchiveChat(em) {
     var xhr = new XMLHttpRequest();
     xhr.open('POST', API + '/api/unarchive-chat', true);
     xhr.setRequestHeader('Content-Type', 'application/json');
-    xhr.onreadystatechange = function () { if (xhr.readyState === 4 && xhr.status === 200) { loadArchive(); loadContacts(); } };
+    xhr.onreadystatechange = function() { if (xhr.readyState === 4 && xhr.status === 200) { loadArchive(); loadContacts(); } };
     xhr.send(JSON.stringify({ token: token, email: em }));
 }
 
@@ -613,7 +594,7 @@ function findUser() {
     if (!/^\d{6}$/.test(id)) { alert(t('invalidId')); return; }
     var xhr = new XMLHttpRequest();
     xhr.open('GET', API + '/api/find-user?token=' + token + '&id=' + encodeURIComponent(id), true);
-    xhr.onreadystatechange = function () {
+    xhr.onreadystatechange = function() {
         if (xhr.readyState === 4 && xhr.status === 200) {
             var d = JSON.parse(xhr.responseText);
             if (d.found) {
@@ -629,7 +610,7 @@ function findUser() {
 function loadSettings() {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', API + '/api/my-profile?token=' + token, true);
-    xhr.onreadystatechange = function () {
+    xhr.onreadystatechange = function() {
         if (xhr.readyState === 4 && xhr.status === 200) {
             profile = JSON.parse(xhr.responseText).user;
             byId('set-username').value = profile.username || '';
@@ -661,7 +642,7 @@ function loadAvatars() {
         grid.appendChild(custImg);
     } else {
         var emptyImg = document.createElement('img');
-        emptyImg.src = generateEmptyAvatar();
+        emptyImg.src = emptyAvatarPNG;
         emptyImg.className = 'selected';
         emptyImg.title = t('noAvatar');
         grid.appendChild(emptyImg);
@@ -672,36 +653,20 @@ function loadWallpapers() {
     var grid = byId('wallpaper-grid');
     if (!grid) return;
     grid.innerHTML = '';
-    var walls = ['bg1.jpg', 'bg2.jpg', 'bg3.jpg', 'bg4.jpg', 'bg5.jpg', 'bg6.jpg', 'bg7.jpg', 'bg8.jpg'];
+    var walls = ['bg1.jpg','bg2.jpg','bg3.jpg','bg4.jpg','bg5.jpg','bg6.jpg','bg7.jpg','bg8.jpg'];
     for (var i = 0; i < walls.length; i++) {
         var img = document.createElement('img');
         img.src = STATIC_URL + '/wallpapers/' + walls[i];
-        img.onerror = function () { this.style.display = 'none'; };
+        img.onerror = function() { this.style.display = 'none'; };
         if (profile.wallpaper === walls[i]) img.className = 'selected';
-        img.onclick = (function (w) {
-            return function () {
-                var imgs = grid.getElementsByTagName('img');
-                for (var k = 0; k < imgs.length; k++) imgs[k].className = '';
-                this.className = 'selected';
-                profile.wallpaper = w;
-                byId('messages').style.backgroundImage = 'url(' + STATIC_URL + '/wallpapers/' + w + ')';
-                byId('messages').style.backgroundSize = 'cover';
-            };
-        })(walls[i]);
+        img.onclick = (function(w) { return function() { var imgs = grid.getElementsByTagName('img'); for (var k = 0; k < imgs.length; k++) imgs[k].className = ''; this.className = 'selected'; profile.wallpaper = w; byId('messages').style.backgroundImage = 'url(' + STATIC_URL + '/wallpapers/' + w + ')'; byId('messages').style.backgroundSize = 'cover'; }; })(walls[i]);
         grid.appendChild(img);
     }
     if (profile.wallpaper && profile.wallpaper.indexOf('/uploads/wallpapers/') === 0) {
         var custBg = document.createElement('img');
         custBg.src = API + profile.wallpaper;
         custBg.className = 'selected';
-        custBg.onclick = function () {
-            var imgs = grid.getElementsByTagName('img');
-            for (var j = 0; j < imgs.length; j++) imgs[j].className = '';
-            this.className = 'selected';
-            profile.wallpaper = this.src.replace(API, '');
-            byId('messages').style.backgroundImage = 'url(' + this.src + ')';
-            byId('messages').style.backgroundSize = 'cover';
-        };
+        custBg.onclick = function() { var imgs = grid.getElementsByTagName('img'); for (var j = 0; j < imgs.length; j++) imgs[j].className = ''; this.className = 'selected'; profile.wallpaper = this.src.replace(API, ''); byId('messages').style.backgroundImage = 'url(' + this.src + ')'; byId('messages').style.backgroundSize = 'cover'; };
         grid.appendChild(custBg);
     }
 }
@@ -709,7 +674,7 @@ function loadWallpapers() {
 function loadDevices() {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', API + '/api/my-devices?token=' + token, true);
-    xhr.onreadystatechange = function () {
+    xhr.onreadystatechange = function() {
         if (xhr.readyState === 4 && xhr.status === 200) {
             var devices = JSON.parse(xhr.responseText).devices || [];
             var list = byId('devices-list');
@@ -732,7 +697,7 @@ function logoutDevice(tok) {
     var xhr = new XMLHttpRequest();
     xhr.open('POST', API + '/api/logout-device', true);
     xhr.setRequestHeader('Content-Type', 'application/json');
-    xhr.onreadystatechange = function () { if (xhr.readyState === 4) loadDevices(); };
+    xhr.onreadystatechange = function() { if (xhr.readyState === 4) loadDevices(); };
     xhr.send(JSON.stringify({ token: token, targetToken: tok }));
 }
 
@@ -750,7 +715,7 @@ function saveSettings() {
     var xhr = new XMLHttpRequest();
     xhr.open('POST', API + '/api/update-profile', true);
     xhr.setRequestHeader('Content-Type', 'application/json');
-    xhr.onreadystatechange = function () {
+    xhr.onreadystatechange = function() {
         if (xhr.readyState === 4 && xhr.status === 200) { alert(t('saved')); showTab('settings'); }
     };
     xhr.send(JSON.stringify({ token: token, displayName: profile.displayName, age: profile.age, about: profile.about, avatar: profile.avatar, theme: newTheme, language: newLang, wallpaper: profile.wallpaper }));
@@ -770,7 +735,7 @@ function uploadCustomAvatar(input) {
     formData.append('avatar', file);
     var xhr = new XMLHttpRequest();
     xhr.open('POST', API + '/api/upload-avatar?token=' + token, true);
-    xhr.onreadystatechange = function () {
+    xhr.onreadystatechange = function() {
         if (xhr.readyState === 4 && xhr.status === 200) {
             var resp = JSON.parse(xhr.responseText);
             if (resp.success) { alert('Аватар обновлён!'); profile.avatar = resp.url; loadAvatars(); }
@@ -785,7 +750,7 @@ function sendMessage() {
     var text = input.value.trim();
     if (!text || !chatWith || !socket) return;
     if (editingId) {
-        socket.emit('edit_message', { id: editingId, newText: text, to: chatWith });
+        socket.emit('edit_message', { id: editingId, newText: text });
         editingId = null;
     } else {
         socket.emit('send_message', { to: chatWith, text: text });
@@ -794,61 +759,19 @@ function sendMessage() {
 }
 
 function editMsg(id, text) { editingId = id; byId('input').value = text; byId('input').focus(); }
-function delMsg(id) { if (confirm('Удалить сообщение?')) socket.emit('delete_message', { id: id, to: chatWith }); }
+function delMsg(id) { if (confirm('Удалить сообщение?')) socket.emit('delete_message', { id: id }); }
 
 function connectSocket() {
     socket = io(API, { query: { token: token } });
-
-    socket.on('receive_message', function (msg) {
-        if (chatWith === msg.from) addMsg(msg);
-        var target = msg.from === myEmail ? msg.to : msg.from;
-        var arr = loadLocalEncrypted(target);
-        arr.push(msg);
-        if (arr.length > 500) arr = arr.slice(-500);
-        saveLocalEncrypted(target, arr);
-        if (!hasContact(msg.from)) {
-            addContactToServer(msg.from);
-            loadContacts();
-        }
-        loadContacts();
-    });
-
-    socket.on('message_sent', function (msg) {
-        if (chatWith === msg.to) addMsg(msg);
-        var arr = loadLocalEncrypted(msg.to);
-        arr.push(msg);
-        if (arr.length > 500) arr = arr.slice(-500);
-        saveLocalEncrypted(msg.to, arr);
-        if (!hasContact(msg.to)) {
-            addContactToServer(msg.to);
-            loadContacts();
-        }
-        loadContacts();
-    });
-
-    socket.on('update_message', function (d) {
-        updMsg(d.id, d.text, d.edited);
-        var arr = loadLocalEncrypted(chatWith);
-        for (var i = 0; i < arr.length; i++) {
-            if (arr[i].id === d.id) { arr[i].text = d.text; arr[i].edited = d.edited; break; }
-        }
-        saveLocalEncrypted(chatWith, arr);
-    });
-
-    socket.on('remove_message', function (d) {
-        delMsgUI(d.id);
-        var arr = loadLocalEncrypted(chatWith);
-        for (var i = 0; i < arr.length; i++) {
-            if (arr[i].id === d.id) { arr[i].deleted = true; arr[i].text = ''; break; }
-        }
-        saveLocalEncrypted(chatWith, arr);
-    });
-
-    socket.on('user_typing', function (data) {
+    socket.on('receive_message', function(msg) { if (chatWith === msg.from) addMsg(msg); loadContacts(); });
+    socket.on('message_sent', function(msg) { if (chatWith === msg.to) addMsg(msg); loadContacts(); });
+    socket.on('update_message', function(d) { updMsg(d.id, d.text, d.edited); });
+    socket.on('remove_message', function(d) { delMsgUI(d.id); });
+    socket.on('user_typing', function(data) {
         if (chatWith === data.from && data.isTyping) {
             byId('chat-title').innerHTML = data.username + ' (' + t('typing') + ')';
             clearTimeout(window.typingTimer);
-            window.typingTimer = setTimeout(function () {
+            window.typingTimer = setTimeout(function() {
                 if (chatWith === data.from) {
                     var name = chatWith.split('@')[0];
                     for (var i = 0; i < contacts.length; i++) if (contacts[i].email === chatWith) { name = contacts[i].displayName || contacts[i].username; break; }
@@ -860,16 +783,16 @@ function connectSocket() {
 }
 
 byId('send-btn').onclick = sendMessage;
-byId('input').onkeydown = function (e) { if (e.keyCode === 13) { e.preventDefault(); sendMessage(); } };
-byId('input').oninput = function () { if (chatWith && socket) socket.emit('typing', { to: chatWith, isTyping: true }); };
+byId('input').onkeydown = function(e) { if (e.keyCode === 13) { e.preventDefault(); sendMessage(); } };
+byId('input').oninput = function() { if (chatWith && socket) socket.emit('typing', { to: chatWith, isTyping: true }); };
 
-byId('input').onfocus = function () {
+byId('input').onfocus = function() {
     if (byId('chat-area').style.display === 'block') {
         byId('main-content').style.paddingBottom = '250px';
-        setTimeout(function () { byId('messages').scrollTop = byId('messages').scrollHeight; }, 100);
+        setTimeout(function() { byId('messages').scrollTop = byId('messages').scrollHeight; }, 100);
     }
 };
-byId('input').onblur = function () { byId('main-content').style.paddingBottom = '0px'; };
+byId('input').onblur = function() { byId('main-content').style.paddingBottom = '0px'; };
 
 connectSocket();
 showTab('chats');

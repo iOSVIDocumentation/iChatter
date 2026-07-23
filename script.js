@@ -1,6 +1,126 @@
+// ==============================================
+// ВСТРОЕННАЯ БИБЛИОТЕКА CRYPTOJS (AES-256-CBC)
+// ==============================================
+var CryptoJS = CryptoJS || (function (h, s) { var f = {}, t = f.lib = {}, g = function () { }, j = t.Base = { extend: function (a) { g.prototype = this; var c = new g; a && c.mixIn(a); c.hasOwnProperty("init") || (c.init = function () { c.$super.init.apply(this, arguments) }); c.init.prototype = c; c.$super = this; return c }, create: function () { var a = this.extend(); a.init.apply(a, arguments); return a }, init: function () { }, mixIn: function (a) { for (var c in a) a.hasOwnProperty(c) && (this[c] = a[c]); a.hasOwnProperty("toString") && (this.toString = a.toString) }, clone: function () { return this.init.prototype.extend(this) } }, q = t.WordArray = j.extend({ init: function (a, c) { a = this.words = a || []; this.sigBytes = c != s ? c : 4 * a.length }, toString: function (a) { return (a || p).stringify(this) }, concat: function (a) { var c = this.words, d = a.words, b = this.sigBytes; a = a.sigBytes; this.clamp(); if (b % 4) for (var e = 0; e < a; e++) c[b + e >>> 2] |= (d[e >>> 2] >>> 24 - 8 * (e % 4) & 255) << 24 - 8 * ((b + e) % 4); else if (65535 < d.length) for (e = 0; e < a; e += 4) c[b + e >>> 2] = d[e >>> 2]; else c.push.apply(c, d); this.sigBytes += a; return this }, clamp: function () { var a = this.words, c = this.sigBytes; a[c >>> 2] &= 4294967295 << 32 - 8 * (c % 4); a.length = h.ceil(c / 4) }, clone: function () { var a = j.clone.call(this); a.words = this.words.slice(0); return a }, random: function (a) { for (var c = [], d = 0; d < a; d += 4) c.push(4294967296 * h.random() | 0); return new q.init(c, a) } }), v = f.enc = {}, p = v.Hex = { stringify: function (a) { var c = a.words; a = a.sigBytes; for (var d = [], b = 0; b < a; b++) { var e = c[b >>> 2] >>> 24 - 8 * (b % 4) & 255; d.push((e >>> 4).toString(16)); d.push((e & 15).toString(16)) } return d.join("") }, parse: function (a) { for (var c = a.length, d = [], b = 0; b < c; b += 2) d[b >>> 3] |= parseInt(a.substr(b, 2), 16) << 24 - 4 * (b % 8); return new q.init(d, c / 2) } }, b = v.Latin1 = { stringify: function (a) { var c = a.words; a = a.sigBytes; for (var d = [], b = 0; b < a; b++) d.push(String.fromCharCode(c[b >>> 2] >>> 24 - 8 * (b % 4) & 255)); return d.join("") }, parse: function (a) { for (var c = a.length, d = [], b = 0; b < c; b++) d[b >>> 2] |= (a.charCodeAt(b) & 255) << 24 - 8 * (b % 4); return new q.init(d, c) } }, l = v.Utf8 = { stringify: function (a) { try { return decodeURIComponent(escape(b.stringify(a))) } catch (c) { throw Error("Malformed UTF-8 data") } }, parse: function (a) { return b.parse(unescape(encodeURIComponent(a))) } }, x = t.BufferedBlockAlgorithm = j.extend({ reset: function () { this._data = new q.init; this._nDataBytes = 0 }, _append: function (a) { "string" == typeof a && (a = l.parse(a)); this._data.concat(a); this._nDataBytes += a.sigBytes }, _process: function (a) { var c = this._data, d = c.words, b = c.sigBytes, e = this.blockSize, f = b / (4 * e), f = a ? h.ceil(f) : h.max((f | 0) - this._minBufferSize, 0); a = f * e; b = h.min(4 * a, b); if (a) { for (var g = 0; g < a; g += e) this._doProcessBlock(d, g); g = d.splice(0, a); c.sigBytes -= b } return new q.init(g, b) }, clone: function () { var a = j.clone.call(this); a._data = this._data.clone(); return a }, _minBufferSize: 0 }); t.Hasher = x.extend({ cfg: j.extend(), init: function (a) { this.cfg = this.cfg.extend(a); this.reset() }, reset: function () { x.reset.call(this); this._doReset() }, update: function (a) { this._append(a); this._process(); return this }, finalize: function (a) { a && this._append(a); return this._doFinalize() }, blockSize: 16, _createHelper: function (a) { return function (c, d) { return (new a.init(d)).finalize(c) } }, _createHmacHelper: function (a) { return function (c, d) { return (new k.HMAC.init(a, d)).finalize(c) } } }); var k = f.algo = {}; return f })(Math);
+(function () { var h = CryptoJS, s = h.lib.WordArray; h.enc.Base64 = { stringify: function (f) { var t = f.words, g = f.sigBytes, j = this._map; f.clamp(); f = []; for (var q = 0; q < g; q += 3) for (var v = (t[q >>> 2] >>> 24 - 8 * (q % 4) & 255) << 16 | (t[q + 1 >>> 2] >>> 24 - 8 * ((q + 1) % 4) & 255) << 8 | t[q + 2 >>> 2] >>> 24 - 8 * ((q + 2) % 4) & 255, p = 0; 4 > p && q + 0.75 * p < g; p++) f.push(j.charAt(v >>> 6 * (3 - p) & 63)); if (t = j.charAt(64)) for (; f.length % 4;) f.push(t); return f.join("") }, parse: function (f) { var t = f.length, g = this._map, j = g.charAt(64); j && (j = f.indexOf(j), -1 != j && (t = j)); for (var j = [], q = 0, v = 0; v < t; v++) if (v % 4) { var p = g.indexOf(f.charAt(v - 1)) << 2 * (v % 4), b = g.indexOf(f.charAt(v)) >>> 6 - 2 * (v % 4); j[q >>> 2] |= (p | b) << 24 - 8 * (q % 4); q++ } return s.create(j, q) }, _map: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=" } })();
+(function () { var h = CryptoJS, s = h.lib, f = s.WordArray, t = s.Hasher, g = h.algo, j = []; (function () { for (var s = 0; 256 > s; s++) { var f = s, t = s; t = (t << 1 | t >>> 31) & 255; t = (t << 1 | t >>> 31) & 255; t = (t << 1 | t >>> 31) & 255; t = (t << 1 | t >>> 31) & 255; for (var g = 0; 8 > g; g++) { var v = (t >>> 24 & 255) << 24 | (t >>> 16 & 255) << 16 | (t >>> 8 & 255) << 8 | t & 255; v = (v << 1 | v >>> 31) & 4294967295; t ^= v } j[s] = t } })(); var q = [], v = []; for (var p = 0; 256 > p; p++) { var b = j[p]; v[p] = (b >>> 24 & 255) << 24 | (b >>> 16 & 255) << 16 | (b >>> 8 & 255) << 8 | b & 255; q[p] = (b >>> 24 & 255) << 24 | (b >>> 16 & 255) << 16 | (b >>> 8 & 255) << 8 | b & 255 } var l = [0, 1, 2, 4, 8, 16, 32, 64, 128, 27, 54], x = g.AES = t.extend({ _doReset: function () { for (var a = this._key, c = a.words, d = a.sigBytes / 4, a = 4 * ((this._nRounds = d + 6) + 1), b = this._keySchedule = [], e = 0; e < a; e++) if (e < d) b[e] = c[e]; else { var f = b[e - 1]; e % d ? 6 < d && 4 == e % d && (f = v[f >>> 24] << 24 | v[f >>> 16 & 255] << 16 | v[f >>> 8 & 255] << 8 | v[f & 255]) : (f = v[(f = f << 8 | f >>> 24) >>> 24] << 24 | v[f >>> 16 & 255] << 16 | v[f >>> 8 & 255] << 8 | v[f & 255], f ^= l[e / d | 0] << 24); b[e] = b[e - d] ^ f } c = this._invKeySchedule = []; for (d = 0; d < a; d++) e = a - d, f = d % 4 ? b[e] : b[e - 4], c[d] = 4 > d || 4 >= e ? f : q[v[f >>> 24]] ^ v[v[f >>> 16 & 255]] ^ v[v[f >>> 8 & 255]] ^ v[v[f & 255]] }, encryptBlock: function (a, c) { this._doCryptBlock(a, c, this._keySchedule, v, q) }, decryptBlock: function (a, c) { var d = a[c + 1]; a[c + 1] = a[c + 3]; a[c + 3] = d; this._doCryptBlock(a, c, this._invKeySchedule, q, v); d = a[c + 1]; a[c + 1] = a[c + 3]; a[c + 3] = d }, _doCryptBlock: function (a, c, d, b, e) { for (var f = this._nRounds, g = a[c] ^ d[0], h = a[c + 1] ^ d[1], j = a[c + 2] ^ d[2], k = a[c + 3] ^ d[3], l = 4, m = 1; m < f; m++) { var n = b[g >>> 24] ^ b[h >>> 16 & 255] ^ b[j >>> 8 & 255] ^ b[k & 255] ^ d[l++]; var o = b[h >>> 24] ^ b[j >>> 16 & 255] ^ b[k >>> 8 & 255] ^ b[g & 255] ^ d[l++]; var p = b[j >>> 24] ^ b[k >>> 16 & 255] ^ b[g >>> 8 & 255] ^ b[h & 255] ^ d[l++]; k = b[k >>> 24] ^ b[g >>> 16 & 255] ^ b[h >>> 8 & 255] ^ b[j & 255] ^ d[l++]; g = n; h = o; j = p } n = (e[g >>> 24] << 24 | e[h >>> 16 & 255] << 16 | e[j >>> 8 & 255] << 8 | e[k & 255]) ^ d[l++]; o = (e[h >>> 24] << 24 | e[j >>> 16 & 255] << 16 | e[k >>> 8 & 255] << 8 | e[g & 255]) ^ d[l++]; p = (e[j >>> 24] << 24 | e[k >>> 16 & 255] << 16 | e[g >>> 8 & 255] << 8 | e[h & 255]) ^ d[l++]; k = (e[k >>> 24] << 24 | e[g >>> 16 & 255] << 16 | e[h >>> 8 & 255] << 8 | e[j & 255]) ^ d[l++]; a[c] = n; a[c + 1] = o; a[c + 2] = p; a[c + 3] = k }, keySize: 8 }); h.AES = t._createHelper(x) })();
+(function () { var h = CryptoJS, s = h.lib, f = s.WordArray, t = s.Hasher, g = h.algo, j = f.create([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63]), q = f.create([63, 62, 61, 60, 59, 58, 57, 56, 55, 54, 53, 52, 51, 50, 49, 48, 47, 46, 45, 44, 43, 42, 41, 40, 39, 38, 37, 36, 35, 34, 33, 32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0]); var v = g.SHA256 = t.extend({ _doReset: function () { this._hash = new f.init([1779033703, 3144134277, 1013904242, 2773480762, 1359893119, 2600822924, 528734635, 1541459225]) }, _doProcessBlock: function (a, c) { for (var d = this._hash.words, b = d[0], e = d[1], f = d[2], g = d[3], h = d[4], j = d[5], k = d[6], l = d[7], m = 0; 64 > m; m++) { if (16 > m) v[m] = a[c + m] | 0; else { var n = v[m - 15], o = v[m - 2]; v[m] = ((n << 25 | n >>> 7) ^ (n << 14 | n >>> 18) ^ n >>> 3) + v[m - 7] + ((o << 15 | o >>> 17) ^ (o << 13 | o >>> 19) ^ o >>> 10) + v[m - 16] } n = l + ((h << 26 | h >>> 6) ^ (h << 21 | h >>> 11) ^ (h << 7 | h >>> 25)) + (h & j ^ ~h & k) + j[m] + v[m]; o = ((b << 30 | b >>> 2) ^ (b << 19 | b >>> 13) ^ (b << 10 | b >>> 22)) + (b & e ^ b & f ^ e & f); l = k; k = j; j = h; h = g + n | 0; g = f; f = e; e = b; b = n + o | 0 } d[0] = d[0] + b | 0; d[1] = d[1] + e | 0; d[2] = d[2] + f | 0; d[3] = d[3] + g | 0; d[4] = d[4] + h | 0; d[5] = d[5] + j | 0; d[6] = d[6] + k | 0; d[7] = d[7] + l | 0 }, _doFinalize: function () { var a = this._data, c = a.words, d = 8 * this._nDataBytes, b = 8 * a.sigBytes; c[b >>> 5] |= 128 << 24 - b % 32; c[(b + 64 >>> 9 << 4) + 14] = h.floor(d / 4294967296); c[(b + 64 >>> 9 << 4) + 15] = d; a.sigBytes = 4 * c.length; this._process(); return this._hash }, clone: function () { var a = t.clone.call(this); a._hash = this._hash.clone(); return a } }); h.SHA256 = t._createHelper(v); h.HmacSHA256 = t._createHmacHelper(v) })();
+(function () { var h = CryptoJS, s = h.lib, f = s.Base, t = s.WordArray, g = h.algo, j = g.HMAC, q = g.PBKDF2 = f.extend({ cfg: f.extend({ keySize: 4, hasher: g.SHA256, iterations: 1 }), init: function (a) { this.cfg = this.cfg.extend(a) }, compute: function (a, c) { for (var d = this.cfg, b = j.create(d.hasher, a), e = t.create(), f = t.create([0]), g = q; e.sigBytes < 4 * d.keySize;) { var h = b.update(c).finalize(f); b.reset(); for (var k = h, l = 1; l < d.iterations; l++) { k = b.update(k).finalize(f); for (var m = 0; m < h.sigBytes; m++) h.words[m] ^= k.words[m] } e.concat(h); f.words[0]++ } e.sigBytes = 4 * d.keySize; return e } }); h.PBKDF2 = function (a, c, d) { return q.create(d).compute(a, c) } })();
+(function () { var h = CryptoJS, s = h.lib, f = s.WordArray, t = s.Hasher, g = h.algo, j = [], q = []; (function () { function s(a) { for (var c = h.enc.Utf8.parse(a), d = 0; d < c.sigBytes; d++) j[d >>> 2] |= (c.words[d >>> 2] >>> 24 - 8 * (d % 4) & 255) << 24 - 8 * ((d + 1) % 4); c.sigBytes % 4 && (j[c.sigBytes >>> 2] |= 128 << 24 - 8 * (c.sigBytes % 4)) } s("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"); for (var v = 0; v < 256; v++) q[v] = j[v >>> 2] >>> 24 - 8 * (v % 4) & 255 })(); var p = g.SHA1 = t.extend({ _doReset: function () { this._hash = new f.init([1732584193, 4023233417, 2562383102, 271733878, 3285377520]) }, _doProcessBlock: function (a, c) { for (var d = this._hash.words, b = d[0], e = d[1], f = d[2], g = d[3], h = d[4], j = 0; 80 > j; j++) { if (16 > j) v[j] = a[c + j] | 0; else { var k = v[j - 3] ^ v[j - 8] ^ v[j - 14] ^ v[j - 16]; v[j] = k << 1 | k >>> 31 } k = (b << 5 | b >>> 27) + h + v[j]; k = 20 > j ? k + ((e & f | ~e & g) + 1518500249) : 40 > j ? k + ((e ^ f ^ g) + 1859775393) : 60 > j ? k + ((e & f | e & g | f & g) - 1894007588) : k + ((e ^ f ^ g) - 899497514); h = g; g = f; f = e << 30 | e >>> 2; e = b; b = k } d[0] = d[0] + b | 0; d[1] = d[1] + e | 0; d[2] = d[2] + f | 0; d[3] = d[3] + g | 0; d[4] = d[4] + h | 0 }, _doFinalize: function () { var a = this._data, c = a.words, d = 8 * this._nDataBytes, b = 8 * a.sigBytes; c[b >>> 5] |= 128 << 24 - b % 32; c[(b + 64 >>> 9 << 4) + 14] = Math.floor(d / 4294967296); c[(b + 64 >>> 9 << 4) + 15] = d; a.sigBytes = 4 * c.length; this._process(); return this._hash }, clone: function () { var a = t.clone.call(this); a._hash = this._hash.clone(); return a } }); h.SHA1 = t._createHelper(p); h.HmacSHA1 = t._createHmacHelper(p) })();
+(function () { var h = CryptoJS, s = h.lib, f = s.Base, t = s.WordArray, g = h.algo, j = g.SHA256, q = g.EvpKDF = f.extend({ cfg: f.extend({ keySize: 4, hasher: j, iterations: 1 }), init: function (a) { this.cfg = this.cfg.extend(a) }, compute: function (a, c) { for (var d = this.cfg, b = d.hasher.create(), e = t.create(), f = e.words, g = d.keySize, d = d.iterations; f.length < g;) { h && b.update(h); var h = b.update(a).finalize(c); b.reset(); for (var j = 1; j < d; j++) h = b.finalize(h), b.reset(); e.concat(h) } e.sigBytes = 4 * g; return e } }); h.EvpKDF = function (a, c, d) { return q.create(d).compute(a, c) } })();
+(function () { var h = CryptoJS, s = h.lib, f = s.WordArray, t = s.Hasher, g = h.algo, j = f.create([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63]), q = f.create([63, 62, 61, 60, 59, 58, 57, 56, 55, 54, 53, 52, 51, 50, 49, 48, 47, 46, 45, 44, 43, 42, 41, 40, 39, 38, 37, 36, 35, 34, 33, 32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0]); var v = g.SHA512 = t.extend({ _doReset: function () { this._hash = new f.init([1779033703, 3144134277, 1013904242, 2773480762, 1359893119, 2600822924, 528734635, 1541459225]) }, _doProcessBlock: function (a, c) { for (var d = this._hash.words, b = d[0], e = d[1], f = d[2], g = d[3], h = d[4], j = d[5], k = d[6], l = d[7], m = 0; 80 > m; m++) { if (16 > m) v[m] = a[c + m] | 0; else { var n = v[m - 15], o = v[m - 2]; v[m] = ((n << 1 | n >>> 31) ^ (n << 8 | n >>> 24) ^ n >>> 7) + v[m - 7] + ((o << 19 | o >>> 13) ^ (o << 3 | o >>> 29) ^ o >>> 6) + v[m - 16] } n = l + ((h << 14 | h >>> 18) ^ (h << 18 | h >>> 14) ^ (h << 23 | h >>> 9)) + (h & j ^ ~h & k) + j[m] + v[m]; o = ((b << 28 | b >>> 4) ^ (b << 30 | b >>> 2) ^ (b << 25 | b >>> 7)) + (b & e ^ b & f ^ e & f); l = k; k = j; j = h; h = g + n | 0; g = f; f = e; e = b; b = n + o | 0 } d[0] = d[0] + b | 0; d[1] = d[1] + e | 0; d[2] = d[2] + f | 0; d[3] = d[3] + g | 0; d[4] = d[4] + h | 0; d[5] = d[5] + j | 0; d[6] = d[6] + k | 0; d[7] = d[7] + l | 0 }, _doFinalize: function () { var a = this._data, c = a.words, d = 8 * this._nDataBytes, b = 8 * a.sigBytes; c[b >>> 5] |= 128 << 24 - b % 32; c[(b + 128 >>> 10 << 5) + 30] = Math.floor(d / 4294967296); c[(b + 128 >>> 10 << 5) + 31] = d; a.sigBytes = 4 * c.length; this._process(); return this._hash }, clone: function () { var a = t.clone.call(this); a._hash = this._hash.clone(); return a } }); h.SHA512 = t._createHelper(v); h.HmacSHA512 = t._createHmacHelper(v) })();
+(function () { var h = CryptoJS, s = h.lib, f = s.WordArray, t = s.Hasher, g = h.algo, j = [], q = []; (function () { function s(a) { for (var c = h.enc.Utf8.parse(a), d = 0; d < c.sigBytes; d++) j[d >>> 2] |= (c.words[d >>> 2] >>> 24 - 8 * (d % 4) & 255) << 24 - 8 * ((d + 1) % 4); c.sigBytes % 4 && (j[c.sigBytes >>> 2] |= 128 << 24 - 8 * (c.sigBytes % 4)) } s("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"); for (var v = 0; v < 256; v++) q[v] = j[v >>> 2] >>> 24 - 8 * (v % 4) & 255 })(); var p = g.SHA3 = t.extend({ cfg: t.cfg.extend({ outputLength: 512 }), _doReset: function () { this._state = []; for (var a = 0; 5 > a; a++) this._state[a] = [] }, _doProcessBlock: function (a, c) { for (var d = this._state, b = this.cfg.outputLength / 32, e = 0; 5 > e; e++) for (var f = 0; 5 > f; f++) d[e][f] = 0; for (e = 0; 17 > e; e++) for (f = 0; 5 > f; f++) d[f][e] ^= a[c + 5 * e + f]; for (var g = 0; 24 > g; g++) { for (var h = [], j = 0; 5 > j; j++) { h[j] = []; for (var k = 0; 5 > k; k++) h[j][k] = d[j][k] } for (j = 0; 5 > j; j++) for (k = 0; 5 > k; k++) d[j][k] ^= h[(j + 1) % 5][k] ^ h[(j + 4) % 5][k]; for (j = 0; 5 > j; j++) { var l = [d[j][0], d[j][1], d[j][2], d[j][3], d[j][4]]; for (k = 0; 5 > k; k++) d[j][k] = l[(2 * k + 3 * j) % 5] } for (j = 0; 5 > j; j++) for (k = 0; 5 > k; k++) d[j][k] = (d[j][k] << 1 | d[j][k] >>> 31) & 4294967295; for (j = 0; 5 > j; j++) for (k = 0; 5 > k; k++) if (0 !== j || 0 !== k) { var m = d[j][k], n = d[0][0]; d[j][k] = m ^ ((n << 1 | n >>> 31) ^ (n << 2 | n >>> 30) ^ (n << 3 | n >>> 29) ^ (n << 4 | n >>> 28)) } } for (e = 0; 5 > e; e++) for (f = 0; 5 > f; f++) a[c + 5 * e + f] = d[e][f] }, _doFinalize: function () { var a = this._data, c = a.words, d = 8 * this._nDataBytes, b = 8 * a.sigBytes; c[b >>> 5] |= 128 << 24 - b % 32; c[(b + 64 >>> 9 << 4) + 14] = Math.floor(d / 4294967296); c[(b + 64 >>> 9 << 4) + 15] = d; a.sigBytes = 4 * c.length; this._process(); return this._hash }, clone: function () { var a = t.clone.call(this); a._state = this._state.slice(); return a } }); h.SHA3 = t._createHelper(p); h.HmacSHA3 = t._createHmacHelper(p) })();
+(function () { var h = CryptoJS, s = h.lib, f = s.WordArray, t = h.enc, g = t.Utf8, j = t.Base64, q = h.algo, v = q.PBKDF2, p = q.AES, b = h.mode, l = b.CBC, x = h.pad, k = x.Pkcs7; h.AES.encrypt = function (a, c, d) { var b = (d && d.iv) ? f.create(d.iv) : f.random(16); c = v.create({ keySize: 256 / 32, iterations: (d && d.iterations) || 1 }).compute(c, b); var e = g.parse(a); a = l.encrypt(e, c, { iv: b }); return b.concat(a).toString(j) }; h.AES.decrypt = function (a, c, d) { var b = j.parse(a); a = b.clone(); b.sigBytes = 16; b.clamp(); var e = b; a.words.splice(0, 4); a.sigBytes -= 16; c = v.create({ keySize: 256 / 32, iterations: (d && d.iterations) || 1 }).compute(c, e); return l.decrypt(a, c, { iv: e }).toString(g) } })();
+
+// ==============================================
+// НАСТРОЙКА URL
+// ==============================================
 var API = 'https://ichatterios6.iosvidocum.workers.dev';
 var STATIC_URL = 'https://ichatterios6.iosvidocum.workers.dev';
 
+// ==============================================
+// ЛОКАЛЬНОЕ ШИФРОВАНИЕ (AES-256-CBC)
+// ==============================================
+var LOCAL_KEY_STORAGE = 'ichatter_local_key';
+var MSG_STORAGE_PREFIX = 'ichatter_msg_'; // + email собеседника
+
+function getLocalKey() {
+    var key = localStorage.getItem(LOCAL_KEY_STORAGE);
+    if (!key) {
+        key = CryptoJS.lib.WordArray.random(32).toString();
+        localStorage.setItem(LOCAL_KEY_STORAGE, key);
+    }
+    return key;
+}
+
+function encryptText(plainText, key) {
+    return CryptoJS.AES.encrypt(plainText, key).toString();
+}
+
+function decryptText(cipherText, key) {
+    var bytes = CryptoJS.AES.decrypt(cipherText, key);
+    return bytes.toString(CryptoJS.enc.Utf8);
+}
+
+function getChatStorageKey(chatWith) {
+    return MSG_STORAGE_PREFIX + chatWith;
+}
+
+function loadLocalMessages(chatWith) {
+    var key = getLocalKey();
+    var storageKey = getChatStorageKey(chatWith);
+    var encrypted = localStorage.getItem(storageKey);
+    if (!encrypted) return [];
+    try {
+        var json = decryptText(encrypted, key);
+        return JSON.parse(json);
+    } catch (e) {
+        return [];
+    }
+}
+
+function saveLocalMessages(chatWith, messages) {
+    var key = getLocalKey();
+    var storageKey = getChatStorageKey(chatWith);
+    var json = JSON.stringify(messages);
+    var encrypted = encryptText(json, key);
+    try {
+        localStorage.setItem(storageKey, encrypted);
+    } catch (e) {
+        // localStorage переполнено – удаляем старые чаты
+        var keys = [];
+        for (var i = 0; i < localStorage.length; i++) {
+            var k = localStorage.key(i);
+            if (k && k.indexOf(MSG_STORAGE_PREFIX) === 0) keys.push(k);
+        }
+        if (keys.length > 10) {
+            localStorage.removeItem(keys[0]); // удаляем самый старый
+            saveLocalMessages(chatWith, messages);
+        }
+    }
+}
+
+function addLocalMessage(chatWith, msg) {
+    var messages = loadLocalMessages(chatWith);
+    // не добавляем дубликат
+    for (var i = 0; i < messages.length; i++) {
+        if (messages[i].id === msg.id) return;
+    }
+    messages.push(msg);
+    // сортируем по времени
+    messages.sort(function (a, b) { return a.timestamp - b.timestamp; });
+    // храним не более 500 сообщений на чат
+    if (messages.length > 500) messages = messages.slice(-500);
+    saveLocalMessages(chatWith, messages);
+}
+
+function updateLocalMessage(chatWith, id, newText, edited) {
+    var messages = loadLocalMessages(chatWith);
+    for (var i = 0; i < messages.length; i++) {
+        if (messages[i].id === id) {
+            messages[i].text = newText;
+            messages[i].edited = edited;
+            break;
+        }
+    }
+    saveLocalMessages(chatWith, messages);
+}
+
+function deleteLocalMessage(chatWith, id) {
+    var messages = loadLocalMessages(chatWith);
+    for (var i = 0; i < messages.length; i++) {
+        if (messages[i].id === id) {
+            messages[i].deleted = true;
+            messages[i].text = '';
+            break;
+        }
+    }
+    saveLocalMessages(chatWith, messages);
+}
+
+// ==============================================
+// ОСНОВНОЙ КОД (без изменений, кроме loadMessages и openChat)
+// ==============================================
 function getParam(name) {
     var query = window.location.search.substring(1);
     var vars = query.split('&');
@@ -71,11 +191,13 @@ function t(k) { return T[lang][k] || k; }
 function formatTime(ts) { var d = new Date(ts); var h = d.getHours(); var m = d.getMinutes(); if (m < 10) m = '0' + m; return h + ':' + m; }
 function esc(s) { if (!s) return ''; var div = document.createElement('div'); div.appendChild(document.createTextNode(s)); return div.innerHTML; }
 
-var emptyAvatarPNG = (function() {
+function generateEmptyAvatar() {
     var size = 44;
     var canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;
+    canvas.style.display = 'none';
+    document.body.appendChild(canvas);
     var ctx = canvas.getContext('2d');
     ctx.fillStyle = '#95a5a6';
     ctx.beginPath();
@@ -86,8 +208,10 @@ var emptyAvatarPNG = (function() {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('U', size/2, size/2+1);
-    return canvas.toDataURL('image/png');
-})();
+    var dataUrl = canvas.toDataURL('image/png');
+    document.body.removeChild(canvas);
+    return dataUrl;
+}
 
 function addMsg(msg) {
     if (loadedMessageIds[msg.id]) return;
@@ -143,7 +267,7 @@ function showPartnerProfile() {
         byId('partner-status').textContent = '';
         byId('partner-age').textContent = '';
         byId('partner-about').textContent = '';
-        byId('partner-avatar').src = emptyAvatarPNG;
+        byId('partner-avatar').src = generateEmptyAvatar();
         byId('partner-profile-overlay').style.display = 'flex';
         return;
     }
@@ -153,7 +277,7 @@ function showPartnerProfile() {
     byId('partner-status').textContent = partner.isOnline ? t('online') : t('offline');
     byId('partner-age').textContent = partner.age ? (t('age') + ': ' + partner.age) : '';
     byId('partner-about').textContent = partner.about || '';
-    var avUrl = emptyAvatarPNG;
+    var avUrl = generateEmptyAvatar();
     if (partner.avatar && partner.avatar.indexOf('/uploads/avatars/') === 0) {
         avUrl = API + partner.avatar;
     }
@@ -211,7 +335,12 @@ function openChat(em) {
     byId('chat-title').onclick = showPartnerProfile;
     loadedMessageIds = {};
     byId('messages').innerHTML = '';
-    loadMessages(em);
+
+    // Загружаем локальную историю
+    var localMsgs = loadLocalMessages(em);
+    for (var j = 0; j < localMsgs.length; j++) {
+        addMsg(localMsgs[j]);
+    }
 }
 
 function goBack() { showTab('chats'); byId('chat-title').onclick = null; }
@@ -226,20 +355,7 @@ function updateNavTexts() {
     byId('btn-back').textContent = t('back');
 }
 
-function loadMessages(to) {
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', API + '/api/messages?token=' + token + '&chatWith=' + to, true);
-    xhr.onreadystatechange = function() {
-        if (xhr.readyState === 4 && xhr.status === 200) {
-            var data = JSON.parse(xhr.responseText);
-            var msgs = data.messages || [];
-            for (var i = 0; i < msgs.length; i++) {
-                if (!byId('msg-' + msgs[i].id)) addMsg(msgs[i]);
-            }
-        }
-    };
-    xhr.send();
-}
+// loadMessages больше не нужна – удалена
 
 function loadContacts() {
     var xhr = new XMLHttpRequest();
@@ -366,7 +482,7 @@ function loadAvatars() {
         grid.appendChild(custImg);
     } else {
         var emptyImg = document.createElement('img');
-        emptyImg.src = emptyAvatarPNG;
+        emptyImg.src = generateEmptyAvatar();
         emptyImg.className = 'selected';
         emptyImg.title = t('noAvatar');
         grid.appendChild(emptyImg);
@@ -474,7 +590,7 @@ function sendMessage() {
     var text = input.value.trim();
     if (!text || !chatWith || !socket) return;
     if (editingId) {
-        socket.emit('edit_message', { id: editingId, newText: text });
+        socket.emit('edit_message', { id: editingId, newText: text, to: chatWith });
         editingId = null;
     } else {
         socket.emit('send_message', { to: chatWith, text: text });
@@ -483,14 +599,38 @@ function sendMessage() {
 }
 
 function editMsg(id, text) { editingId = id; byId('input').value = text; byId('input').focus(); }
-function delMsg(id) { if (confirm('Удалить сообщение?')) socket.emit('delete_message', { id: id }); }
+function delMsg(id) { if (confirm('Удалить сообщение?')) socket.emit('delete_message', { id: id, to: chatWith }); }
 
 function connectSocket() {
     socket = io(API, { query: { token: token } });
-    socket.on('receive_message', function(msg) { if (chatWith === msg.from) addMsg(msg); loadContacts(); });
-    socket.on('message_sent', function(msg) { if (chatWith === msg.to) addMsg(msg); loadContacts(); });
-    socket.on('update_message', function(d) { updMsg(d.id, d.text, d.edited); });
-    socket.on('remove_message', function(d) { delMsgUI(d.id); });
+
+    socket.on('receive_message', function(msg) {
+        if (chatWith === msg.from) addMsg(msg);
+        // сохраняем локально
+        if (msg.from === myEmail) {
+            addLocalMessage(msg.to, msg);
+        } else {
+            addLocalMessage(msg.from, msg);
+        }
+        loadContacts();
+    });
+
+    socket.on('message_sent', function(msg) {
+        if (chatWith === msg.to) addMsg(msg);
+        addLocalMessage(msg.to, msg);
+        loadContacts();
+    });
+
+    socket.on('update_message', function(d) {
+        updMsg(d.id, d.text, d.edited);
+        updateLocalMessage(chatWith, d.id, d.text, d.edited);
+    });
+
+    socket.on('remove_message', function(d) {
+        delMsgUI(d.id);
+        deleteLocalMessage(chatWith, d.id);
+    });
+
     socket.on('user_typing', function(data) {
         if (chatWith === data.from && data.isTyping) {
             byId('chat-title').innerHTML = data.username + ' (' + t('typing') + ')';

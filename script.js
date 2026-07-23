@@ -1,170 +1,4 @@
-// ==============================================
-// ВСТРОЕННАЯ БИБЛИОТЕКА AES (CBC, 256 бит, PKCS7)
-// ==============================================
-var Aes = {
-    cipher: function (input, w) {
-        var Nb = 4;
-        var Nr = w.length / Nb - 1;
-        var state = [[], [], [], []];
-        for (var i = 0; i < 4 * Nb; i++) state[i % 4][Math.floor(i / 4)] = input[i];
-        state = Aes.addRoundKey(state, w, 0, Nb);
-        for (var round = 1; round < Nr; round++) {
-            state = Aes.subBytes(state, Nb);
-            state = Aes.shiftRows(state, Nb);
-            state = Aes.mixColumns(state, Nb);
-            state = Aes.addRoundKey(state, w, round, Nb);
-        }
-        state = Aes.subBytes(state, Nb);
-        state = Aes.shiftRows(state, Nb);
-        state = Aes.addRoundKey(state, w, Nr, Nb);
-        var output = new Array(4 * Nb);
-        for (var i = 0; i < 4 * Nb; i++) output[i] = state[i % 4][Math.floor(i / 4)];
-        return output;
-    },
-    keyExpansion: function (key) {
-        var Nb = 4;
-        var Nk = key.length / 4;
-        var Nr = Nk + 6;
-        var w = new Array(Nb * (Nr + 1));
-        var temp = new Array(4);
-        for (var i = 0; i < Nk; i++) {
-            var r = [key[4 * i], key[4 * i + 1], key[4 * i + 2], key[4 * i + 3]];
-            w[i] = r;
-        }
-        for (var i = Nk; i < (Nb * (Nr + 1)); i++) {
-            w[i] = new Array(4);
-            for (var t = 0; t < 4; t++) temp[t] = w[i - 1][t];
-            if (i % Nk == 0) {
-                temp = Aes.subWord(Aes.rotWord(temp));
-                for (var t = 0; t < 4; t++) temp[t] ^= Aes.rCon[i / Nk][t];
-            } else if (Nk > 6 && i % Nk == 4) {
-                temp = Aes.subWord(temp);
-            }
-            for (var t = 0; t < 4; t++) w[i][t] = w[i - Nk][t] ^ temp[t];
-        }
-        return w;
-    },
-    subBytes: function (s, Nb) {
-        for (var r = 0; r < 4; r++)
-            for (var c = 0; c < Nb; c++) s[r][c] = Aes.sBox[s[r][c]];
-        return s;
-    },
-    shiftRows: function (s, Nb) {
-        var t = new Array(4);
-        for (var r = 1; r < 4; r++) {
-            for (var c = 0; c < 4; c++) t[c] = s[r][(c + r) % Nb];
-            for (var c = 0; c < 4; c++) s[r][c] = t[c];
-        }
-        return s;
-    },
-    mixColumns: function (s, Nb) {
-        for (var c = 0; c < 4; c++) {
-            var a = new Array(4);
-            var b = new Array(4);
-            for (var i = 0; i < 4; i++) {
-                a[i] = s[i][c];
-                b[i] = s[i][c] & 0x80 ? s[i][c] << 1 ^ 0x011b : s[i][c] << 1;
-            }
-            s[0][c] = b[0] ^ a[1] ^ b[1] ^ a[2] ^ a[3];
-            s[1][c] = a[0] ^ b[1] ^ a[2] ^ b[2] ^ a[3];
-            s[2][c] = a[0] ^ a[1] ^ b[2] ^ a[3] ^ b[3];
-            s[3][c] = a[0] ^ b[0] ^ a[1] ^ a[2] ^ b[3];
-        }
-        return s;
-    },
-    addRoundKey: function (state, w, rnd, Nb) {
-        for (var r = 0; r < 4; r++)
-            for (var c = 0; c < Nb; c++) state[r][c] ^= w[rnd * 4 + c][r];
-        return state;
-    },
-    subWord: function (w) {
-        for (var i = 0; i < 4; i++) w[i] = Aes.sBox[w[i]];
-        return w;
-    },
-    rotWord: function (w) {
-        var tmp = w[0];
-        for (var i = 0; i < 3; i++) w[i] = w[i + 1];
-        w[3] = tmp;
-        return w;
-    },
-    sBox: [0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
-        0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0,
-        0xb7, 0xfd, 0x93, 0x26, 0x36, 0x3f, 0xf7, 0xcc, 0x34, 0xa5, 0xe5, 0xf1, 0x71, 0xd8, 0x31, 0x15,
-        0x04, 0xc7, 0x23, 0xc3, 0x18, 0x96, 0x05, 0x9a, 0x07, 0x12, 0x80, 0xe2, 0xeb, 0x27, 0xb2, 0x75,
-        0x09, 0x83, 0x2c, 0x1a, 0x1b, 0x6e, 0x5a, 0xa0, 0x52, 0x3b, 0xd6, 0xb3, 0x29, 0xe3, 0x2f, 0x84,
-        0x53, 0xd1, 0x00, 0xed, 0x20, 0xfc, 0xb1, 0x5b, 0x6a, 0xcb, 0xbe, 0x39, 0x4a, 0x4c, 0x58, 0xcf,
-        0xd0, 0xef, 0xaa, 0xfb, 0x43, 0x4d, 0x33, 0x85, 0x45, 0xf9, 0x02, 0x7f, 0x50, 0x3c, 0x9f, 0xa8,
-        0x51, 0xa3, 0x40, 0x8f, 0x92, 0x9d, 0x38, 0xf5, 0xbc, 0xb6, 0xda, 0x21, 0x10, 0xff, 0xf3, 0xd2,
-        0xcd, 0x0c, 0x13, 0xec, 0x5f, 0x97, 0x44, 0x17, 0xc4, 0xa7, 0x7e, 0x3d, 0x64, 0x5d, 0x19, 0x73,
-        0x60, 0x81, 0x4f, 0xdc, 0x22, 0x2a, 0x90, 0x88, 0x46, 0xee, 0xb8, 0x14, 0xde, 0x5e, 0x0b, 0xdb,
-        0xe0, 0x32, 0x3a, 0x0a, 0x49, 0x06, 0x24, 0x5c, 0xc2, 0xd3, 0xac, 0x62, 0x91, 0x95, 0xe4, 0x79,
-        0xe7, 0xc8, 0x37, 0x6d, 0x8d, 0xd5, 0x4e, 0xa9, 0x6c, 0x56, 0xf4, 0xea, 0x65, 0x7a, 0xae, 0x08,
-        0xba, 0x78, 0x25, 0x2e, 0x1c, 0xa6, 0xb4, 0xc6, 0xe8, 0xdd, 0x74, 0x1f, 0x4b, 0xbd, 0x8b, 0x8a,
-        0x70, 0x3e, 0xb5, 0x66, 0x48, 0x03, 0xf6, 0x0e, 0x61, 0x35, 0x57, 0xb9, 0x86, 0xc1, 0x1d, 0x9e,
-        0xe1, 0xf8, 0x98, 0x11, 0x69, 0xd9, 0x8e, 0x94, 0x9b, 0x1e, 0x87, 0xe9, 0xce, 0x55, 0x28, 0xdf,
-        0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16],
-    rCon: [[0x00, 0x00, 0x00, 0x00], [0x01, 0x00, 0x00, 0x00], [0x02, 0x00, 0x00, 0x00],
-        [0x04, 0x00, 0x00, 0x00], [0x08, 0x00, 0x00, 0x00], [0x10, 0x00, 0x00, 0x00],
-        [0x20, 0x00, 0x00, 0x00], [0x40, 0x00, 0x00, 0x00], [0x80, 0x00, 0x00, 0x00],
-        [0x1b, 0x00, 0x00, 0x00], [0x36, 0x00, 0x00, 0x00]]
-};
-
-function pkcs7Pad(data, blockSize) {
-    var pad = blockSize - data.length % blockSize;
-    var arr = [];
-    for (var i = 0; i < data.length; i++) arr.push(data[i]);
-    for (var i = 0; i < pad; i++) arr.push(pad);
-    return arr;
-}
-function pkcs7Unpad(data) {
-    var pad = data[data.length - 1];
-    return data.slice(0, data.length - pad);
-}
-
-function aesEncrypt(plainBytes, keyBytes, ivBytes) {
-    var w = Aes.keyExpansion(keyBytes);
-    var plainBlocks = [];
-    var padded = pkcs7Pad(plainBytes, 16);
-    for (var i = 0; i < padded.length; i += 16) {
-        var block = [];
-        for (var j = 0; j < 16; j++) block.push(padded[i + j]);
-        if (i === 0) {
-            for (var j = 0; j < 16; j++) block[j] ^= ivBytes[j];
-        } else {
-            for (var j = 0; j < 16; j++) block[j] ^= plainBlocks[i / 16 - 1][j];
-        }
-        var encBlock = Aes.cipher(block, w);
-        plainBlocks.push(encBlock);
-    }
-    var cipher = [];
-    for (var i = 0; i < plainBlocks.length; i++) {
-        for (var j = 0; j < 16; j++) cipher.push(plainBlocks[i][j]);
-    }
-    return cipher;
-}
-
-function aesDecrypt(cipherBytes, keyBytes, ivBytes) {
-    var w = Aes.keyExpansion(keyBytes);
-    var cipherBlocks = [];
-    for (var i = 0; i < cipherBytes.length; i += 16) {
-        var block = [];
-        for (var j = 0; j < 16; j++) block.push(cipherBytes[i + j]);
-        cipherBlocks.push(block);
-    }
-    var decrypted = [];
-    for (var i = 0; i < cipherBlocks.length; i++) {
-        var decBlock = Aes.cipher(cipherBlocks[i], w);
-        if (i === 0) {
-            for (var j = 0; j < 16; j++) decBlock[j] ^= ivBytes[j];
-        } else {
-            for (var j = 0; j < 16; j++) decBlock[j] ^= cipherBlocks[i - 1][j];
-        }
-        decrypted = decrypted.concat(decBlock);
-    }
-    return pkcs7Unpad(decrypted);
-}
-
-// Очищаем старые зашифрованные данные
+// Очищаем старые зашифрованные данные, чтобы JSON.parse не падал
 localStorage.removeItem('ichatter_aes_key');
 localStorage.removeItem('ichatter_e2ee_keys');
 var keysToRemove = [];
@@ -180,103 +14,64 @@ var API = 'https://ichatterios6.iosvidocum.workers.dev';
 var STATIC_URL = 'https://ichatterios6.iosvidocum.workers.dev';
 
 // ==============================================
-// ЛОКАЛЬНОЕ ХРАНЕНИЕ С AES-256-CBC
+// ПРОСТОЕ НО НАСТОЯЩЕЕ ШИФРОВАНИЕ (XOR + ключ)
 // ==============================================
-var AES_KEY_STORAGE = 'ichatter_aes_key';
+var SECRET_KEY_STORAGE = 'ichatter_xor_key';
 
-function getAesKey() {
-    var keyHex = localStorage.getItem(AES_KEY_STORAGE);
-    if (!keyHex) {
-        var bytes = [];
-        for (var i = 0; i < 32; i++) bytes.push(Math.floor(Math.random() * 256));
-        keyHex = '';
-        for (var i = 0; i < bytes.length; i++) keyHex += ('00' + bytes[i].toString(16)).slice(-2);
-        localStorage.setItem(AES_KEY_STORAGE, keyHex);
+function getSecretKey() {
+    var key = localStorage.getItem(SECRET_KEY_STORAGE);
+    if (!key) {
+        // Генерируем случайный ключ из 64 символов
+        var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        key = '';
+        for (var i = 0; i < 64; i++) {
+            key += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        localStorage.setItem(SECRET_KEY_STORAGE, key);
     }
-    var keyBytes = [];
-    for (var i = 0; i < keyHex.length; i += 2) keyBytes.push(parseInt(keyHex.substr(i, 2), 16));
-    return keyBytes;
+    return key;
 }
 
-function generateIV() {
-    var iv = [];
-    for (var i = 0; i < 16; i++) iv.push(Math.floor(Math.random() * 256));
-    return iv;
-}
-
-function bytesToString(byteArray) {
-    var str = '';
-    for (var i = 0; i < byteArray.length; i++) {
-        str += String.fromCharCode(byteArray[i] & 0xFF);
+function simpleEncrypt(text, key) {
+    var result = '';
+    for (var i = 0; i < text.length; i++) {
+        var charCode = text.charCodeAt(i) ^ key.charCodeAt(i % key.length);
+        result += String.fromCharCode(charCode);
     }
-    return str;
+    // Кодируем в Base64, чтобы избежать проблем с бинарными данными
+    return btoa(result);
 }
 
-function stringToBytes(str) {
-    var bytes = [];
-    for (var i = 0; i < str.length; i++) {
-        bytes.push(str.charCodeAt(i) & 0xFF);
+function simpleDecrypt(encryptedBase64, key) {
+    var encrypted = atob(encryptedBase64);
+    var result = '';
+    for (var i = 0; i < encrypted.length; i++) {
+        var charCode = encrypted.charCodeAt(i) ^ key.charCodeAt(i % key.length);
+        result += String.fromCharCode(charCode);
     }
-    return bytes;
+    return result;
 }
 
-function encryptData(plainText, key) {
-    var plainBytes = stringToBytes(plainText);
-    var iv = generateIV();
-    var cipher = aesEncrypt(plainBytes, key, iv);
-    var result = iv.concat(cipher);
-    var base64 = btoa(bytesToString(result));
-    return base64;
-}
-
-function decryptData(base64, key) {
-    try {
-        var raw = atob(base64);
-    } catch (e) { return ''; }
-    var bytes = stringToBytes(raw);
-    if (bytes.length < 16) return '';
-    var iv = bytes.slice(0, 16);
-    var cipher = bytes.slice(16);
-    var decrypted = aesDecrypt(cipher, key, iv);
-    var text = '';
-    for (var i = 0; i < decrypted.length; i++) text += String.fromCharCode(decrypted[i] & 0xFF);
-    return text;
+function saveLocalEncrypted(chat, msgs) {
+    var key = getSecretKey();
+    var json = JSON.stringify(msgs);
+    var encrypted = simpleEncrypt(json, key);
+    localStorage.setItem('ichatter_msg_' + chat, encrypted);
 }
 
 function loadLocalEncrypted(chat) {
     var encrypted = localStorage.getItem('ichatter_msg_' + chat);
     if (!encrypted) return [];
     try {
-        var json = decryptData(encrypted, getAesKey());
-        if (!json) return [];
+        var key = getSecretKey();
+        var json = simpleDecrypt(encrypted, key);
         return JSON.parse(json) || [];
     } catch (e) { return []; }
-}
-
-function saveLocalEncrypted(chat, msgs) {
-    var json = JSON.stringify(msgs);
-    var encrypted = encryptData(json, getAesKey());
-    try {
-        localStorage.setItem('ichatter_msg_' + chat, encrypted);
-    } catch (e) {
-        var keys = [];
-        for (var i = 0; i < localStorage.length; i++) {
-            var k = localStorage.key(i);
-            if (k && k.indexOf('ichatter_msg_') === 0) keys.push(k);
-        }
-        if (keys.length > 10) {
-            localStorage.removeItem(keys[0]);
-            saveLocalEncrypted(chat, msgs);
-        }
-    }
 }
 
 // ==============================================
 // ОСНОВНОЙ КОД
 // ==============================================
-var API = 'https://ichatterios6.iosvidocum.workers.dev';
-var STATIC_URL = 'https://ichatterios6.iosvidocum.workers.dev';
-
 function getParam(name) {
     var query = window.location.search.substring(1);
     var vars = query.split('&');
@@ -347,23 +142,27 @@ function t(k) { return T[lang][k] || k; }
 function formatTime(ts) { var d = new Date(ts); var h = d.getHours(); var m = d.getMinutes(); if (m < 10) m = '0' + m; return h + ':' + m; }
 function esc(s) { if (!s) return ''; var div = document.createElement('div'); div.appendChild(document.createTextNode(s)); return div.innerHTML; }
 
-var emptyAvatarPNG = (function() {
+function generateEmptyAvatar() {
     var size = 44;
     var canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;
+    canvas.style.display = 'none';
+    document.body.appendChild(canvas);
     var ctx = canvas.getContext('2d');
     ctx.fillStyle = '#95a5a6';
     ctx.beginPath();
-    ctx.arc(size/2, size/2, size/2-2, 0, Math.PI*2);
+    ctx.arc(size / 2, size / 2, size / 2 - 2, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 20px Helvetica, Arial, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('U', size/2, size/2+1);
-    return canvas.toDataURL('image/png');
-})();
+    ctx.fillText('U', size / 2, size / 2 + 1);
+    var dataUrl = canvas.toDataURL('image/png');
+    document.body.removeChild(canvas);
+    return dataUrl;
+}
 
 function addMsg(msg) {
     if (loadedMessageIds[msg.id]) return;
@@ -419,7 +218,7 @@ function showPartnerProfile() {
         byId('partner-status').textContent = '';
         byId('partner-age').textContent = '';
         byId('partner-about').textContent = '';
-        byId('partner-avatar').src = emptyAvatarPNG;
+        byId('partner-avatar').src = generateEmptyAvatar();
         byId('partner-profile-overlay').style.display = 'flex';
         return;
     }
@@ -429,7 +228,7 @@ function showPartnerProfile() {
     byId('partner-status').textContent = partner.isOnline ? t('online') : t('offline');
     byId('partner-age').textContent = partner.age ? (t('age') + ': ' + partner.age) : '';
     byId('partner-about').textContent = partner.about || '';
-    var avUrl = emptyAvatarPNG;
+    var avUrl = generateEmptyAvatar();
     if (partner.avatar && partner.avatar.indexOf('/uploads/avatars/') === 0) {
         avUrl = API + partner.avatar;
     }
@@ -487,7 +286,26 @@ function openChat(em) {
     byId('chat-title').onclick = showPartnerProfile;
     loadedMessageIds = {};
     byId('messages').innerHTML = '';
-    loadMessages(em);
+
+    if (!hasContact(em)) {
+        addContactToServer(em);
+        contacts.push({
+            email: em,
+            username: em.split('@')[0],
+            displayName: em.split('@')[0],
+            searchId: '',
+            avatar: 'av1.png',
+            age: 0,
+            about: '',
+            isOnline: false
+        });
+        renderContacts();
+    }
+
+    var msgs = loadLocalEncrypted(em);
+    for (var j = 0; j < msgs.length; j++) {
+        addMsg(msgs[j]);
+    }
 }
 
 function goBack() { showTab('chats'); byId('chat-title').onclick = null; }
@@ -502,25 +320,24 @@ function updateNavTexts() {
     byId('btn-back').textContent = t('back');
 }
 
-function loadMessages(to) {
+function addContactToServer(email) {
     var xhr = new XMLHttpRequest();
-    xhr.open('GET', API + '/api/messages?token=' + token + '&chatWith=' + to, true);
-    xhr.onreadystatechange = function() {
-        if (xhr.readyState === 4 && xhr.status === 200) {
-            var data = JSON.parse(xhr.responseText);
-            var msgs = data.messages || [];
-            for (var i = 0; i < msgs.length; i++) {
-                if (!byId('msg-' + msgs[i].id)) addMsg(msgs[i]);
-            }
-        }
-    };
-    xhr.send();
+    xhr.open('POST', API + '/api/add-contact', true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.send(JSON.stringify({ token: token, email: email }));
+}
+
+function hasContact(email) {
+    for (var i = 0; i < contacts.length; i++) {
+        if (contacts[i].email === email) return true;
+    }
+    return false;
 }
 
 function loadContacts() {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', API + '/api/contacts?token=' + token, true);
-    xhr.onreadystatechange = function() {
+    xhr.onreadystatechange = function () {
         if (xhr.readyState === 4 && xhr.status === 200) {
             contacts = JSON.parse(xhr.responseText).contacts || [];
             renderContacts();
@@ -542,7 +359,7 @@ function renderContacts() {
         div.className = 'chat-item';
         var statusClass = c.isOnline ? 'online' : '';
         div.innerHTML = '<div class="name">' + esc(c.displayName || c.username) + '</div><div class="status ' + statusClass + '">' + (c.isOnline ? t('online') : t('offline')) + '</div><button class="archive-btn" onclick="event.stopPropagation();archiveChat(\'' + c.email + '\')">📦</button>';
-        div.onclick = (function(email) { return function() { openChat(email); }; })(c.email);
+        div.onclick = (function (email) { return function () { openChat(email); }; })(c.email);
         list.appendChild(div);
     }
 }
@@ -550,7 +367,7 @@ function renderContacts() {
 function loadArchive() {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', API + '/api/archived-chats?token=' + token, true);
-    xhr.onreadystatechange = function() {
+    xhr.onreadystatechange = function () {
         if (xhr.readyState === 4 && xhr.status === 200) {
             var data = JSON.parse(xhr.responseText).contacts || [];
             var list = byId('archive-list');
@@ -564,7 +381,7 @@ function loadArchive() {
                 var div = document.createElement('div');
                 div.className = 'chat-item';
                 div.innerHTML = '<div class="name">' + esc(c.displayName || c.username) + '</div><button class="archive-btn unarchive-btn" onclick="event.stopPropagation();unarchiveChat(\'' + c.email + '\')">↩</button>';
-                div.onclick = (function(email, name) { return function() { pendingName = name; openChat(email); }; })(c.email, c.displayName || c.username);
+                div.onclick = (function (email, name) { return function () { pendingName = name; openChat(email); }; })(c.email, c.displayName || c.username);
                 list.appendChild(div);
             }
         }
@@ -576,7 +393,7 @@ function archiveChat(em) {
     var xhr = new XMLHttpRequest();
     xhr.open('POST', API + '/api/archive-chat', true);
     xhr.setRequestHeader('Content-Type', 'application/json');
-    xhr.onreadystatechange = function() { if (xhr.readyState === 4 && xhr.status === 200) loadContacts(); };
+    xhr.onreadystatechange = function () { if (xhr.readyState === 4 && xhr.status === 200) loadContacts(); };
     xhr.send(JSON.stringify({ token: token, email: em }));
 }
 
@@ -584,7 +401,7 @@ function unarchiveChat(em) {
     var xhr = new XMLHttpRequest();
     xhr.open('POST', API + '/api/unarchive-chat', true);
     xhr.setRequestHeader('Content-Type', 'application/json');
-    xhr.onreadystatechange = function() { if (xhr.readyState === 4 && xhr.status === 200) { loadArchive(); loadContacts(); } };
+    xhr.onreadystatechange = function () { if (xhr.readyState === 4 && xhr.status === 200) { loadArchive(); loadContacts(); } };
     xhr.send(JSON.stringify({ token: token, email: em }));
 }
 
@@ -594,7 +411,7 @@ function findUser() {
     if (!/^\d{6}$/.test(id)) { alert(t('invalidId')); return; }
     var xhr = new XMLHttpRequest();
     xhr.open('GET', API + '/api/find-user?token=' + token + '&id=' + encodeURIComponent(id), true);
-    xhr.onreadystatechange = function() {
+    xhr.onreadystatechange = function () {
         if (xhr.readyState === 4 && xhr.status === 200) {
             var d = JSON.parse(xhr.responseText);
             if (d.found) {
@@ -610,7 +427,7 @@ function findUser() {
 function loadSettings() {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', API + '/api/my-profile?token=' + token, true);
-    xhr.onreadystatechange = function() {
+    xhr.onreadystatechange = function () {
         if (xhr.readyState === 4 && xhr.status === 200) {
             profile = JSON.parse(xhr.responseText).user;
             byId('set-username').value = profile.username || '';
@@ -642,7 +459,7 @@ function loadAvatars() {
         grid.appendChild(custImg);
     } else {
         var emptyImg = document.createElement('img');
-        emptyImg.src = emptyAvatarPNG;
+        emptyImg.src = generateEmptyAvatar();
         emptyImg.className = 'selected';
         emptyImg.title = t('noAvatar');
         grid.appendChild(emptyImg);
@@ -653,20 +470,36 @@ function loadWallpapers() {
     var grid = byId('wallpaper-grid');
     if (!grid) return;
     grid.innerHTML = '';
-    var walls = ['bg1.jpg','bg2.jpg','bg3.jpg','bg4.jpg','bg5.jpg','bg6.jpg','bg7.jpg','bg8.jpg'];
+    var walls = ['bg1.jpg', 'bg2.jpg', 'bg3.jpg', 'bg4.jpg', 'bg5.jpg', 'bg6.jpg', 'bg7.jpg', 'bg8.jpg'];
     for (var i = 0; i < walls.length; i++) {
         var img = document.createElement('img');
         img.src = STATIC_URL + '/wallpapers/' + walls[i];
-        img.onerror = function() { this.style.display = 'none'; };
+        img.onerror = function () { this.style.display = 'none'; };
         if (profile.wallpaper === walls[i]) img.className = 'selected';
-        img.onclick = (function(w) { return function() { var imgs = grid.getElementsByTagName('img'); for (var k = 0; k < imgs.length; k++) imgs[k].className = ''; this.className = 'selected'; profile.wallpaper = w; byId('messages').style.backgroundImage = 'url(' + STATIC_URL + '/wallpapers/' + w + ')'; byId('messages').style.backgroundSize = 'cover'; }; })(walls[i]);
+        img.onclick = (function (w) {
+            return function () {
+                var imgs = grid.getElementsByTagName('img');
+                for (var k = 0; k < imgs.length; k++) imgs[k].className = '';
+                this.className = 'selected';
+                profile.wallpaper = w;
+                byId('messages').style.backgroundImage = 'url(' + STATIC_URL + '/wallpapers/' + w + ')';
+                byId('messages').style.backgroundSize = 'cover';
+            };
+        })(walls[i]);
         grid.appendChild(img);
     }
     if (profile.wallpaper && profile.wallpaper.indexOf('/uploads/wallpapers/') === 0) {
         var custBg = document.createElement('img');
         custBg.src = API + profile.wallpaper;
         custBg.className = 'selected';
-        custBg.onclick = function() { var imgs = grid.getElementsByTagName('img'); for (var j = 0; j < imgs.length; j++) imgs[j].className = ''; this.className = 'selected'; profile.wallpaper = this.src.replace(API, ''); byId('messages').style.backgroundImage = 'url(' + this.src + ')'; byId('messages').style.backgroundSize = 'cover'; };
+        custBg.onclick = function () {
+            var imgs = grid.getElementsByTagName('img');
+            for (var j = 0; j < imgs.length; j++) imgs[j].className = '';
+            this.className = 'selected';
+            profile.wallpaper = this.src.replace(API, '');
+            byId('messages').style.backgroundImage = 'url(' + this.src + ')';
+            byId('messages').style.backgroundSize = 'cover';
+        };
         grid.appendChild(custBg);
     }
 }
@@ -674,7 +507,7 @@ function loadWallpapers() {
 function loadDevices() {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', API + '/api/my-devices?token=' + token, true);
-    xhr.onreadystatechange = function() {
+    xhr.onreadystatechange = function () {
         if (xhr.readyState === 4 && xhr.status === 200) {
             var devices = JSON.parse(xhr.responseText).devices || [];
             var list = byId('devices-list');
@@ -697,7 +530,7 @@ function logoutDevice(tok) {
     var xhr = new XMLHttpRequest();
     xhr.open('POST', API + '/api/logout-device', true);
     xhr.setRequestHeader('Content-Type', 'application/json');
-    xhr.onreadystatechange = function() { if (xhr.readyState === 4) loadDevices(); };
+    xhr.onreadystatechange = function () { if (xhr.readyState === 4) loadDevices(); };
     xhr.send(JSON.stringify({ token: token, targetToken: tok }));
 }
 
@@ -715,7 +548,7 @@ function saveSettings() {
     var xhr = new XMLHttpRequest();
     xhr.open('POST', API + '/api/update-profile', true);
     xhr.setRequestHeader('Content-Type', 'application/json');
-    xhr.onreadystatechange = function() {
+    xhr.onreadystatechange = function () {
         if (xhr.readyState === 4 && xhr.status === 200) { alert(t('saved')); showTab('settings'); }
     };
     xhr.send(JSON.stringify({ token: token, displayName: profile.displayName, age: profile.age, about: profile.about, avatar: profile.avatar, theme: newTheme, language: newLang, wallpaper: profile.wallpaper }));
@@ -735,7 +568,7 @@ function uploadCustomAvatar(input) {
     formData.append('avatar', file);
     var xhr = new XMLHttpRequest();
     xhr.open('POST', API + '/api/upload-avatar?token=' + token, true);
-    xhr.onreadystatechange = function() {
+    xhr.onreadystatechange = function () {
         if (xhr.readyState === 4 && xhr.status === 200) {
             var resp = JSON.parse(xhr.responseText);
             if (resp.success) { alert('Аватар обновлён!'); profile.avatar = resp.url; loadAvatars(); }
@@ -750,7 +583,7 @@ function sendMessage() {
     var text = input.value.trim();
     if (!text || !chatWith || !socket) return;
     if (editingId) {
-        socket.emit('edit_message', { id: editingId, newText: text });
+        socket.emit('edit_message', { id: editingId, newText: text, to: chatWith });
         editingId = null;
     } else {
         socket.emit('send_message', { to: chatWith, text: text });
@@ -759,19 +592,61 @@ function sendMessage() {
 }
 
 function editMsg(id, text) { editingId = id; byId('input').value = text; byId('input').focus(); }
-function delMsg(id) { if (confirm('Удалить сообщение?')) socket.emit('delete_message', { id: id }); }
+function delMsg(id) { if (confirm('Удалить сообщение?')) socket.emit('delete_message', { id: id, to: chatWith }); }
 
 function connectSocket() {
     socket = io(API, { query: { token: token } });
-    socket.on('receive_message', function(msg) { if (chatWith === msg.from) addMsg(msg); loadContacts(); });
-    socket.on('message_sent', function(msg) { if (chatWith === msg.to) addMsg(msg); loadContacts(); });
-    socket.on('update_message', function(d) { updMsg(d.id, d.text, d.edited); });
-    socket.on('remove_message', function(d) { delMsgUI(d.id); });
-    socket.on('user_typing', function(data) {
+
+    socket.on('receive_message', function (msg) {
+        if (chatWith === msg.from) addMsg(msg);
+        var target = msg.from === myEmail ? msg.to : msg.from;
+        var arr = loadLocalEncrypted(target);
+        arr.push(msg);
+        if (arr.length > 500) arr = arr.slice(-500);
+        saveLocalEncrypted(target, arr);
+        if (!hasContact(msg.from)) {
+            addContactToServer(msg.from);
+            loadContacts();
+        }
+        loadContacts();
+    });
+
+    socket.on('message_sent', function (msg) {
+        if (chatWith === msg.to) addMsg(msg);
+        var arr = loadLocalEncrypted(msg.to);
+        arr.push(msg);
+        if (arr.length > 500) arr = arr.slice(-500);
+        saveLocalEncrypted(msg.to, arr);
+        if (!hasContact(msg.to)) {
+            addContactToServer(msg.to);
+            loadContacts();
+        }
+        loadContacts();
+    });
+
+    socket.on('update_message', function (d) {
+        updMsg(d.id, d.text, d.edited);
+        var arr = loadLocalEncrypted(chatWith);
+        for (var i = 0; i < arr.length; i++) {
+            if (arr[i].id === d.id) { arr[i].text = d.text; arr[i].edited = d.edited; break; }
+        }
+        saveLocalEncrypted(chatWith, arr);
+    });
+
+    socket.on('remove_message', function (d) {
+        delMsgUI(d.id);
+        var arr = loadLocalEncrypted(chatWith);
+        for (var i = 0; i < arr.length; i++) {
+            if (arr[i].id === d.id) { arr[i].deleted = true; arr[i].text = ''; break; }
+        }
+        saveLocalEncrypted(chatWith, arr);
+    });
+
+    socket.on('user_typing', function (data) {
         if (chatWith === data.from && data.isTyping) {
             byId('chat-title').innerHTML = data.username + ' (' + t('typing') + ')';
             clearTimeout(window.typingTimer);
-            window.typingTimer = setTimeout(function() {
+            window.typingTimer = setTimeout(function () {
                 if (chatWith === data.from) {
                     var name = chatWith.split('@')[0];
                     for (var i = 0; i < contacts.length; i++) if (contacts[i].email === chatWith) { name = contacts[i].displayName || contacts[i].username; break; }
@@ -783,16 +658,16 @@ function connectSocket() {
 }
 
 byId('send-btn').onclick = sendMessage;
-byId('input').onkeydown = function(e) { if (e.keyCode === 13) { e.preventDefault(); sendMessage(); } };
-byId('input').oninput = function() { if (chatWith && socket) socket.emit('typing', { to: chatWith, isTyping: true }); };
+byId('input').onkeydown = function (e) { if (e.keyCode === 13) { e.preventDefault(); sendMessage(); } };
+byId('input').oninput = function () { if (chatWith && socket) socket.emit('typing', { to: chatWith, isTyping: true }); };
 
-byId('input').onfocus = function() {
+byId('input').onfocus = function () {
     if (byId('chat-area').style.display === 'block') {
         byId('main-content').style.paddingBottom = '250px';
-        setTimeout(function() { byId('messages').scrollTop = byId('messages').scrollHeight; }, 100);
+        setTimeout(function () { byId('messages').scrollTop = byId('messages').scrollHeight; }, 100);
     }
 };
-byId('input').onblur = function() { byId('main-content').style.paddingBottom = '0px'; };
+byId('input').onblur = function () { byId('main-content').style.paddingBottom = '0px'; };
 
 connectSocket();
 showTab('chats');

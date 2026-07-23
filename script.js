@@ -195,26 +195,44 @@ function generateIV() {
     return iv;
 }
 
+// Безопасное преобразование массива байтов в строку (без apply)
+function bytesToString(byteArray) {
+    var str = '';
+    for (var i = 0; i < byteArray.length; i++) {
+        str += String.fromCharCode(byteArray[i] & 0xFF);
+    }
+    return str;
+}
+
+// Безопасное преобразование строки в массив байтов
+function stringToBytes(str) {
+    var bytes = [];
+    for (var i = 0; i < str.length; i++) {
+        bytes.push(str.charCodeAt(i) & 0xFF);
+    }
+    return bytes;
+}
+
 function encryptData(plainText, key) {
-    var plainBytes = [];
-    for (var i = 0; i < plainText.length; i++) plainBytes.push(plainText.charCodeAt(i) & 0xFF);
+    var plainBytes = stringToBytes(plainText);
     var iv = generateIV();
     var cipher = aesEncrypt(plainBytes, key, iv);
     var result = iv.concat(cipher);
-    var base64 = btoa(String.fromCharCode.apply(null, result));
+    var base64 = btoa(bytesToString(result));
     return base64;
 }
 
 function decryptData(base64, key) {
-    var raw = atob(base64);
-    var bytes = [];
-    for (var i = 0; i < raw.length; i++) bytes.push(raw.charCodeAt(i) & 0xFF);
+    try {
+        var raw = atob(base64);
+    } catch (e) { return ''; }
+    var bytes = stringToBytes(raw);
     if (bytes.length < 16) return '';
     var iv = bytes.slice(0, 16);
     var cipher = bytes.slice(16);
     var decrypted = aesDecrypt(cipher, key, iv);
     var text = '';
-    for (var i = 0; i < decrypted.length; i++) text += String.fromCharCode(decrypted[i]);
+    for (var i = 0; i < decrypted.length; i++) text += String.fromCharCode(decrypted[i] & 0xFF);
     return text;
 }
 
@@ -223,6 +241,7 @@ function loadLocalEncrypted(chat) {
     if (!encrypted) return [];
     try {
         var json = decryptData(encrypted, getAesKey());
+        if (!json) return [];
         return JSON.parse(json) || [];
     } catch (e) { return []; }
 }
@@ -233,6 +252,7 @@ function saveLocalEncrypted(chat, msgs) {
     try {
         localStorage.setItem('ichatter_msg_' + chat, encrypted);
     } catch (e) {
+        // localStorage переполнен – удаляем старые чаты
         var keys = [];
         for (var i = 0; i < localStorage.length; i++) {
             var k = localStorage.key(i);

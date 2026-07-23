@@ -1,4 +1,4 @@
-// Очищаем старые данные
+// Очищаем старые зашифрованные данные, чтобы JSON.parse не падал
 localStorage.removeItem('ichatter_aes_key');
 localStorage.removeItem('ichatter_e2ee_keys');
 var keysToRemove = [];
@@ -239,38 +239,435 @@ function generateEmptyAvatar() {
     return dataUrl;
 }
 
-function addMsg(msg) { /* без изменений */ }
-function updMsg(id, text, edited) { /* без изменений */ }
-function delMsgUI(id) { /* без изменений */ }
-function showPartnerProfile() { /* без изменений */ }
-function closePartnerProfile() { /* без изменений */ }
-function showTab(tab) { /* без изменений */ }
+function addMsg(msg) {
+    if (loadedMessageIds[msg.id]) return;
+    loadedMessageIds[msg.id] = true;
+    var container = byId('messages');
+    var div = document.createElement('div');
+    div.className = 'msg';
+    if (msg.from === myEmail) div.className += ' my';
+    div.id = 'msg-' + msg.id;
+    var senderName = msg.fromUsername || msg.from.split('@')[0];
+    var timeStr = formatTime(msg.timestamp);
+    var displayText = msg.text || '';
+    var text = msg.deleted ? '<i>' + t('deleted') + '</i>' : esc(displayText);
+    var edited = msg.edited ? ' <span class="edited-tag">(' + t('edited') + ')</span>' : '';
+    div.innerHTML = '<div class="sender">' + esc(senderName) + '</div>' +
+                    '<div class="text">' + text + edited + '</div>' +
+                    '<span class="time">' + timeStr + '</span>';
+    if (msg.from === myEmail && !msg.deleted) {
+        div.innerHTML += '<div class="actions"><button class="edit-btn" onclick="editMsg(\'' + msg.id + '\',\'' + esc(displayText).replace(/'/g, "\\'") + '\')">✎</button><button class="del-btn" onclick="delMsg(\'' + msg.id + '\')">✕</button></div>';
+    }
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+
+function updMsg(id, text, edited) {
+    var el = byId('msg-' + id);
+    if (!el) return;
+    var textDivs = el.getElementsByClassName('text');
+    if (textDivs.length > 0) {
+        textDivs[0].innerHTML = esc(text) + (edited ? ' <span class="edited-tag">(' + t('edited') + ')</span>' : '');
+    }
+}
+
+function delMsgUI(id) {
+    var el = byId('msg-' + id);
+    if (!el) return;
+    var textDivs = el.getElementsByClassName('text');
+    if (textDivs.length > 0) textDivs[0].innerHTML = '<i>' + t('deleted') + '</i>';
+    var actions = el.getElementsByClassName('actions');
+    if (actions.length > 0) actions[0].style.display = 'none';
+}
+
+function showPartnerProfile() {
+    if (!chatWith) return;
+    var partner = null;
+    for (var i = 0; i < contacts.length; i++) {
+        if (contacts[i].email === chatWith) { partner = contacts[i]; break; }
+    }
+    if (!partner) {
+        byId('partner-displayname').textContent = chatWith.split('@')[0];
+        byId('partner-username').textContent = chatWith.split('@')[0];
+        byId('partner-id').textContent = '';
+        byId('partner-status').textContent = '';
+        byId('partner-age').textContent = '';
+        byId('partner-about').textContent = '';
+        byId('partner-avatar').src = generateEmptyAvatar();
+        byId('partner-profile-overlay').style.display = 'flex';
+        return;
+    }
+    byId('partner-displayname').textContent = partner.displayName || partner.username;
+    byId('partner-username').textContent = partner.username || '';
+    byId('partner-id').textContent = partner.searchId || '';
+    byId('partner-status').textContent = partner.isOnline ? t('online') : t('offline');
+    byId('partner-age').textContent = partner.age ? (t('age') + ': ' + partner.age) : '';
+    byId('partner-about').textContent = partner.about || '';
+    var avUrl = generateEmptyAvatar();
+    if (partner.avatar && partner.avatar.indexOf('/uploads/avatars/') === 0) {
+        avUrl = API + partner.avatar;
+    }
+    byId('partner-avatar').src = avUrl;
+    byId('partner-profile-overlay').style.display = 'flex';
+}
+
+function closePartnerProfile() {
+    byId('partner-profile-overlay').style.display = 'none';
+}
+
+function showTab(tab) {
+    byId('chats-panel').style.display = 'none';
+    byId('archive-panel').style.display = 'none';
+    byId('settings-panel').style.display = 'none';
+    byId('chat-area').style.display = 'none';
+    var navs = document.getElementsByClassName('nav-btn');
+    for (var i = 0; i < navs.length; i++) navs[i].className = 'nav-btn';
+    byId('bottom-nav').style.display = 'table';
+    byId('btn-back').style.display = 'none';
+    byId('chat-title').innerHTML = 'iChatter';
+    if (tab === 'chats') {
+        byId('chats-panel').style.display = 'block';
+        byId('nav-chats').className = 'nav-btn active';
+        loadContacts();
+    } else if (tab === 'archive') {
+        byId('archive-panel').style.display = 'block';
+        byId('nav-archive').className = 'nav-btn active';
+        loadArchive();
+    } else if (tab === 'settings') {
+        byId('settings-panel').style.display = 'block';
+        byId('nav-settings').className = 'nav-btn active';
+        loadSettings();
+    }
+    updateNavTexts();
+}
+
 function openChat(em) {
     chatWith = em;
-    // ... (как раньше, но загружаем через loadLocalEncrypted)
+    byId('chats-panel').style.display = 'none';
+    byId('archive-panel').style.display = 'none';
+    byId('settings-panel').style.display = 'none';
+    byId('chat-area').style.display = 'block';
+    byId('bottom-nav').style.display = 'none';
+    byId('btn-back').style.display = 'block';
+    var name = pendingName;
+    if (!name) {
+        for (var i = 0; i < contacts.length; i++) {
+            if (contacts[i].email === em) { name = contacts[i].displayName || contacts[i].username; break; }
+        }
+    }
+    if (!name) name = em.split('@')[0];
+    pendingName = null;
+    byId('chat-title').innerHTML = name;
+    byId('chat-title').onclick = showPartnerProfile;
+    loadedMessageIds = {};
+    byId('messages').innerHTML = '';
+
+    if (!hasContact(em)) {
+        addContactToServer(em);
+        contacts.push({
+            email: em,
+            username: em.split('@')[0],
+            displayName: em.split('@')[0],
+            searchId: '',
+            avatar: 'av1.png',
+            age: 0,
+            about: '',
+            isOnline: false
+        });
+        renderContacts();
+    }
+
+    var msgs = loadLocalEncrypted(em);
+    for (var j = 0; j < msgs.length; j++) {
+        addMsg(msgs[j]);
+    }
 }
-function goBack() { /* без изменений */ }
-function updateNavTexts() { /* без изменений */ }
-function addContactToServer(email) { /* без изменений */ }
-function hasContact(email) { /* без изменений */ }
-function loadContacts() { /* без изменений */ }
-function renderContacts() { /* без изменений */ }
-function loadArchive() { /* без изменений */ }
-function archiveChat(em) { /* без изменений */ }
-function unarchiveChat(em) { /* без изменений */ }
-function findUser() { /* без изменений */ }
-function loadSettings() { /* без изменений */ }
-function loadAvatars() { /* без изменений */ }
-function loadWallpapers() { /* без изменений */ }
-function loadDevices() { /* без изменений */ }
-function logoutDevice(tok) { /* без изменений */ }
-function saveSettings() { /* без изменений */ }
-function setLang(l) { /* без изменений */ }
-function setTheme(th) { /* без изменений */ }
-function uploadCustomAvatar(input) { /* без изменений */ }
-function sendMessage() { /* без изменений */ }
-function editMsg(id, text) { /* без изменений */ }
-function delMsg(id) { /* без изменений */ }
+
+function goBack() { showTab('chats'); byId('chat-title').onclick = null; }
+
+function updateNavTexts() {
+    byId('nav-chats').textContent = t('chats');
+    byId('nav-archive').textContent = t('archive');
+    byId('nav-settings').textContent = t('settings');
+    byId('search-input').placeholder = t('searchPlaceholder');
+    byId('input').placeholder = t('msg');
+    byId('send-btn').textContent = t('send');
+    byId('btn-back').textContent = t('back');
+}
+
+function addContactToServer(email) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', API + '/api/add-contact', true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.send(JSON.stringify({ token: token, email: email }));
+}
+
+function hasContact(email) {
+    for (var i = 0; i < contacts.length; i++) {
+        if (contacts[i].email === email) return true;
+    }
+    return false;
+}
+
+function loadContacts() {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', API + '/api/contacts?token=' + token, true);
+    xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+            contacts = JSON.parse(xhr.responseText).contacts || [];
+            renderContacts();
+        }
+    };
+    xhr.send();
+}
+
+function renderContacts() {
+    var list = byId('chats-list');
+    list.innerHTML = '';
+    if (!contacts.length) {
+        list.innerHTML = '<div style="padding:20px;text-align:center;color:#aaa;">' + t('noContacts') + '</div>';
+        return;
+    }
+    for (var i = 0; i < contacts.length; i++) {
+        var c = contacts[i];
+        var div = document.createElement('div');
+        div.className = 'chat-item';
+        var statusClass = c.isOnline ? 'online' : '';
+        div.innerHTML = '<div class="name">' + esc(c.displayName || c.username) + '</div><div class="status ' + statusClass + '">' + (c.isOnline ? t('online') : t('offline')) + '</div><button class="archive-btn" onclick="event.stopPropagation();archiveChat(\'' + c.email + '\')">📦</button>';
+        div.onclick = (function (email) { return function () { openChat(email); }; })(c.email);
+        list.appendChild(div);
+    }
+}
+
+function loadArchive() {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', API + '/api/archived-chats?token=' + token, true);
+    xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+            var data = JSON.parse(xhr.responseText).contacts || [];
+            var list = byId('archive-list');
+            list.innerHTML = '';
+            if (!data.length) {
+                list.innerHTML = '<div style="padding:20px;text-align:center;color:#aaa;">' + t('empty') + '</div>';
+                return;
+            }
+            for (var i = 0; i < data.length; i++) {
+                var c = data[i];
+                var div = document.createElement('div');
+                div.className = 'chat-item';
+                div.innerHTML = '<div class="name">' + esc(c.displayName || c.username) + '</div><button class="archive-btn unarchive-btn" onclick="event.stopPropagation();unarchiveChat(\'' + c.email + '\')">↩</button>';
+                div.onclick = (function (email, name) { return function () { pendingName = name; openChat(email); }; })(c.email, c.displayName || c.username);
+                list.appendChild(div);
+            }
+        }
+    };
+    xhr.send();
+}
+
+function archiveChat(em) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', API + '/api/archive-chat', true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.onreadystatechange = function () { if (xhr.readyState === 4 && xhr.status === 200) loadContacts(); };
+    xhr.send(JSON.stringify({ token: token, email: em }));
+}
+
+function unarchiveChat(em) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', API + '/api/unarchive-chat', true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.onreadystatechange = function () { if (xhr.readyState === 4 && xhr.status === 200) { loadArchive(); loadContacts(); } };
+    xhr.send(JSON.stringify({ token: token, email: em }));
+}
+
+function findUser() {
+    var id = byId('search-input').value.trim();
+    if (!id) { alert(t('enterId')); return; }
+    if (!/^\d{6}$/.test(id)) { alert(t('invalidId')); return; }
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', API + '/api/find-user?token=' + token + '&id=' + encodeURIComponent(id), true);
+    xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+            var d = JSON.parse(xhr.responseText);
+            if (d.found) {
+                if (d.user.email === myEmail) { alert(t('selfSearch')); return; }
+                pendingName = d.user.displayName || d.user.username;
+                openChat(d.user.email);
+            } else if (d.error) { alert(d.error); } else { alert(t('notFound')); }
+        }
+    };
+    xhr.send();
+}
+
+function loadSettings() {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', API + '/api/my-profile?token=' + token, true);
+    xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+            profile = JSON.parse(xhr.responseText).user;
+            byId('set-username').value = profile.username || '';
+            byId('set-displayname').value = profile.displayName || '';
+            byId('set-age').value = profile.age || '';
+            byId('set-about').value = profile.about || '';
+            byId('lang-select').value = profile.language || lang;
+            var savedTheme = profile.theme || 'dark';
+            byId('theme-select').value = savedTheme;
+            setTheme(savedTheme);
+            byId('my-id-display').innerHTML = profile.searchId || '';
+            loadAvatars();
+            loadWallpapers();
+            loadDevices();
+            updateNavTexts();
+        }
+    };
+    xhr.send();
+}
+
+function loadAvatars() {
+    var grid = byId('avatar-grid');
+    grid.innerHTML = '';
+    if (profile.avatar && profile.avatar.indexOf('/uploads/avatars/') === 0) {
+        var custImg = document.createElement('img');
+        custImg.src = API + profile.avatar;
+        custImg.className = 'selected';
+        custImg.title = t('avatar');
+        grid.appendChild(custImg);
+    } else {
+        var emptyImg = document.createElement('img');
+        emptyImg.src = generateEmptyAvatar();
+        emptyImg.className = 'selected';
+        emptyImg.title = t('noAvatar');
+        grid.appendChild(emptyImg);
+    }
+}
+
+function loadWallpapers() {
+    var grid = byId('wallpaper-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    var walls = ['bg1.jpg', 'bg2.jpg', 'bg3.jpg', 'bg4.jpg', 'bg5.jpg', 'bg6.jpg', 'bg7.jpg', 'bg8.jpg'];
+    for (var i = 0; i < walls.length; i++) {
+        var img = document.createElement('img');
+        img.src = STATIC_URL + '/wallpapers/' + walls[i];
+        img.onerror = function () { this.style.display = 'none'; };
+        if (profile.wallpaper === walls[i]) img.className = 'selected';
+        img.onclick = (function (w) {
+            return function () {
+                var imgs = grid.getElementsByTagName('img');
+                for (var k = 0; k < imgs.length; k++) imgs[k].className = '';
+                this.className = 'selected';
+                profile.wallpaper = w;
+                byId('messages').style.backgroundImage = 'url(' + STATIC_URL + '/wallpapers/' + w + ')';
+                byId('messages').style.backgroundSize = 'cover';
+            };
+        })(walls[i]);
+        grid.appendChild(img);
+    }
+    if (profile.wallpaper && profile.wallpaper.indexOf('/uploads/wallpapers/') === 0) {
+        var custBg = document.createElement('img');
+        custBg.src = API + profile.wallpaper;
+        custBg.className = 'selected';
+        custBg.onclick = function () {
+            var imgs = grid.getElementsByTagName('img');
+            for (var j = 0; j < imgs.length; j++) imgs[j].className = '';
+            this.className = 'selected';
+            profile.wallpaper = this.src.replace(API, '');
+            byId('messages').style.backgroundImage = 'url(' + this.src + ')';
+            byId('messages').style.backgroundSize = 'cover';
+        };
+        grid.appendChild(custBg);
+    }
+}
+
+function loadDevices() {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', API + '/api/my-devices?token=' + token, true);
+    xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+            var devices = JSON.parse(xhr.responseText).devices || [];
+            var list = byId('devices-list');
+            list.innerHTML = '';
+            for (var i = 0; i < devices.length; i++) {
+                var d = devices[i];
+                var div = document.createElement('div');
+                div.style.padding = '6px 0';
+                var extra = d.isCurrent ? ' <b>[текущий]</b>' : ' <button onclick="logoutDevice(\'' + d.token + '\')" style="font-size:10px;background:#e74c3c;color:white;border:none;padding:3px 8px;border-radius:4px;cursor:pointer;">Выйти</button>';
+                div.innerHTML = d.device + ' (' + new Date(d.created).toLocaleString() + ')' + extra;
+                list.appendChild(div);
+            }
+        }
+    };
+    xhr.send();
+}
+
+function logoutDevice(tok) {
+    if (!confirm('Выйти с устройства?')) return;
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', API + '/api/logout-device', true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.onreadystatechange = function () { if (xhr.readyState === 4) loadDevices(); };
+    xhr.send(JSON.stringify({ token: token, targetToken: tok }));
+}
+
+function saveSettings() {
+    profile.displayName = byId('set-displayname').value;
+    profile.age = parseInt(byId('set-age').value) || 0;
+    profile.about = byId('set-about').value;
+    var newLang = byId('lang-select').value;
+    var newTheme = byId('theme-select').value;
+    lang = newLang;
+    localStorage.setItem('lang', lang);
+    setTheme(newTheme);
+    profile.language = newLang;
+    profile.theme = newTheme;
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', API + '/api/update-profile', true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4 && xhr.status === 200) { alert(t('saved')); showTab('settings'); }
+    };
+    xhr.send(JSON.stringify({ token: token, displayName: profile.displayName, age: profile.age, about: profile.about, avatar: profile.avatar, theme: newTheme, language: newLang, wallpaper: profile.wallpaper }));
+}
+
+function setLang(l) { lang = l; localStorage.setItem('lang', lang); updateNavTexts(); if (byId('lang-select')) byId('lang-select').value = lang; }
+function setTheme(th) {
+    if (th === 'light') { document.body.className = 'light-mode'; } else { document.body.className = 'dark-mode'; }
+    if (profile) profile.theme = th;
+    if (byId('theme-select')) byId('theme-select').value = th;
+}
+
+function uploadCustomAvatar(input) {
+    if (!input.files || !input.files[0]) return;
+    var file = input.files[0];
+    var formData = new FormData();
+    formData.append('avatar', file);
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', API + '/api/upload-avatar?token=' + token, true);
+    xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+            var resp = JSON.parse(xhr.responseText);
+            if (resp.success) { alert('Аватар обновлён!'); profile.avatar = resp.url; loadAvatars(); }
+        }
+        input.value = '';
+    };
+    xhr.send(formData);
+}
+
+function sendMessage() {
+    var input = byId('input');
+    var text = input.value.trim();
+    if (!text || !chatWith || !socket) return;
+    if (editingId) {
+        socket.emit('edit_message', { id: editingId, newText: text, to: chatWith });
+        editingId = null;
+    } else {
+        socket.emit('send_message', { to: chatWith, text: text });
+    }
+    input.value = '';
+}
+
+function editMsg(id, text) { editingId = id; byId('input').value = text; byId('input').focus(); }
+function delMsg(id) { if (confirm('Удалить сообщение?')) socket.emit('delete_message', { id: id, to: chatWith }); }
 
 function connectSocket() {
     socket = io(API, { query: { token: token } });

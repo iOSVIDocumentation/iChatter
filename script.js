@@ -291,9 +291,14 @@ function showPartnerProfile() {
     byId('partner-status').textContent = partner.isOnline ? t('online') : t('offline');
     byId('partner-age').textContent = partner.age ? (t('age') + ': ' + partner.age) : '';
     byId('partner-about').textContent = partner.about || '';
+
     var avUrl = generateEmptyAvatar();
-    if (partner.avatar && partner.avatar.indexOf('/uploads/avatars/') === 0) {
-        avUrl = API + partner.avatar;
+    if (partner.avatar) {
+        if (partner.avatar.indexOf('/uploads/avatars/') === 0) {
+            avUrl = API + partner.avatar;
+        } else {
+            avUrl = STATIC_URL + '/avatars/' + partner.avatar;
+        }
     }
     byId('partner-avatar').src = avUrl;
     byId('partner-profile-overlay').style.display = 'flex';
@@ -524,19 +529,20 @@ function loadSettings() {
 function loadAvatars() {
     var grid = byId('avatar-grid');
     grid.innerHTML = '';
-    if (profile.avatar && profile.avatar.indexOf('/uploads/avatars/') === 0) {
-        var custImg = document.createElement('img');
-        custImg.src = API + profile.avatar;
-        custImg.className = 'selected';
-        custImg.title = t('avatar');
-        grid.appendChild(custImg);
-    } else {
-        var emptyImg = document.createElement('img');
-        emptyImg.src = generateEmptyAvatar();
-        emptyImg.className = 'selected';
-        emptyImg.title = t('noAvatar');
-        grid.appendChild(emptyImg);
+    var avatarUrl = generateEmptyAvatar(); // заглушка по умолчанию
+    if (profile.avatar) {
+        if (profile.avatar.indexOf('/uploads/avatars/') === 0) {
+            avatarUrl = API + profile.avatar; // кастомный аватар
+        } else {
+            // стандартный аватар (например, av1.png)
+            avatarUrl = STATIC_URL + '/avatars/' + profile.avatar;
+        }
     }
+    var img = document.createElement('img');
+    img.src = avatarUrl;
+    img.className = 'selected';
+    img.title = t('avatar');
+    grid.appendChild(img);
 }
 
 function loadWallpapers() {

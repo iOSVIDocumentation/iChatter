@@ -1,57 +1,5 @@
-// Очищаем старые зашифрованные данные, чтобы JSON.parse не падал
-localStorage.removeItem('ichatter_aes_key');
-localStorage.removeItem('ichatter_e2ee_keys');
-var keysToRemove = [];
-for (var i = 0; i < localStorage.length; i++) {
-    var k = localStorage.key(i);
-    if (k && k.indexOf('ichatter_msg_') === 0) keysToRemove.push(k);
-}
-for (var j = 0; j < keysToRemove.length; j++) {
-    localStorage.removeItem(keysToRemove[j]);
-}
-
-var API = 'https://ichatterios6.iosvidocum.workers.dev';
-var STATIC_URL = 'https://ichatterios6.iosvidocum.workers.dev';
-
-// ==============================================
-// БЕЗОПАСНЫЙ BASE64 (работает с любыми байтами)
-// ==============================================
-var base64chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-
-function toBase64(bytes) {
-    var result = '';
-    for (var i = 0; i < bytes.length; i += 3) {
-        var b1 = bytes[i];
-        var b2 = i + 1 < bytes.length ? bytes[i + 1] : 0;
-        var b3 = i + 2 < bytes.length ? bytes[i + 2] : 0;
-        var enc1 = b1 >> 2;
-        var enc2 = ((b1 & 3) << 4) | (b2 >> 4);
-        var enc3 = ((b2 & 15) << 2) | (b3 >> 6);
-        var enc4 = b3 & 63;
-        if (i + 1 >= bytes.length) enc3 = enc4 = 64;
-        else if (i + 2 >= bytes.length) enc4 = 64;
-        result += base64chars.charAt(enc1) + base64chars.charAt(enc2) + base64chars.charAt(enc3) + base64chars.charAt(enc4);
-    }
-    return result;
-}
-
-function fromBase64(str) {
-    var bytes = [];
-    var i = 0;
-    while (i < str.length) {
-        var enc1 = base64chars.indexOf(str.charAt(i++));
-        var enc2 = base64chars.indexOf(str.charAt(i++));
-        var enc3 = base64chars.indexOf(str.charAt(i++));
-        var enc4 = base64chars.indexOf(str.charAt(i++));
-        var b1 = (enc1 << 2) | (enc2 >> 4);
-        var b2 = ((enc2 & 15) << 4) | (enc3 >> 2);
-        var b3 = ((enc3 & 3) << 6) | enc4;
-        bytes.push(b1);
-        if (enc3 != 64) bytes.push(b2);
-        if (enc4 != 64) bytes.push(b3);
-    }
-    return bytes;
-}
+var API = 'https://stops-waiting-papers-pens.trycloudflare.com';
+var STATIC_URL = 'https://raw.githubusercontent.com/iOSVIDocumentation/ichatter/main';
 
 // ==============================================
 // XOR ШИФРОВАНИЕ (через байты)
@@ -105,6 +53,43 @@ function bytesToString(bytes) {
         }
     }
     return str;
+}
+
+var base64chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+
+function toBase64(bytes) {
+    var result = '';
+    for (var i = 0; i < bytes.length; i += 3) {
+        var b1 = bytes[i];
+        var b2 = i + 1 < bytes.length ? bytes[i + 1] : 0;
+        var b3 = i + 2 < bytes.length ? bytes[i + 2] : 0;
+        var enc1 = b1 >> 2;
+        var enc2 = ((b1 & 3) << 4) | (b2 >> 4);
+        var enc3 = ((b2 & 15) << 2) | (b3 >> 6);
+        var enc4 = b3 & 63;
+        if (i + 1 >= bytes.length) enc3 = enc4 = 64;
+        else if (i + 2 >= bytes.length) enc4 = 64;
+        result += base64chars.charAt(enc1) + base64chars.charAt(enc2) + base64chars.charAt(enc3) + base64chars.charAt(enc4);
+    }
+    return result;
+}
+
+function fromBase64(str) {
+    var bytes = [];
+    var i = 0;
+    while (i < str.length) {
+        var enc1 = base64chars.indexOf(str.charAt(i++));
+        var enc2 = base64chars.indexOf(str.charAt(i++));
+        var enc3 = base64chars.indexOf(str.charAt(i++));
+        var enc4 = base64chars.indexOf(str.charAt(i++));
+        var b1 = (enc1 << 2) | (enc2 >> 4);
+        var b2 = ((enc2 & 15) << 4) | (enc3 >> 2);
+        var b3 = ((enc3 & 3) << 6) | enc4;
+        bytes.push(b1);
+        if (enc3 != 64) bytes.push(b2);
+        if (enc4 != 64) bytes.push(b3);
+    }
+    return bytes;
 }
 
 function simpleEncrypt(text, key) {

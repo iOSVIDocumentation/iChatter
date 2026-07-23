@@ -291,12 +291,12 @@ function showPartnerProfile() {
     byId('partner-status').textContent = partner.isOnline ? t('online') : t('offline');
     byId('partner-age').textContent = partner.age ? (t('age') + ': ' + partner.age) : '';
     byId('partner-about').textContent = partner.about || '';
-
     var avUrl = generateEmptyAvatar();
     if (partner.avatar) {
         if (partner.avatar.indexOf('/uploads/avatars/') === 0) {
             avUrl = API + partner.avatar;
         } else {
+            // стандартный аватар (например, av1.png)
             avUrl = STATIC_URL + '/avatars/' + partner.avatar;
         }
     }

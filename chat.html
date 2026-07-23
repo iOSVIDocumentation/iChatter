@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>iChatter</title>
-    <script src="https://stops-waiting-papers-pens.trycloudflare.com/socket.io/socket.io.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
     <style>
         body, html { margin: 0; padding: 0; height: 100%; background: #555d65; color: #fff; font-family: Helvetica, sans-serif; overflow: hidden; }
         body.light-mode { background: #E2E7ED; color: #222; }
@@ -25,10 +25,10 @@
         body.light-mode .nav-btn { background: #2c3e50; border-color: #ccc; }
         body.light-mode .nav-btn.active { background: #4a627a; }
 
-        #header { position: absolute; top: 0; left: 0; right: 0; height: 44px; background: #2c3e50; color: white; line-height: 44px; padding: 0 10px; z-index: 10; box-sizing: border-box; }
+        #header { position: fixed; top: 0; left: 0; right: 0; height: 44px; background: #2c3e50; color: white; line-height: 44px; padding: 0 10px; z-index: 10; box-sizing: border-box; }
         #btn-back { background: #4a627a; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; margin-right: 8px; display: none; }
         #chat-title { font-size: 14px; font-weight: bold; display: inline; cursor: pointer; vertical-align: middle; }
-        #main-content { position: absolute; top: 44px; bottom: 50px; left: 0; right: 0; overflow: hidden; }
+        #main-content { position: fixed; top: 44px; bottom: 50px; left: 0; right: 0; overflow: hidden; }
         #chats-panel, #archive-panel, #settings-panel, #chat-area { position: absolute; top: 0; bottom: 0; left: 0; width: 100%; background: #3b434a; overflow-y: scroll; -webkit-overflow-scrolling: touch; z-index: 2; display: none; }
         #messages { position: absolute; top: 0; left: 0; right: 0; bottom: 50px; padding: 10px; overflow-y: scroll; -webkit-overflow-scrolling: touch; box-sizing: border-box; background: #555d65; }
         #form-container { position: absolute; bottom: 0; left: 0; right: 0; height: 50px; background: #3b434a; box-sizing: border-box; padding: 5px; display: block; }
@@ -64,7 +64,7 @@
         .wallpaper-grid { overflow: hidden; }
         .wallpaper-grid img { width: 70px; height: 44px; margin: 4px; border: 2px solid transparent; cursor: pointer; object-fit: cover; float: left; }
         .wallpaper-grid img.selected { border-color: #27ae60; }
-        #bottom-nav { position: absolute; bottom: 0; left: 0; right: 0; height: 50px; background: #3b434a; display: table; width: 100%; z-index: 20; }
+        #bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: 50px; background: #3b434a; display: table; width: 100%; z-index: 20; }
         .nav-btn { display: table-cell; text-align: center; vertical-align: middle; background: #2c3e50; color: #aaa; font-size: 12px; cursor: pointer; border-right: 1px solid #4a627a; }
         .nav-btn:last-child { border-right: none; }
         .nav-btn.active { background: #4a627a; color: white; font-weight: bold; }

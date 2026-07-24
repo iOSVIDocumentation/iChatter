@@ -1,5 +1,7 @@
-var API = window.location.origin;
-var STATIC_URL = window.location.origin;
+// Совместимость с iOS 6
+var BASE = window.location.protocol + '//' + window.location.host;
+var API = BASE;
+var STATIC_URL = BASE;
 
 // ==============================================
 // ОСНОВНОЙ КОД
@@ -196,9 +198,8 @@ function showPartnerProfile() {
     }
     var avatarImg = byId('partner-avatar');
     avatarImg.src = avUrl;
-    // Если не загрузится, покажем заглушку
     avatarImg.onerror = function () {
-        this.onerror = null; // чтобы не зациклиться
+        this.onerror = null;
         this.src = generateEmptyAvatar();
     };
     byId('partner-profile-overlay').style.display = 'flex';
@@ -438,7 +439,7 @@ function loadSettings() {
 function loadAvatars() {
     var grid = byId('avatar-grid');
     grid.innerHTML = '';
-    var avatarUrl = generateEmptyAvatar(); // заглушка по умолчанию
+    var avatarUrl = generateEmptyAvatar();
     if (profile.avatar) {
         if (profile.avatar.indexOf('/uploads/avatars/') === 0) {
             avatarUrl = API + profile.avatar;
@@ -450,7 +451,6 @@ function loadAvatars() {
     img.src = avatarUrl;
     img.className = 'selected';
     img.title = t('avatar');
-    // Если изображение не загрузится (404), покажем заглушку
     img.onerror = function () {
         this.onerror = null;
         this.src = generateEmptyAvatar();

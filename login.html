@@ -62,12 +62,11 @@
     </div>
 
     <script>
-        // Берём текущий домен (работает и с туннелем, и с workers.dev)
+        // Используем текущий домен
         var API = window.location.protocol + '//' + window.location.host;
         var currentMode = 'login';
         var lang = 'ru';
 
-        // Переводы
         var T = {
             ru: {
                 loginTab: 'Вход',
@@ -165,7 +164,7 @@
                     
                     if (xhr.status === 200 && data.success) {
                         document.getElementById('code-section').style.display = 'block';
-                        updateTexts(); // обновим текст в code-section
+                        updateTexts();
                     } else {
                         alert(data.error || t('sendError'));
                     }

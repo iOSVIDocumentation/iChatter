@@ -185,6 +185,7 @@ function showPartnerProfile() {
     byId('partner-status').textContent = partner.isOnline ? t('online') : t('offline');
     byId('partner-age').textContent = partner.age ? (t('age') + ': ' + partner.age) : '';
     byId('partner-about').textContent = partner.about || '';
+
     var avUrl = generateEmptyAvatar();
     if (partner.avatar) {
         if (partner.avatar.indexOf('/uploads/avatars/') === 0) {
@@ -193,7 +194,13 @@ function showPartnerProfile() {
             avUrl = STATIC_URL + '/avatars/' + partner.avatar;
         }
     }
-    byId('partner-avatar').src = avUrl;
+    var avatarImg = byId('partner-avatar');
+    avatarImg.src = avUrl;
+    // Если не загрузится, покажем заглушку
+    avatarImg.onerror = function () {
+        this.onerror = null; // чтобы не зациклиться
+        this.src = generateEmptyAvatar();
+    };
     byId('partner-profile-overlay').style.display = 'flex';
 }
 
@@ -443,6 +450,11 @@ function loadAvatars() {
     img.src = avatarUrl;
     img.className = 'selected';
     img.title = t('avatar');
+    // Если изображение не загрузится (404), покажем заглушку
+    img.onerror = function () {
+        this.onerror = null;
+        this.src = generateEmptyAvatar();
+    };
     grid.appendChild(img);
 }
 

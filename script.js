@@ -2,6 +2,105 @@ var BASE = window.location.protocol + '//' + window.location.host;
 var API = BASE;
 var STATIC_URL = BASE;
 
+// ==============================================
+// БЕЗОПАСНЫЙ BASE64 (совместимость с iOS 6)
+// ==============================================
+var base64chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+
+function toBase64(bytes) {
+    var result = '';
+    for (var i = 0; i < bytes.length; i += 3) {
+        var b1 = bytes[i];
+        var b2 = i + 1 < bytes.length ? bytes[i + 1] : 0;
+        var b3 = i + 2 < bytes.length ? bytes[i + 2] : 0;
+        var enc1 = b1 >> 2;
+        var enc2 = ((b1 & 3) << 4) | (b2 >> 4);
+        var enc3 = ((b2 & 15) << 2) | (b3 >> 6);
+        var enc4 = b3 & 63;
+        if (i + 1 >= bytes.length) enc3 = enc4 = 64;
+        else if (i + 2 >= bytes.length) enc4 = 64;
+        result += base64chars.charAt(enc1) + base64chars.charAt(enc2) + base64chars.charAt(enc3) + base64chars.charAt(enc4);
+    }
+    return result;
+}
+
+function fromBase64(str) {
+    var bytes = [];
+    var i = 0;
+    while (i < str.length) {
+        var enc1 = base64chars.indexOf(str.charAt(i++));
+        var enc2 = base64chars.indexOf(str.charAt(i++));
+        var enc3 = base64chars.indexOf(str.charAt(i++));
+        var enc4 = base64chars.indexOf(str.charAt(i++));
+        var b1 = (enc1 << 2) | (enc2 >> 4);
+        var b2 = ((enc2 & 15) << 4) | (enc3 >> 2);
+        var b3 = ((enc3 & 3) << 6) | enc4;
+        bytes.push(b1);
+        if (enc3 != 64) bytes.push(b2);
+        if (enc4 != 64) bytes.push(b3);
+    }
+    return bytes;
+}
+
+// ==============================================
+// XOR ШИФРОВАНИЕ (ключ = токен)
+// ==============================================
+function stringToBytes(str) {
+    var bytes = [];
+    for (var i = 0; i < str.length; i++) {
+        var code = str.charCodeAt(i);
+        if (code < 128) bytes.push(code);
+        else if (code < 2048) {
+            bytes.push(192 | (code >> 6));
+            bytes.push(128 | (code & 63));
+        } else {
+            bytes.push(224 | (code >> 12));
+            bytes.push(128 | ((code >> 6) & 63));
+            bytes.push(128 | (code & 63));
+        }
+    }
+    return bytes;
+}
+
+function bytesToString(bytes) {
+    var str = '';
+    var i = 0;
+    while (i < bytes.length) {
+        var code = bytes[i++];
+        if (code < 128) str += String.fromCharCode(code);
+        else if (code >= 192 && code < 224) {
+            var code2 = bytes[i++];
+            str += String.fromCharCode(((code & 31) << 6) | (code2 & 63));
+        } else {
+            var code2 = bytes[i++];
+            var code3 = bytes[i++];
+            str += String.fromCharCode(((code & 15) << 12) | ((code2 & 63) << 6) | (code3 & 63));
+        }
+    }
+    return str;
+}
+
+function encryptLocal(text, key) {
+    var textBytes = stringToBytes(text);
+    var encrypted = [];
+    for (var i = 0; i < textBytes.length; i++) {
+        encrypted.push(textBytes[i] ^ key.charCodeAt(i % key.length));
+    }
+    return toBase64(encrypted);
+}
+
+function decryptLocal(encBase64, key) {
+    var encrypted = fromBase64(encBase64);
+    var decrypted = [];
+    for (var i = 0; i < encrypted.length; i++) {
+        decrypted.push(encrypted[i] ^ key.charCodeAt(i % key.length));
+    }
+    return bytesToString(decrypted);
+}
+
+// ==============================================
+// ОСНОВНОЙ КОД
+// ==============================================
 function getParam(name) {
     var query = window.location.search.substring(1);
     var vars = query.split('&');
@@ -119,14 +218,26 @@ function generateEmptyAvatar() {
     return dataUrl;
 }
 
+// ==============================================
+// ЛОКАЛЬНОЕ ХРАНЕНИЕ (с шифрованием токеном)
+// ==============================================
 function saveLocalMessages(chat, msgs) {
-    try { localStorage.setItem('ichatter_msg_' + chat, JSON.stringify(msgs)); } catch (e) {}
+    try {
+        var json = JSON.stringify(msgs);
+        var encrypted = encryptLocal(json, token);
+        localStorage.setItem('ichatter_msg_' + chat, encrypted);
+    } catch (e) {}
 }
+
 function loadLocalMessages(chat) {
-    var data = localStorage.getItem('ichatter_msg_' + chat);
-    if (!data) return [];
-    try { return JSON.parse(data) || []; } catch (e) { return []; }
+    var encrypted = localStorage.getItem('ichatter_msg_' + chat);
+    if (!encrypted) return [];
+    try {
+        var json = decryptLocal(encrypted, token);
+        return JSON.parse(json) || [];
+    } catch (e) { return []; }
 }
+
 function mergeMessages(local, server) {
     var map = {};
     for (var i = 0; i < local.length; i++) map[local[i].id] = local[i];

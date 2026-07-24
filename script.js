@@ -1,4 +1,3 @@
-// Совместимость с iOS 6
 var BASE = window.location.protocol + '//' + window.location.host;
 var API = BASE;
 var STATIC_URL = BASE;
@@ -115,6 +114,23 @@ function loadLocalMessages(chat) {
     } catch (e) {
         return [];
     }
+}
+
+// Слияние массивов: новые перезаписывают старые по id
+function mergeMessages(localMsgs, serverMsgs) {
+    var map = {};
+    for (var i = 0; i < localMsgs.length; i++) {
+        map[localMsgs[i].id] = localMsgs[i];
+    }
+    for (var j = 0; j < serverMsgs.length; j++) {
+        map[serverMsgs[j].id] = serverMsgs[j]; // серверная версия приоритетнее
+    }
+    var merged = [];
+    for (var key in map) {
+        if (map.hasOwnProperty(key)) merged.push(map[key]);
+    }
+    merged.sort(function(a, b) { return a.timestamp - b.timestamp; });
+    return merged;
 }
 
 // ==============================================
@@ -259,7 +275,7 @@ function openChat(em) {
     loadedMessageIds = {};
     byId('messages').innerHTML = '';
 
-    // Применяем обои, если они сохранены в профиле
+    // Применяем обои
     if (profile && profile.wallpaper) {
         var wp = profile.wallpaper;
         var wpUrl = (wp.indexOf('/uploads/') === 0) ? API + wp : STATIC_URL + '/wallpapers/' + wp;
@@ -284,10 +300,29 @@ function openChat(em) {
         renderContacts();
     }
 
-    var msgs = loadLocalMessages(em);
-    for (var j = 0; j < msgs.length; j++) {
-        addMsg(msgs[j]);
+    // 1. Показываем локальные сообщения мгновенно
+    var localMsgs = loadLocalMessages(em);
+    for (var j = 0; j < localMsgs.length; j++) {
+        addMsg(localMsgs[j]);
     }
+
+    // 2. Загружаем историю с сервера и обновляем чат + кэш
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', API + '/api/messages?token=' + token + '&with=' + encodeURIComponent(em) + '&limit=100', true);
+    xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+            var serverMsgs = JSON.parse(xhr.responseText).messages || [];
+            var merged = mergeMessages(localMsgs, serverMsgs);
+            saveLocalMessages(em, merged);
+            // Очищаем и перерисовываем
+            byId('messages').innerHTML = '';
+            loadedMessageIds = {};
+            for (var k = 0; k < merged.length; k++) {
+                addMsg(merged[k]);
+            }
+        }
+    };
+    xhr.send();
 }
 
 function goBack() { showTab('chats'); byId('chat-title').onclick = null; }
@@ -659,7 +694,6 @@ byId('send-btn').onclick = sendMessage;
 byId('input').onkeydown = function (e) { if (e.keyCode === 13) { e.preventDefault(); sendMessage(); } };
 byId('input').oninput = function () { if (chatWith && socket) socket.emit('typing', { to: chatWith, isTyping: true }); };
 
-// Фокус на поле ввода просто скроллит вниз, без изменения размеров
 byId('input').addEventListener('focus', function () {
     setTimeout(function () {
         byId('messages').scrollTop = byId('messages').scrollHeight;

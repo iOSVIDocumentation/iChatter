@@ -1,11 +1,7 @@
-// Совместимость с iOS 6
 var BASE = window.location.protocol + '//' + window.location.host;
 var API = BASE;
 var STATIC_URL = BASE;
 
-// ==============================================
-// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
-// ==============================================
 function getParam(name) {
     var query = window.location.search.substring(1);
     var vars = query.split('&');
@@ -16,13 +12,11 @@ function getParam(name) {
     return null;
 }
 
-// Если токен и email пришли в URL (старый способ), сохраним и очистим URL
 var urlToken = getParam('token');
 var urlEmail = getParam('email');
 if (urlToken) {
     localStorage.setItem('token', urlToken);
     if (urlEmail) localStorage.setItem('email', urlEmail);
-    // Перезагружаем страницу без параметров
     window.location.href = 'chat.html';
 }
 
@@ -41,9 +35,6 @@ if (!token || !myEmail) { window.location.href = 'login.html'; }
 
 function byId(id) { return document.getElementById(id); }
 
-// ==============================================
-// УНИВЕРСАЛЬНАЯ ФУНКЦИЯ ДЛЯ API-ЗАПРОСОВ
-// ==============================================
 function api(method, url, data, callback, isFormData) {
     var xhr = new XMLHttpRequest();
     xhr.open(method, API + url, true);
@@ -51,6 +42,12 @@ function api(method, url, data, callback, isFormData) {
     if (!isFormData) xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.onreadystatechange = function () {
         if (xhr.readyState === 4) {
+            if (xhr.status === 401) {
+                localStorage.removeItem('token');
+                localStorage.removeItem('email');
+                window.location.href = 'login.html';
+                return;
+            }
             if (xhr.status >= 200 && xhr.status < 300) {
                 var resp = xhr.responseText ? JSON.parse(xhr.responseText) : {};
                 callback(null, resp);
@@ -67,9 +64,6 @@ function api(method, url, data, callback, isFormData) {
     }
 }
 
-// ==============================================
-// ПЕРЕВОДЫ
-// ==============================================
 var T = {
     ru: {
         chats: 'Чаты', archive: 'Архив', settings: 'Настройки', back: '← Назад',
@@ -125,9 +119,6 @@ function generateEmptyAvatar() {
     return dataUrl;
 }
 
-// ==============================================
-// ЛОКАЛЬНОЕ ХРАНЕНИЕ СООБЩЕНИЙ
-// ==============================================
 function saveLocalMessages(chat, msgs) {
     try { localStorage.setItem('ichatter_msg_' + chat, JSON.stringify(msgs)); } catch (e) {}
 }
@@ -146,9 +137,6 @@ function mergeMessages(local, server) {
     return merged;
 }
 
-// ==============================================
-// ОТРИСОВКА СООБЩЕНИЙ
-// ==============================================
 function addMsg(msg) {
     if (loadedMessageIds[msg.id]) return;
     loadedMessageIds[msg.id] = true;
@@ -190,15 +178,10 @@ function delMsgUI(id) {
     if (actions.length > 0) actions[0].style.display = 'none';
 }
 
-// ==============================================
-// ПРОФИЛЬ СОБЕСЕДНИКА
-// ==============================================
 function showPartnerProfile() {
     if (!chatWith) return;
     var partner = null;
-    for (var i = 0; i < contacts.length; i++) {
-        if (contacts[i].email === chatWith) { partner = contacts[i]; break; }
-    }
+    for (var i = 0; i < contacts.length; i++) if (contacts[i].email === chatWith) { partner = contacts[i]; break; }
     if (!partner) {
         byId('partner-displayname').textContent = chatWith.split('@')[0];
         byId('partner-username').textContent = chatWith.split('@')[0];
@@ -219,23 +202,16 @@ function showPartnerProfile() {
 
     var avUrl = generateEmptyAvatar();
     if (partner.avatar) {
-        if (partner.avatar.indexOf('/uploads/avatars/') === 0) {
-            avUrl = API + partner.avatar;
-        } else {
-            avUrl = STATIC_URL + '/avatars/' + partner.avatar;
-        }
+        if (partner.avatar.indexOf('/uploads/avatars/') === 0) avUrl = API + partner.avatar;
+        else avUrl = STATIC_URL + '/avatars/' + partner.avatar;
     }
     var avatarImg = byId('partner-avatar');
     avatarImg.src = avUrl;
     avatarImg.onerror = function () { this.onerror = null; this.src = generateEmptyAvatar(); };
     byId('partner-profile-overlay').style.display = 'flex';
 }
-
 function closePartnerProfile() { byId('partner-profile-overlay').style.display = 'none'; }
 
-// ==============================================
-// НАВИГАЦИЯ
-// ==============================================
 function showTab(tab) {
     byId('chats-panel').style.display = 'none';
     byId('archive-panel').style.display = 'none';
@@ -272,9 +248,7 @@ function openChat(em) {
     byId('btn-back').style.display = 'block';
     var name = pendingName;
     if (!name) {
-        for (var i = 0; i < contacts.length; i++) {
-            if (contacts[i].email === em) { name = contacts[i].displayName || contacts[i].username; break; }
-        }
+        for (var i = 0; i < contacts.length; i++) if (contacts[i].email === em) { name = contacts[i].displayName || contacts[i].username; break; }
     }
     if (!name) name = em.split('@')[0];
     pendingName = null;
@@ -294,24 +268,13 @@ function openChat(em) {
 
     if (!hasContact(em)) {
         addContactToServer(em);
-        contacts.push({
-            email: em,
-            username: em.split('@')[0],
-            displayName: em.split('@')[0],
-            searchId: '',
-            avatar: 'av1.png',
-            age: 0,
-            about: '',
-            isOnline: false
-        });
+        contacts.push({ email: em, username: em.split('@')[0], displayName: em.split('@')[0], searchId: '', avatar: 'av1.png', age: 0, about: '', isOnline: false });
         renderContacts();
     }
 
-    // Локальные сообщения мгновенно
     var localMsgs = loadLocalMessages(em);
     for (var j = 0; j < localMsgs.length; j++) addMsg(localMsgs[j]);
 
-    // Загружаем историю с сервера
     api('GET', '/api/messages?with=' + encodeURIComponent(em) + '&limit=100', null, function (err, data) {
         if (!err) {
             var serverMsgs = data.messages || [];
@@ -336,16 +299,8 @@ function updateNavTexts() {
     byId('btn-back').textContent = t('back');
 }
 
-// ==============================================
-// КОНТАКТЫ
-// ==============================================
-function addContactToServer(email) {
-    api('POST', '/api/add-contact', { email: email }, function () {});
-}
-function hasContact(email) {
-    for (var i = 0; i < contacts.length; i++) if (contacts[i].email === email) return true;
-    return false;
-}
+function addContactToServer(email) { api('POST', '/api/add-contact', { email: email }, function () {}); }
+function hasContact(email) { for (var i = 0; i < contacts.length; i++) if (contacts[i].email === email) return true; return false; }
 function loadContacts() {
     api('GET', '/api/contacts', null, function (err, data) {
         if (!err) { contacts = data.contacts || []; renderContacts(); }
@@ -354,10 +309,7 @@ function loadContacts() {
 function renderContacts() {
     var list = byId('chats-list');
     list.innerHTML = '';
-    if (!contacts.length) {
-        list.innerHTML = '<div style="padding:20px;text-align:center;color:#aaa;">' + t('noContacts') + '</div>';
-        return;
-    }
+    if (!contacts.length) { list.innerHTML = '<div style="padding:20px;text-align:center;color:#aaa;">' + t('noContacts') + '</div>'; return; }
     for (var i = 0; i < contacts.length; i++) {
         var c = contacts[i];
         var div = document.createElement('div');
@@ -371,12 +323,12 @@ function renderContacts() {
 function loadArchive() {
     api('GET', '/api/archived-chats', null, function (err, data) {
         if (err) return;
-        var contacts = data.contacts || [];
+        var items = data.contacts || [];
         var list = byId('archive-list');
         list.innerHTML = '';
-        if (!contacts.length) { list.innerHTML = '<div style="padding:20px;text-align:center;color:#aaa;">' + t('empty') + '</div>'; return; }
-        for (var i = 0; i < contacts.length; i++) {
-            var c = contacts[i];
+        if (!items.length) { list.innerHTML = '<div style="padding:20px;text-align:center;color:#aaa;">' + t('empty') + '</div>'; return; }
+        for (var i = 0; i < items.length; i++) {
+            var c = items[i];
             var div = document.createElement('div');
             div.className = 'chat-item';
             div.innerHTML = '<div class="name">' + esc(c.displayName || c.username) + '</div><button class="archive-btn unarchive-btn" onclick="event.stopPropagation();unarchiveChat(\'' + c.email + '\')">↩</button>';
@@ -401,9 +353,6 @@ function findUser() {
     });
 }
 
-// ==============================================
-// НАСТРОЙКИ
-// ==============================================
 function loadSettings() {
     api('GET', '/api/my-profile', null, function (err, data) {
         if (err) return;
@@ -428,11 +377,8 @@ function loadAvatars() {
     grid.innerHTML = '';
     var avatarUrl = generateEmptyAvatar();
     if (profile.avatar) {
-        if (profile.avatar.indexOf('/uploads/avatars/') === 0) {
-            avatarUrl = API + profile.avatar;
-        } else {
-            avatarUrl = STATIC_URL + '/avatars/' + profile.avatar;
-        }
+        if (profile.avatar.indexOf('/uploads/avatars/') === 0) avatarUrl = API + profile.avatar;
+        else avatarUrl = STATIC_URL + '/avatars/' + profile.avatar;
     }
     var img = document.createElement('img');
     img.src = avatarUrl;
@@ -492,10 +438,7 @@ function loadDevices() {
         }
     });
 }
-function logoutDevice(tok) {
-    if (!confirm('Выйти с устройства?')) return;
-    api('POST', '/api/logout-device', { targetToken: tok }, function () { loadDevices(); });
-}
+function logoutDevice(tok) { if (!confirm('Выйти с устройства?')) return; api('POST', '/api/logout-device', { targetToken: tok }, function () { loadDevices(); }); }
 function saveSettings() {
     profile.displayName = byId('set-displayname').value;
     profile.age = parseInt(byId('set-age').value) || 0;
@@ -508,18 +451,13 @@ function saveSettings() {
     profile.language = newLang;
     profile.theme = newTheme;
     api('POST', '/api/update-profile', {
-        displayName: profile.displayName,
-        age: profile.age,
-        about: profile.about,
-        avatar: profile.avatar,
-        theme: newTheme,
-        language: newLang,
-        wallpaper: profile.wallpaper
+        displayName: profile.displayName, age: profile.age, about: profile.about,
+        avatar: profile.avatar, theme: newTheme, language: newLang, wallpaper: profile.wallpaper
     }, function () { alert(t('saved')); showTab('settings'); });
 }
 function setLang(l) { lang = l; localStorage.setItem('lang', lang); updateNavTexts(); if (byId('lang-select')) byId('lang-select').value = lang; }
 function setTheme(th) {
-    if (th === 'light') { document.body.className = 'light-mode'; } else { document.body.className = 'dark-mode'; }
+    if (th === 'light') document.body.className = 'light-mode'; else document.body.className = 'dark-mode';
     if (profile) profile.theme = th;
     if (byId('theme-select')) byId('theme-select').value = th;
 }
@@ -534,9 +472,6 @@ function uploadCustomAvatar(input) {
     input.value = '';
 }
 
-// ==============================================
-// ОТПРАВКА СООБЩЕНИЙ
-// ==============================================
 function sendMessage() {
     var input = byId('input');
     var text = input.value.trim();
@@ -552,9 +487,6 @@ function sendMessage() {
 function editMsg(id, text) { editingId = id; byId('input').value = text; byId('input').focus(); }
 function delMsg(id) { if (confirm('Удалить сообщение?')) socket.emit('delete_message', { id: id, to: chatWith }); }
 
-// ==============================================
-// СЕТЬ (SOCKET.IO)
-// ==============================================
 function connectSocket() {
     socket = io(API, { query: { token: token } });
 
@@ -580,13 +512,13 @@ function connectSocket() {
     socket.on('update_message', function (d) {
         updMsg(d.id, d.text, d.edited);
         var arr = loadLocalMessages(chatWith);
-        for (var i = 0; i < arr.length; i++) { if (arr[i].id === d.id) { arr[i].text = d.text; arr[i].edited = d.edited; break; } }
+        for (var i = 0; i < arr.length; i++) if (arr[i].id === d.id) { arr[i].text = d.text; arr[i].edited = d.edited; break; }
         saveLocalMessages(chatWith, arr);
     });
     socket.on('remove_message', function (d) {
         delMsgUI(d.id);
         var arr = loadLocalMessages(chatWith);
-        for (var i = 0; i < arr.length; i++) { if (arr[i].id === d.id) { arr[i].deleted = true; arr[i].text = ''; break; } }
+        for (var i = 0; i < arr.length; i++) if (arr[i].id === d.id) { arr[i].deleted = true; arr[i].text = ''; break; }
         saveLocalMessages(chatWith, arr);
     });
     socket.on('user_typing', function (data) {

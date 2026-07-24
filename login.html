@@ -3,25 +3,25 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>iChatter — Вход</title>
+    <title>iChatter</title>
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, Helvetica, sans-serif; background: #2c3e50; color: #fff; display: flex; justify-content: center; align-items: center; }
+        body, html { margin: 0; padding: 0; height: 100%; background: #2c3e50; color: #fff; font-family: Helvetica, sans-serif; display: flex; justify-content: center; align-items: center; }
         .container { width: 300px; max-width: 90%; background: #34495e; border-radius: 12px; padding: 24px; box-sizing: border-box; text-align: center; }
-        h2 { margin-top: 0; font-size: 24px; }
-        .tab-row { display: flex; margin-bottom: 16px; border-radius: 8px; overflow: hidden; }
-        .tab-btn { flex: 1; padding: 10px; background: #2c3e50; border: none; color: #aaa; font-size: 14px; cursor: pointer; }
-        .tab-btn.active { background: #1abc9c; color: white; font-weight: bold; }
-        .section { display: none; }
-        .section.active { display: block; }
+        h2 { margin-top: 0; font-size: 22px; }
+        .tabs { display: flex; margin-bottom: 16px; border-radius: 8px; overflow: hidden; }
+        .tabs button { flex: 1; padding: 10px; background: #2c3e50; border: none; color: #aaa; font-size: 14px; cursor: pointer; }
+        .tabs button.active { background: #1abc9c; color: white; font-weight: bold; }
+        .form { display: none; }
+        .form.active { display: block; }
         .field { margin-bottom: 12px; text-align: left; }
         .field label { font-size: 13px; display: block; margin-bottom: 4px; }
-        .field input { width: 100%; padding: 10px; border: none; border-radius: 6px; font-size: 14px; box-sizing: border-box; background: #ecf0f1; color: #222; }
+        .field input { width: 100%; padding: 10px; border: none; border-radius: 6px; font-size: 14px; background: #ecf0f1; color: #222; box-sizing: border-box; }
         .btn { width: 100%; padding: 12px; background: #1abc9c; border: none; color: white; font-size: 16px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 6px; }
         .btn:active { background: #16a085; }
-        .lang-row { margin-bottom: 16px; text-align: right; }
-        .lang-row select { padding: 6px; border-radius: 4px; border: none; background: #ecf0f1; color: #222; font-size: 13px; }
-        .info { font-size: 12px; color: #bdc3c7; margin-top: 12px; }
+        .info { font-size: 13px; margin: 16px 0; }
         .error { color: #e74c3c; font-size: 13px; margin-top: 8px; }
+        .lang-row { text-align: right; margin-bottom: 12px; }
+        .lang-row select { padding: 4px 8px; border-radius: 4px; border: none; background: #ecf0f1; color: #222; font-size: 13px; }
     </style>
 </head>
 <body>
@@ -32,135 +32,76 @@
                 <option value="en">English</option>
             </select>
         </div>
-        <h2 id="title">iChatter</h2>
-        <div class="tab-row">
-            <button id="tab-login" class="tab-btn active" onclick="switchTab('login')">Вход</button>
-            <button id="tab-reg" class="tab-btn" onclick="switchTab('register')">Регистрация</button>
+        <h2>iChatter</h2>
+        <div class="tabs">
+            <button id="tab-login" class="active" onclick="switchTab('login')">Вход</button>
+            <button id="tab-reg" onclick="switchTab('register')">Регистрация</button>
         </div>
 
         <!-- Вход -->
-        <div id="section-login" class="section active">
+        <div id="form-login" class="form active">
             <div class="field">
-                <label id="lbl-email-login">Email</label>
+                <label>Email</label>
                 <input type="email" id="login-email" placeholder="you@example.com">
             </div>
             <div class="field">
-                <label id="lbl-pass-login">Пароль</label>
+                <label>Пароль</label>
                 <input type="password" id="login-password" placeholder="Введите пароль">
             </div>
-            <button class="btn" onclick="requestCode('login')" id="btn-login">Получить код</button>
+            <button class="btn" onclick="requestCode('login')">Получить код</button>
         </div>
 
         <!-- Регистрация -->
-        <div id="section-register" class="section">
+        <div id="form-register" class="form">
             <div class="field">
-                <label id="lbl-email-reg">Email</label>
+                <label>Email</label>
                 <input type="email" id="reg-email" placeholder="you@example.com">
             </div>
             <div class="field">
-                <label id="lbl-user">Ник</label>
+                <label>Ник</label>
                 <input type="text" id="reg-username" placeholder="Придумайте ник">
             </div>
             <div class="field">
-                <label id="lbl-pass-reg">Пароль</label>
+                <label>Пароль</label>
                 <input type="password" id="reg-password" placeholder="Введите пароль">
             </div>
-            <button class="btn" onclick="requestCode('register')" id="btn-reg">Получить код</button>
+            <button class="btn" onclick="requestCode('register')">Получить код</button>
         </div>
 
-        <!-- Подтверждение кода (скрыто) -->
-        <div id="section-code" class="section" style="display:none;">
-            <p id="info-code">Введите код, отправленный на почту</p>
+        <!-- Код подтверждения -->
+        <div id="form-code" class="form">
+            <p class="info">Введите код, отправленный на почту</p>
             <div class="field">
                 <input type="text" id="code-input" placeholder="6-значный код" maxlength="6">
             </div>
-            <button class="btn" onclick="verifyCode()" id="btn-verify">Подтвердить</button>
+            <button class="btn" onclick="verifyCode()">Подтвердить</button>
             <button class="btn" style="background:#7f8c8d; margin-top:8px;" onclick="resetToLogin()">← Назад</button>
             <div id="error-msg" class="error"></div>
         </div>
     </div>
 
     <script>
-        // Совместимость с iOS 6
         var BASE = window.location.protocol + '//' + window.location.host;
         var API = BASE;
-        var mode = 'login'; // 'login' или 'register'
+        var mode = 'login';
         var lang = 'ru';
         var pendingEmail = '';
         var pendingUsername = '';
-
-        var T = {
-            ru: {
-                title: 'iChatter',
-                loginTab: 'Вход',
-                regTab: 'Регистрация',
-                email: 'Email',
-                password: 'Пароль',
-                username: 'Ник',
-                getCode: 'Получить код',
-                codeInfo: 'Введите код, отправленный на почту',
-                verify: 'Подтвердить',
-                back: '← Назад',
-                emailPlaceholder: 'you@example.com',
-                passPlaceholder: 'Введите пароль',
-                nickPlaceholder: 'Придумайте ник',
-                errorEmpty: 'Заполните все поля',
-                errorCode: 'Неверный код'
-            },
-            en: {
-                title: 'iChatter',
-                loginTab: 'Login',
-                regTab: 'Register',
-                email: 'Email',
-                password: 'Password',
-                username: 'Username',
-                getCode: 'Get Code',
-                codeInfo: 'Enter the code sent to your email',
-                verify: 'Verify',
-                back: '← Back',
-                emailPlaceholder: 'you@example.com',
-                passPlaceholder: 'Enter password',
-                nickPlaceholder: 'Choose a username',
-                errorEmpty: 'Fill in all fields',
-                errorCode: 'Invalid code'
-            }
-        };
-        function t(key) { return T[lang][key] || key; }
 
         function byId(id) { return document.getElementById(id); }
 
         function changeLang(l) {
             lang = l;
-            updateTexts();
-        }
-
-        function updateTexts() {
-            byId('title').textContent = t('title');
-            byId('tab-login').textContent = t('loginTab');
-            byId('tab-reg').textContent = t('regTab');
-            byId('lbl-email-login').textContent = t('email');
-            byId('lbl-pass-login').textContent = t('password');
-            byId('lbl-email-reg').textContent = t('email');
-            byId('lbl-user').textContent = t('username');
-            byId('lbl-pass-reg').textContent = t('password');
-            byId('btn-login').textContent = t('getCode');
-            byId('btn-reg').textContent = t('getCode');
-            byId('info-code').textContent = t('codeInfo');
-            byId('btn-verify').textContent = t('verify');
-            byId('login-email').placeholder = t('emailPlaceholder');
-            byId('reg-email').placeholder = t('emailPlaceholder');
-            byId('login-password').placeholder = t('passPlaceholder');
-            byId('reg-password').placeholder = t('passPlaceholder');
-            byId('reg-username').placeholder = t('nickPlaceholder');
+            // Статичные надписи не меняются, только язык запроса
         }
 
         function switchTab(tab) {
             mode = tab;
-            byId('tab-login').className = tab === 'login' ? 'tab-btn active' : 'tab-btn';
-            byId('tab-reg').className = tab === 'register' ? 'tab-btn active' : 'tab-btn';
-            byId('section-login').style.display = tab === 'login' ? 'block' : 'none';
-            byId('section-register').style.display = tab === 'register' ? 'block' : 'none';
-            byId('section-code').style.display = 'none';
+            byId('tab-login').className = tab === 'login' ? 'active' : '';
+            byId('tab-reg').className = tab === 'register' ? 'active' : '';
+            byId('form-login').style.display = tab === 'login' ? 'block' : 'none';
+            byId('form-register').style.display = tab === 'register' ? 'block' : 'none';
+            byId('form-code').style.display = 'none';
         }
 
         function requestCode(act) {
@@ -173,26 +114,30 @@
                 email = byId('login-email').value.trim().toLowerCase();
                 password = byId('login-password').value;
             }
+
             if (!email || !password || (act === 'register' && !username)) {
-                alert(t('errorEmpty'));
+                alert('Заполните все поля');
                 return;
             }
+
             pendingEmail = email;
             pendingUsername = username || '';
+
             var xhr = new XMLHttpRequest();
             xhr.open('POST', API + '/api/send-code', true);
             xhr.setRequestHeader('Content-Type', 'application/json');
             xhr.onreadystatechange = function () {
                 if (xhr.readyState === 4 && xhr.status === 200) {
-                    // показываем поле для кода
-                    byId('section-login').style.display = 'none';
-                    byId('section-register').style.display = 'none';
-                    byId('section-code').style.display = 'block';
+                    byId('form-login').style.display = 'none';
+                    byId('form-register').style.display = 'none';
+                    byId('form-code').style.display = 'block';
                     byId('code-input').value = '';
                     byId('error-msg').textContent = '';
                 } else if (xhr.readyState === 4 && xhr.status >= 400) {
-                    var err = JSON.parse(xhr.responseText);
-                    alert(err.error || 'Ошибка');
+                    try {
+                        var err = JSON.parse(xhr.responseText);
+                        alert(err.error || 'Ошибка');
+                    } catch (e) { alert('Ошибка'); }
                 }
             };
             xhr.send(JSON.stringify({
@@ -207,6 +152,7 @@
         function verifyCode() {
             var code = byId('code-input').value.trim();
             if (!code) return;
+
             var xhr = new XMLHttpRequest();
             xhr.open('POST', API + '/api/verify-code', true);
             xhr.setRequestHeader('Content-Type', 'application/json');
@@ -214,13 +160,12 @@
                 if (xhr.readyState === 4 && xhr.status === 200) {
                     var resp = JSON.parse(xhr.responseText);
                     if (resp.success) {
-                        // Сохраняем токен и email, редиректим на чистый chat.html
                         localStorage.setItem('token', resp.token);
                         localStorage.setItem('email', pendingEmail);
                         window.location.href = 'chat.html';
                     }
                 } else if (xhr.readyState === 4 && xhr.status >= 400) {
-                    byId('error-msg').textContent = t('errorCode');
+                    byId('error-msg').textContent = 'Неверный код';
                 }
             };
             xhr.send(JSON.stringify({
@@ -231,16 +176,13 @@
         }
 
         function resetToLogin() {
-            byId('section-code').style.display = 'none';
+            byId('form-code').style.display = 'none';
             if (mode === 'register') {
-                byId('section-register').style.display = 'block';
+                byId('form-register').style.display = 'block';
             } else {
-                byId('section-login').style.display = 'block';
+                byId('form-login').style.display = 'block';
             }
         }
-
-        // Инициализация
-        updateTexts();
     </script>
 </body>
 </html>

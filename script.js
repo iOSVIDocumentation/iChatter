@@ -115,101 +115,6 @@ function decryptMsg(text, partnerEmail) {
     return text;
 }
 
-function getAudioContext() {
-    if (!audioCtx && (window.AudioContext || window.webkitAudioContext)) {
-        var AudioCtx = window.AudioContext || window.webkitAudioContext;
-        audioCtx = new AudioCtx();
-    }
-    return audioCtx;
-}
-
-function playSentSound() {
-    if (notifSound === 'none') return;
-    try {
-        var ctx = getAudioContext();
-        if (!ctx) return;
-        var osc = ctx.createOscillator();
-        var gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(880, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(1318, ctx.currentTime + 0.08);
-        gain.gain.setValueAtTime(0.15, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.1);
-    } catch (e) {}
-}
-
-function playTritone() {
-    try {
-        var ctx = getAudioContext();
-        if (!ctx) return;
-        var notes = [587.33, 880, 1174.66];
-        for (var i = 0; i < notes.length; i++) {
-            (function (freq, delay) {
-                setTimeout(function () {
-                    try {
-                        var osc = ctx.createOscillator();
-                        var gain = ctx.createGain();
-                        osc.type = 'sine';
-                        osc.frequency.setValueAtTime(freq, ctx.currentTime);
-                        gain.gain.setValueAtTime(0.25, ctx.currentTime);
-                        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.18);
-                        osc.connect(gain);
-                        gain.connect(ctx.destination);
-                        osc.start();
-                        osc.stop(ctx.currentTime + 0.18);
-                    } catch (err) {}
-                }, delay);
-            })(notes[i], i * 140);
-        }
-    } catch (e) {}
-}
-
-function playBell() {
-    try {
-        var ctx = getAudioContext();
-        if (!ctx) return;
-        var osc = ctx.createOscillator();
-        var gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(1046.5, ctx.currentTime);
-        gain.gain.setValueAtTime(0.3, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.6);
-    } catch (e) {}
-}
-
-function playPop() {
-    try {
-        var ctx = getAudioContext();
-        if (!ctx) return;
-        var osc = ctx.createOscillator();
-        var gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(400, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.05);
-        gain.gain.setValueAtTime(0.3, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.06);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.06);
-    } catch (e) {}
-}
-
-function playReceivedSound() {
-    if (notifSound === 'none') return;
-    if (notifSound === 'bell') { playBell(); return; }
-    if (notifSound === 'pop') { playPop(); return; }
-    playTritone();
-}
-
 function getParam(name) {
     var query = window.location.search.substring(1);
     var vars = query.split('&');
@@ -713,7 +618,6 @@ function sendImageAttachment(input) {
         var formattedMsg = '[img]' + dataUrl + '[/img]';
         var encImg = encryptMsg(formattedMsg, chatWith);
         socket.emit('send_message', { to: chatWith, text: encImg });
-        playSentSound();
     };
     reader.readAsDataURL(file);
     input.value = '';
@@ -766,7 +670,6 @@ function sendMessage() {
     } else {
         var encText = encryptMsg(text, chatWith);
         socket.emit('send_message', { to: chatWith, text: encText });
-        playSentSound();
     }
     input.value = '';
     byId('emoji-picker').style.display = 'none';
@@ -782,7 +685,7 @@ function connectSocket() {
         return;
     }
     socket.on('receive_message', function (msg) {
-        if (chatWith === msg.from) { addMsg(msg); playReceivedSound(); }
+        if (chatWith === msg.from) { addMsg(msg); }
         var target = msg.from === myEmail ? msg.to : msg.from;
         var arr = loadLocalMessages(target);
         arr.push(msg);

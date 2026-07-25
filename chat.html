@@ -5,391 +5,121 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>iChatter - iOS 6 Messages</title>
+    <title>iChatter</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body, html {
-            margin: 0;
-            padding: 0;
-            height: 100%;
-            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-            overflow: hidden;
-            user-select: none;
-            -webkit-user-select: none;
-        }
+        body, html { margin: 0; padding: 0; height: 100%; background: #555d65; color: #fff; font-family: Helvetica, sans-serif; overflow: hidden; }
+        body.light-mode { background: #E2E7ED; color: #222; }
+        body.light-mode #header { background: #2c3e50; }
+        body.light-mode #chats-panel, body.light-mode #archive-panel, body.light-mode #settings-panel { background: white; }
+        body.light-mode #messages { background: #E2E7ED; }
+        body.light-mode .panel-section { background: #f5f5f5; border-color: #ddd; }
+        body.light-mode .panel-section input { background: white; color: #222; }
+        body.light-mode .chat-item { border-color: #eee; }
+        body.light-mode .msg { background: white; color: #222; }
+        body.light-mode .msg.my { background: #dcf8c6; color: #222; }
+        body.light-mode .msg .sender { color: #555; }
+        body.light-mode .msg .time { color: #999; }
+        body.light-mode #form-container { background: #cbd2d9; }
+        body.light-mode .settings-row { border-color: #eee; }
+        body.light-mode .settings-row input, .settings-row select { background: white; color: #222; }
+        body.light-mode #bottom-nav { background: #cbd2d9; }
+        body.light-mode .nav-btn { background: #2c3e50; border-color: #ccc; }
+        body.light-mode .nav-btn.active { background: #4a627a; }
+        body.light-mode #emoji-picker { background: #dde2e8; border-top-color: #bbb; }
 
-        body.ios6-mode {
-            background-color: #2b3139;
-            background-image: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.15) 1px, transparent 1px, transparent 2px),
-                              repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.15) 1px, transparent 1px, transparent 2px);
-            color: #000;
-        }
+        #header { position: fixed; top: 0; left: 0; right: 0; height: 44px; background: #2c3e50; color: white; line-height: 44px; padding: 0 10px; z-index: 10; box-sizing: border-box; }
+        #btn-back { background: #4a627a; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; margin-right: 8px; display: none; font-weight: bold; }
+        #btn-back:active { background: #37526a; }
+        #chat-title { font-size: 14px; font-weight: bold; display: inline; cursor: pointer; vertical-align: middle; }
 
-        body.dark-mode { background: #1c242c; color: #fff; }
-        body.light-mode { background: #e2e7ed; color: #222; }
+        #main-content { position: fixed; top: 44px; bottom: 50px; left: 0; right: 0; overflow: hidden; }
+        #chats-panel, #archive-panel, #settings-panel, #chat-area { position: absolute; top: 0; bottom: 0; left: 0; width: 100%; background: #3b434a; overflow-y: scroll; -webkit-overflow-scrolling: touch; z-index: 2; display: none; }
 
-        #header {
-            position: fixed;
-            top: 0; left: 0; right: 0;
-            height: 44px;
-            background: linear-gradient(to bottom, #b0bcc9 0%, #889bb0 50%, #768a9e 51%, #6d8299 100%);
-            border-bottom: 1px solid #405367;
-            color: white;
-            line-height: 44px;
-            padding: 0 10px;
-            z-index: 100;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.4);
-            text-align: center;
-        }
-        body.dark-mode #header { background: #2c3e50; border-bottom-color: #1a252f; }
-        body.light-mode #header { background: linear-gradient(to bottom, #7b93ab 0%, #56718d 100%); }
+        #messages { position: absolute; top: 0; left: 0; right: 0; bottom: 50px; padding: 10px; overflow-y: scroll; -webkit-overflow-scrolling: touch; box-sizing: border-box; background: #555d65; }
 
-        #btn-back {
-            position: absolute;
-            left: 8px;
-            top: 7px;
-            height: 30px;
-            line-height: 28px;
-            padding: 0 10px 0 12px;
-            background: linear-gradient(to bottom, #8fa3b9 0%, #617894 50%, #556c87 51%, #455a73 100%);
-            border: 1px solid #2d3e52;
-            border-radius: 4px;
-            color: white;
-            font-size: 12px;
-            font-weight: bold;
-            text-shadow: 0 -1px 0 rgba(0,0,0,0.6);
-            cursor: pointer;
-            display: none;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 1px 2px rgba(0,0,0,0.3);
-        }
-        #btn-back:active {
-            background: linear-gradient(to bottom, #455a73 0%, #556c87 50%, #617894 51%, #8fa3b9 100%);
-        }
-
-        #chat-title {
-            font-size: 16px;
-            font-weight: bold;
-            text-shadow: 0 -1px 0 rgba(0,0,0,0.5);
-            cursor: pointer;
-            display: inline-block;
-            max-width: 60%;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            vertical-align: middle;
-        }
-
-        #main-content {
-            position: fixed;
-            top: 44px;
-            bottom: 65px;
-            left: 0; right: 0;
-            overflow: hidden;
-        }
-
-        #chats-panel, #archive-panel, #settings-panel, #chat-area {
-            position: absolute;
-            top: 0; bottom: 0; left: 0;
-            width: 100%;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-            z-index: 2;
-            display: none;
-        }
-
-        body.ios6-mode #chats-panel, body.ios6-mode #archive-panel, body.ios6-mode #settings-panel {
-            background-color: #c5ccd4;
-            background-image: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.15) 1px, transparent 1px, transparent 2px);
-        }
-        body.dark-mode #chats-panel, body.dark-mode #archive-panel, body.dark-mode #settings-panel { background: #242d35; }
-        body.light-mode #chats-panel, body.light-mode #archive-panel, body.light-mode #settings-panel { background: #ffffff; }
-
-        #messages {
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 50px;
-            padding: 12px 10px;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-            box-sizing: border-box;
-            background-color: #d8decf;
-            background-image: linear-gradient(to bottom, #dbe2d4 0%, #c9d2c2 100%);
-        }
-        body.dark-mode #messages { background: #182026; }
-        body.light-mode #messages { background: #e8ecef; }
-
-        #form-container {
-            position: absolute;
-            bottom: 0; left: 0; right: 0;
-            height: 50px;
-            background: linear-gradient(to bottom, #b0bcc9 0%, #889bb0 50%, #768a9e 51%, #6d8299 100%);
-            border-top: 1px solid #405367;
-            padding: 6px 8px;
-            display: flex;
-            align-items: center;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.4);
-        }
-        body.dark-mode #form-container { background: #2c3e50; border-top-color: #1a252f; }
-
-        #form {
-            display: flex;
-            width: 100%;
-            align-items: center;
-            gap: 6px;
-        }
+        #form-container { position: absolute; bottom: 0; left: 0; right: 0; height: 50px; background: #3b434a; box-sizing: border-box; padding: 5px 8px; display: block; }
+        #form { position: relative; width: 100%; height: 100%; display: -webkit-box; display: -webkit-flex; display: flex; -webkit-box-align: center; -webkit-align-items: center; align-items: center; gap: 5px; }
 
         .media-btn, .emoji-btn {
-            background: linear-gradient(to bottom, #ffffff 0%, #e6ebf0 100%);
-            border: 1px solid #718397;
-            border-radius: 16px;
-            width: 34px;
-            height: 34px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            cursor: pointer;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.2), inset 0 1px 0 #fff;
-            flex-shrink: 0;
+            background: #4a627a; border: none; border-radius: 4px;
+            width: 36px; height: 36px; min-width: 36px;
+            font-size: 16px; cursor: pointer; color: white;
+            display: -webkit-box; display: -webkit-flex; display: flex;
+            -webkit-box-align: center; -webkit-align-items: center; align-items: center;
+            -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center;
         }
-        .media-btn:active, .emoji-btn:active { background: #ccc; }
+        .media-btn:active, .emoji-btn:active { background: #37526a; }
 
-        #input {
-            flex: 1;
-            height: 34px;
-            font-size: 15px;
-            border-radius: 17px;
-            border: 1px solid #6d7d8f;
-            padding: 0 12px;
-            background: white;
-            color: #222;
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
-            outline: none;
-        }
+        #input { -webkit-box-flex: 1; -webkit-flex: 1; flex: 1; height: 36px; box-sizing: border-box; font-size: 15px; border-radius: 4px; border: none; padding: 0 8px; background: white; color: #222; outline: none; }
 
-        #send-btn {
-            height: 34px;
-            padding: 0 14px;
-            background: linear-gradient(to bottom, #3695f5 0%, #0667d0 50%, #015ee0 51%, #0050cd 100%);
-            border: 1px solid #003c96;
-            color: white;
-            border-radius: 17px;
-            font-size: 13px;
-            font-weight: bold;
-            cursor: pointer;
-            text-shadow: 0 -1px 0 rgba(0,0,0,0.5);
-            box-shadow: 0 1px 2px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.4);
-            flex-shrink: 0;
-        }
-        #send-btn:active {
-            background: linear-gradient(to bottom, #0050cd 0%, #015ee0 50%, #0667d0 51%, #3695f5 100%);
-        }
+        #send-btn { height: 36px; width: 60px; min-width: 60px; background: #27ae60; color: white; border: none; border-radius: 4px; font-size: 13px; font-weight: bold; cursor: pointer; }
+        #send-btn:active { background: #1e8449; }
 
-        .panel-section {
-            padding: 10px 12px;
-            border-bottom: 1px solid #a2b0c0;
-            background: linear-gradient(to bottom, #dbe2ea 0%, #c1cbd7 100%);
-            display: flex;
-            gap: 8px;
-        }
-        .panel-section input {
-            flex: 1;
-            padding: 8px 12px;
-            border: 1px solid #8e9dae;
-            border-radius: 6px;
-            font-size: 14px;
-            background: white;
-            color: #222;
-            box-shadow: inset 0 1px 3px rgba(0,0,0,0.15);
-        }
-        .panel-section button {
-            padding: 8px 16px;
-            background: linear-gradient(to bottom, #8fa3b9 0%, #617894 50%, #556c87 51%, #455a73 100%);
-            color: white;
-            border: 1px solid #2d3e52;
-            border-radius: 6px;
-            font-size: 13px;
-            font-weight: bold;
-            cursor: pointer;
-            text-shadow: 0 -1px 0 rgba(0,0,0,0.5);
-        }
+        .panel-section { padding: 10px; border-bottom: 1px solid #4a627a; background: #2c3e50; display: -webkit-box; display: -webkit-flex; display: flex; gap: 8px; }
+        .panel-section input { -webkit-box-flex: 1; -webkit-flex: 1; flex: 1; padding: 8px; border: none; border-radius: 4px; font-size: 14px; background: white; color: #222; }
+        .panel-section button { padding: 8px 14px; background: #4a627a; color: white; border: none; border-radius: 4px; font-size: 13px; font-weight: bold; cursor: pointer; }
+        .panel-section button:active { background: #37526a; }
 
-        .chat-item {
-            padding: 12px 14px;
-            border-bottom: 1px solid #b5c1cf;
-            cursor: pointer;
-            position: relative;
-            background: rgba(255,255,255,0.4);
-        }
-        .chat-item:active { background: #3695f5; color: white; }
-        .chat-item .name { font-weight: bold; font-size: 15px; color: #1c2834; }
-        .chat-item:active .name { color: white; }
-        .chat-item .status { font-size: 12px; color: #666; margin-top: 2px; }
-        .chat-item .status.online { color: #15ab34; font-weight: bold; }
-        .chat-item .archive-btn {
-            position: absolute; right: 12px; top: 12px;
-            background: linear-gradient(to bottom, #ff5e57 0%, #e0322b 100%);
-            color: white; border: 1px solid #b01812;
-            padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer;
-        }
+        .chat-item { padding: 12px 10px; border-bottom: 1px solid #4a627a; cursor: pointer; position: relative; }
+        .chat-item:active { background: #4a627a; }
+        .chat-item .name { font-weight: bold; font-size: 15px; }
+        .chat-item .status { font-size: 12px; color: #aaa; margin-top: 2px; }
+        .chat-item .status.online { color: #4cd964; font-weight: bold; }
+        .chat-item .archive-btn { position: absolute; right: 10px; top: 12px; background: #e74c3c; color: white; border: none; padding: 4px 10px; border-radius: 3px; font-size: 10px; cursor: pointer; }
+        .chat-item .unarchive-btn { background: #27ae60; }
 
-        .msg {
-            padding: 8px 14px;
-            margin-bottom: 10px;
-            border-radius: 16px;
-            word-wrap: break-word;
-            font-size: 14px;
-            line-height: 1.35;
-            position: relative;
-            max-width: 78%;
-            clear: both;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.25);
-        }
-
-        .msg.partner {
-            float: left;
-            background: linear-gradient(to bottom, #ffffff 0%, #f0f0f0 50%, #e2e2e2 51%, #d7d7d7 100%);
-            border: 1px solid #adadad;
-            color: #000000;
-            text-shadow: 0 1px 0 rgba(255,255,255,0.8);
-            border-bottom-left-radius: 4px;
-        }
-
-        .msg.my {
-            float: right;
-            background: linear-gradient(to bottom, #3695f5 0%, #0667d0 50%, #015ee0 51%, #0050cd 100%);
-            border: 1px solid #003c96;
-            color: #ffffff;
-            text-shadow: 0 -1px 0 rgba(0,0,0,0.5);
-            border-bottom-right-radius: 4px;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.35);
-        }
-
-        .msg .sender { font-weight: bold; font-size: 11px; opacity: 0.85; margin-bottom: 2px; }
-        .msg .time { font-size: 10px; opacity: 0.7; margin-left: 6px; float: right; margin-top: 4px; }
+        .msg { padding: 8px 10px; background: #2c3e50; margin-bottom: 8px; border-radius: 8px; word-wrap: break-word; font-size: 14px; position: relative; max-width: 80%; color: #fff; clear: both; float: left; }
+        .msg.my { background: #27ae60; float: right; }
+        .msg .sender { font-weight: bold; font-size: 12px; color: #ccc; margin-bottom: 2px; }
+        .msg.my .sender { color: rgba(255,255,255,0.75); }
+        .msg .time { font-size: 10px; color: #aaa; margin-left: 5px; float: right; margin-top: 4px; }
         .msg .text { display: inline; }
-        .msg img.msg-img { max-width: 100%; border-radius: 10px; margin-top: 5px; display: block; border: 1px solid rgba(0,0,0,0.2); }
-        .msg .edited-tag { font-size: 10px; opacity: 0.8; font-style: italic; }
-
-        .msg .actions { display: none; position: absolute; right: 6px; top: -10px; }
-        .msg:hover .actions { display: flex; gap: 4px; }
-        .msg .actions button {
-            font-size: 10px; padding: 2px 6px; border: none; border-radius: 4px; cursor: pointer; color: white;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.3);
-        }
+        .msg img.msg-img { max-width: 100%; border-radius: 6px; margin-top: 5px; display: block; }
+        .msg .edited-tag { font-size: 10px; color: #ddd; font-style: italic; }
+        .msg .actions { display: none; position: absolute; right: 5px; top: -12px; }
+        .msg:hover .actions { display: -webkit-box; display: -webkit-flex; display: flex; gap: 3px; }
+        .msg .actions button { font-size: 10px; padding: 2px 5px; border: none; border-radius: 3px; cursor: pointer; color: white; }
         .msg .actions .edit-btn { background: #f39c12; }
         .msg .actions .del-btn { background: #e74c3c; }
 
-        .settings-row { padding: 12px 14px; border-bottom: 1px solid #b5c1cf; }
-        .settings-row label { font-weight: bold; display: block; margin-bottom: 6px; font-size: 13px; color: #2c3e50; }
-        .settings-row input, .settings-row select {
-            width: 100%; padding: 8px 10px; border: 1px solid #8e9dae; border-radius: 6px; font-size: 14px; box-sizing: border-box; background: white; color: #222;
-        }
-        .settings-row button {
-            width: 100%; padding: 11px;
-            background: linear-gradient(to bottom, #3695f5 0%, #0667d0 50%, #015ee0 51%, #0050cd 100%);
-            color: white; border: 1px solid #003c96; border-radius: 6px; font-size: 15px; font-weight: bold; cursor: pointer;
-            text-shadow: 0 -1px 0 rgba(0,0,0,0.5);
-        }
+        .settings-row { padding: 12px 10px; border-bottom: 1px solid #4a627a; }
+        .settings-row label { font-weight: bold; display: block; margin-bottom: 5px; font-size: 13px; }
+        .settings-row input, .settings-row select { width: 100%; padding: 8px; border: none; border-radius: 4px; font-size: 14px; box-sizing: border-box; background: white; color: #222; }
+        .settings-row button { width: 100%; padding: 10px; background: #27ae60; color: white; border: none; border-radius: 4px; font-size: 15px; font-weight: bold; cursor: pointer; }
+        .settings-row button:active { background: #1e8449; }
 
-        .avatar-grid, .wallpaper-grid { overflow: hidden; margin-top: 6px; }
-        .avatar-grid img, .wallpaper-grid img {
-            width: 50px; height: 50px; border-radius: 8px; margin: 4px; border: 3px solid transparent; cursor: pointer; object-fit: cover; float: left;
-        }
-        .avatar-grid img.selected, .wallpaper-grid img.selected { border-color: #007aff; box-shadow: 0 0 6px rgba(0,122,255,0.8); }
+        .avatar-grid { overflow: hidden; margin-top: 6px; }
+        .avatar-grid img { width: 44px; height: 44px; border-radius: 22px; margin: 4px; border: 2px solid transparent; cursor: pointer; float: left; }
+        .avatar-grid img.selected { border-color: #27ae60; }
+        .wallpaper-grid { overflow: hidden; margin-top: 6px; }
+        .wallpaper-grid img { width: 70px; height: 44px; margin: 4px; border: 2px solid transparent; cursor: pointer; object-fit: cover; float: left; border-radius: 4px; }
+        .wallpaper-grid img.selected { border-color: #27ae60; }
 
-        #bottom-nav {
-            position: fixed;
-            bottom: 0; left: 0; right: 0;
-            height: 65px;
-            background: linear-gradient(to bottom, #454d55 0%, #2b3137 50%, #1e2227 51%, #15181b 100%);
-            border-top: 2px solid #000;
-            display: flex;
-            width: 100%;
-            z-index: 200;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.2);
-        }
-        .nav-btn {
-            flex: 1;
-            text-align: center;
-            display: -webkit-box;
-            display: -webkit-flex;
-            display: flex;
-            -webkit-box-orient: vertical;
-            -webkit-flex-direction: column;
-            flex-direction: column;
-            -webkit-box-pack: center;
-            -webkit-justify-content: center;
-            justify-content: center;
-            -webkit-box-align: center;
-            -webkit-align-items: center;
-            align-items: center;
-            color: #8e99a4;
-            font-size: 12px;
-            font-weight: bold;
-            cursor: pointer;
-            text-shadow: 0 -1px 0 #000;
-            border-right: 1px solid #1c2024;
-            padding: 6px 0;
-        }
+        #bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: 50px; background: #3b434a; display: table; width: 100%; z-index: 20; }
+        .nav-btn { display: table-cell; text-align: center; vertical-align: middle; background: #2c3e50; color: #aaa; font-size: 12px; cursor: pointer; border-right: 1px solid #4a627a; }
         .nav-btn:last-child { border-right: none; }
-        .nav-btn .nav-icon {
-            font-size: 22px;
-            line-height: 1;
-            margin-bottom: 4px;
-            display: block;
-        }
-        .nav-btn .nav-label {
-            font-size: 11px;
-            display: block;
-            line-height: 1;
-        }
-        .nav-btn.active {
-            background: linear-gradient(to bottom, #2b333c 0%, #1a2026 100%);
-            color: #ffffff;
-            box-shadow: inset 0 0 8px rgba(0,0,0,0.8);
-        }
+        .nav-btn.active { background: #4a627a; color: white; font-weight: bold; }
 
         #emoji-picker {
-            position: absolute;
-            bottom: 50px; left: 0; right: 0;
-            height: 180px;
-            background: #d2d6dc;
-            border-top: 1px solid #a0a5ab;
-            display: none;
-            padding: 10px;
-            overflow-y: auto;
-            grid-template-columns: repeat(7, 1fr);
-            gap: 8px;
-            z-index: 150;
-            box-shadow: 0 -4px 10px rgba(0,0,0,0.3);
+            position: absolute; bottom: 50px; left: 0; right: 0;
+            height: 180px; background: #2c3e50;
+            border-top: 1px solid #4a627a;
+            display: none; padding: 10px; overflow-y: auto;
+            grid-template-columns: repeat(7, 1fr); gap: 8px; z-index: 150;
         }
-        .emoji-item {
-            font-size: 24px;
-            text-align: center;
-            cursor: pointer;
-            padding: 4px;
-            border-radius: 6px;
-        }
-        .emoji-item:active { background: #b0b5bd; }
+        .emoji-item { font-size: 24px; text-align: center; cursor: pointer; padding: 4px; border-radius: 4px; }
+        .emoji-item:active { background: #4a627a; }
 
-        #partner-profile-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.7); z-index: 9999; display: none;
-            justify-content: center; align-items: center;
-        }
-        #partner-profile-box {
-            background: linear-gradient(to bottom, #e0e5eb 0%, #cbd3dc 100%);
-            color: #222; width: 290px; padding: 20px; border-radius: 12px;
-            text-align: center; position: relative; border: 1px solid #6b7989;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.6);
-        }
-        #partner-profile-box img { width: 80px; height: 80px; border-radius: 40px; margin-bottom: 10px; border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.3); }
-        #partner-profile-box .close-btn { position: absolute; top: 10px; right: 15px; font-size: 22px; cursor: pointer; color: #555; font-weight: bold; }
-        .partner-detail { margin: 6px 0; font-size: 14px; }
+        #partner-profile-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); z-index: 9999; display: none; justify-content: center; align-items: center; }
+        #partner-profile-box { background: #3b434a; color: white; width: 280px; padding: 20px; border-radius: 12px; text-align: center; position: relative; margin: 50px auto 0; border: 1px solid #4a627a; box-shadow: 0 10px 25px rgba(0,0,0,0.6); }
+        #partner-profile-box img { width: 80px; height: 80px; border-radius: 50%; margin-bottom: 10px; border: 2px solid #27ae60; }
+        #partner-profile-box .close-btn { position: absolute; top: 10px; right: 15px; font-size: 20px; cursor: pointer; color: #aaa; font-weight: bold; }
+        .partner-detail { margin: 8px 0; font-size: 14px; color: #ccc; }
+        .partner-detail b { color: white; }
     </style>
 </head>
-<body class="ios6-mode">
+<body class="dark-mode">
     <div id="header">
         <button id="btn-back" onclick="goBack()">&#9664; Назад</button>
         <span id="chat-title">iChatter</span>
@@ -405,12 +135,12 @@
         </div>
 
         <div id="archive-panel">
-            <div style="padding:10px;font-weight:bold;border-bottom:1px solid #a2b0c0;background:#dbe2ea;color:#333;">Архивные чаты</div>
+            <div style="padding:10px;font-weight:bold;border-bottom:1px solid #4a627a;color:#ccc;">Архивные чаты</div>
             <div id="archive-list"></div>
         </div>
 
         <div id="settings-panel">
-            <div style="padding:10px;font-weight:bold;border-bottom:1px solid #a2b0c0;background:#dbe2ea;color:#333;">Настройки</div>
+            <div style="padding:10px;font-weight:bold;border-bottom:1px solid #4a627a;color:#ccc;">Настройки</div>
             <div class="settings-row">
                 <label>Язык / Language</label>
                 <select id="lang-select" onchange="setLang(this.value)">
@@ -419,9 +149,8 @@
                 </select>
             </div>
             <div class="settings-row">
-                <label>Тема оформления</label>
+                <label>Тема</label>
                 <select id="theme-select" onchange="setTheme(this.value)">
-                    <option value="ios6">iOS 6 Classic (Скевоморфизм)</option>
                     <option value="dark">Тёмная</option>
                     <option value="light">Светлая</option>
                 </select>
@@ -432,7 +161,7 @@
             </div>
             <div class="settings-row">
                 <label>Ник (не меняется)</label>
-                <input type="text" id="set-username" disabled style="background:#e0e0e0; color:#555;">
+                <input type="text" id="set-username" disabled style="background:#ccc; color:#555;">
             </div>
             <div class="settings-row">
                 <label>Отображаемое имя</label>
@@ -449,7 +178,7 @@
             <div class="settings-row">
                 <label>Аватар</label>
                 <div class="avatar-grid" id="avatar-grid"></div>
-                <button class="upload-btn" style="margin-top:8px;" onclick="document.getElementById('avatar-file').click()">Загрузить свой аватар</button>
+                <button style="margin-top:6px;background:#4a627a;color:white;border:none;padding:8px 12px;border-radius:4px;cursor:pointer;width:100%;" onclick="document.getElementById('avatar-file').click()">Загрузить свой аватар</button>
                 <input type="file" id="avatar-file" accept="image/*" style="display:none;" onchange="uploadCustomAvatar(this)">
             </div>
             <div class="settings-row">
@@ -460,7 +189,7 @@
                 <div id="devices-list"></div>
             </div>
             <div class="settings-row">
-                <button onclick="saveSettings()">Сохранить настройки</button>
+                <button onclick="saveSettings()">Сохранить</button>
             </div>
         </div>
 
@@ -469,10 +198,10 @@
             <div id="emoji-picker"></div>
             <div id="form-container">
                 <form id="form" onsubmit="return false;">
-                    <button type="button" class="media-btn" title="Прикрепить фото" onclick="document.getElementById('media-input').click()">&#128247;</button>
+                    <button type="button" class="media-btn" onclick="document.getElementById('media-input').click()">📷</button>
                     <input type="file" id="media-input" accept="image/*" style="display:none;" onchange="sendImageAttachment(this)">
-                    <input id="input" autocomplete="off" placeholder="Сообщение iMessage...">
-                    <button type="button" class="emoji-btn" title="Эмодзи" onclick="toggleEmojiPicker()">&#128522;</button>
+                    <input id="input" autocomplete="off" placeholder="Сообщение...">
+                    <button type="button" class="emoji-btn" onclick="toggleEmojiPicker()">😊</button>
                     <button type="button" id="send-btn" onclick="sendMessage()">Отпр.</button>
                 </form>
             </div>
@@ -480,23 +209,14 @@
     </div>
 
     <div id="bottom-nav">
-        <div class="nav-btn active" id="nav-chats" onclick="showTab('chats')">
-            <span class="nav-icon">&#9993;</span>
-            <span class="nav-label">Сообщения</span>
-        </div>
-        <div class="nav-btn" id="nav-archive" onclick="showTab('archive')">
-            <span class="nav-icon">&#9707;</span>
-            <span class="nav-label">Архив</span>
-        </div>
-        <div class="nav-btn" id="nav-settings" onclick="showTab('settings')">
-            <span class="nav-icon">&#9881;</span>
-            <span class="nav-label">Настройки</span>
-        </div>
+        <div class="nav-btn active" id="nav-chats" onclick="showTab('chats')">Чаты</div>
+        <div class="nav-btn" id="nav-archive" onclick="showTab('archive')">Архив</div>
+        <div class="nav-btn" id="nav-settings" onclick="showTab('settings')">Настр.</div>
     </div>
 
     <div id="partner-profile-overlay" onclick="closePartnerProfile()">
         <div id="partner-profile-box" onclick="event.stopPropagation()">
-            <span class="close-btn" onclick="closePartnerProfile()">&times;</span>
+            <span class="close-btn" onclick="closePartnerProfile()">×</span>
             <img id="partner-avatar" src="" alt="Avatar">
             <div class="partner-detail"><b id="partner-displayname"></b></div>
             <div class="partner-detail">@<span id="partner-username"></span></div>

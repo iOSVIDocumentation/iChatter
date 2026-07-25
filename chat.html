@@ -38,22 +38,21 @@
 
         #messages { position: absolute; top: 0; left: 0; right: 0; bottom: 50px; padding: 10px; overflow-y: scroll; -webkit-overflow-scrolling: touch; box-sizing: border-box; background: #555d65; }
 
-        #form-container { position: absolute; bottom: 0; left: 0; right: 0; height: 50px; background: #3b434a; box-sizing: border-box; padding: 5px 8px; display: block; }
-        #form { position: relative; width: 100%; height: 100%; display: -webkit-box; display: -webkit-flex; display: flex; -webkit-box-align: center; -webkit-align-items: center; align-items: center; gap: 5px; }
+        #form-container { position: absolute; bottom: 0; left: 0; right: 0; height: 50px; background: #3b434a; box-sizing: border-box; padding: 5px; display: block; }
+        #form { position: relative; width: 100%; height: 100%; }
 
         .media-btn, .emoji-btn {
+            position: absolute; top: 5px; bottom: 5px;
             background: #4a627a; border: none; border-radius: 4px;
-            width: 36px; height: 36px; min-width: 36px;
-            font-size: 16px; cursor: pointer; color: white;
-            display: -webkit-box; display: -webkit-flex; display: flex;
-            -webkit-box-align: center; -webkit-align-items: center; align-items: center;
-            -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center;
+            width: 36px; font-size: 16px; cursor: pointer; color: white;
         }
+        .media-btn { left: 0; }
+        .emoji-btn { right: 72px; }
         .media-btn:active, .emoji-btn:active { background: #37526a; }
 
-        #input { -webkit-box-flex: 1; -webkit-flex: 1; flex: 1; height: 36px; box-sizing: border-box; font-size: 15px; border-radius: 4px; border: none; padding: 0 8px; background: white; color: #222; outline: none; }
+        #input { position: absolute; left: 42px; top: 5px; bottom: 5px; right: 114px; width: auto; box-sizing: border-box; font-size: 15px; border-radius: 4px; border: none; padding: 0 8px; background: white; color: #222; outline: none; }
 
-        #send-btn { height: 36px; width: 60px; min-width: 60px; background: #27ae60; color: white; border: none; border-radius: 4px; font-size: 13px; font-weight: bold; cursor: pointer; }
+        #send-btn { position: absolute; right: 0; top: 5px; bottom: 5px; width: 66px; background: #27ae60; color: white; border: none; border-radius: 4px; font-size: 13px; font-weight: bold; cursor: pointer; }
         #send-btn:active { background: #1e8449; }
 
         .panel-section { padding: 10px; border-bottom: 1px solid #4a627a; background: #2c3e50; display: -webkit-box; display: -webkit-flex; display: flex; gap: 8px; }
@@ -178,7 +177,7 @@
             <div class="settings-row">
                 <label>Аватар</label>
                 <div class="avatar-grid" id="avatar-grid"></div>
-                <button style="margin-top:6px;background:#4a627a;color:white;border:none;padding:8px 12px;border-radius:4px;cursor:pointer;width:100%;" onclick="document.getElementById('avatar-file').click()">Загрузить свой аватар</button>
+                <button style="margin-top:6px; background:#4a627a; color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; width:100%;" onclick="document.getElementById('avatar-file').click()">Загрузить свой аватар</button>
                 <input type="file" id="avatar-file" accept="image/*" style="display:none;" onchange="uploadCustomAvatar(this)">
             </div>
             <div class="settings-row">

@@ -305,7 +305,8 @@ function addMsg(msg) {
         textContent += (textContent ? '<br>' : '') + '<img src="' + esc(mediaUrl) + '" class="msg-img" onclick="window.open(this.src)">';
     }
     var edited = msg.edited ? ' <span class="edited-tag">(' + t('edited') + ')</span>' : '';
-    div.innerHTML = '<div class="sender">' + esc(senderName) + '</div>' +
+    var senderClick = (msg.from !== myEmail) ? ' onclick="showPartnerProfile()" style="cursor:pointer;"' : '';
+    div.innerHTML = '<div class="sender"' + senderClick + '>' + esc(senderName) + '</div>' +
                     '<div class="text">' + textContent + edited + '</div>' +
                     '<span class="time">' + timeStr + '</span>';
     if (msg.from === myEmail && !msg.deleted) {
@@ -346,7 +347,7 @@ function showPartnerProfile() {
         byId('partner-age').textContent = '';
         byId('partner-about').textContent = '';
         byId('partner-avatar').src = generateEmptyAvatar();
-        byId('partner-profile-overlay').style.display = 'flex';
+        byId('partner-profile-overlay').style.display = 'block';
         return;
     }
     byId('partner-displayname').textContent = partner.displayName || partner.username;
@@ -363,7 +364,7 @@ function showPartnerProfile() {
     var avatarImg = byId('partner-avatar');
     avatarImg.src = avUrl;
     avatarImg.onerror = function () { this.onerror = null; this.src = generateEmptyAvatar(); };
-    byId('partner-profile-overlay').style.display = 'flex';
+    byId('partner-profile-overlay').style.display = 'block';
 }
 function closePartnerProfile() { byId('partner-profile-overlay').style.display = 'none'; }
 
@@ -466,7 +467,7 @@ function renderContacts() {
         var div = document.createElement('div');
         div.className = 'chat-item';
         var statusClass = c.isOnline ? 'online' : '';
-        div.innerHTML = '<div class="name">' + esc(c.displayName || c.username) + '</div><div class="status ' + statusClass + '">' + (c.isOnline ? t('online') : t('offline')) + '</div><button class="archive-btn" onclick="event.stopPropagation();archiveChat(\'' + c.email + '\')">📦</button>';
+        div.innerHTML = '<div class="name">' + esc(c.displayName || c.username) + '</div><div class="status ' + statusClass + '">' + (c.isOnline ? t('online') : t('offline')) + '</div><button class="archive-btn" onclick="event.stopPropagation();archiveChat(\'' + c.email + '\')">&#128230;</button>';
         div.onclick = (function (email) { return function () { openChat(email); }; })(c.email);
         list.appendChild(div);
     }
@@ -482,7 +483,7 @@ function loadArchive() {
             var c = items[i];
             var div = document.createElement('div');
             div.className = 'chat-item';
-            div.innerHTML = '<div class="name">' + esc(c.displayName || c.username) + '</div><button class="archive-btn unarchive-btn" onclick="event.stopPropagation();unarchiveChat(\'' + c.email + '\')">↩</button>';
+            div.innerHTML = '<div class="name">' + esc(c.displayName || c.username) + '</div><button class="archive-btn unarchive-btn" onclick="event.stopPropagation();unarchiveChat(\'' + c.email + '\')">&#8617;</button>';
             div.onclick = (function (email, name) { return function () { pendingName = name; openChat(email); }; })(c.email, c.displayName || c.username);
             list.appendChild(div);
         }
@@ -639,9 +640,9 @@ function initEmojiPicker() {
         span.textContent = emojis[i];
         span.onclick = (function (em) {
             return function () {
-                var input = byId('input');
-                input.value += em;
-                input.focus();
+                var inp = byId('input');
+                inp.value += em;
+                inp.focus();
             };
         })(emojis[i]);
         picker.appendChild(span);

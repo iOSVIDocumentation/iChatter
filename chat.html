@@ -104,10 +104,13 @@
             position: absolute; bottom: 50px; left: 0; right: 0;
             height: 180px; background: #2c3e50;
             border-top: 1px solid #4a627a;
-            display: none; padding: 10px; overflow-y: auto;
-            grid-template-columns: repeat(7, 1fr); gap: 8px; z-index: 150;
+            display: none; padding: 8px; overflow-y: auto; z-index: 150;
         }
-        .emoji-item { font-size: 24px; text-align: center; cursor: pointer; padding: 4px; border-radius: 4px; }
+        .emoji-item {
+            font-size: 22px; text-align: center; cursor: pointer;
+            padding: 5px; border-radius: 4px;
+            float: left; width: 14.28%; box-sizing: border-box;
+        }
         .emoji-item:active { background: #4a627a; }
 
         #partner-profile-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); z-index: 9999; display: none; justify-content: center; align-items: center; }

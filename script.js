@@ -115,13 +115,6 @@ function decryptMsg(text, partnerEmail) {
     return text;
 }
 
-// ==============================================
-// ЗВУКОВЫЕ ЭФФЕКТЫ iOS 6 (Web Audio API)
-// ==============================================
-var audioCtx = null;
-// === ЗВУК УВЕДОМЛЕНИЙ (меняй здесь: 'tritone', 'bell', 'pop', 'none') ===
-var notifSound = 'tritone';
-
 function getAudioContext() {
     if (!audioCtx && (window.AudioContext || window.webkitAudioContext)) {
         var AudioCtx = window.AudioContext || window.webkitAudioContext;

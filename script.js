@@ -235,8 +235,11 @@ function api(method, url, data, callback, isFormData) {
         }
     };
     xhr.onerror = function () { callback(new Error('Network error')); };
-    if (data) { xhr.send(isFormData ? data : JSON.stringify(data)); }
-    else { xhr.send(); }
+    if (data) {
+        xhr.send(isFormData ? data : JSON.stringify(data));
+    } else {
+        xhr.send();
+    }
 }
 
 var T = {
@@ -244,10 +247,10 @@ var T = {
         chats: 'Сообщения', archive: 'Архив', settings: 'Настройки', back: '◀ Назад',
         select: 'Выберите контакт', noContacts: 'Нет чатов', online: 'онлайн', offline: 'офлайн',
         typing: 'печатает...', empty: 'Пусто', notFound: 'Пользователь не найден',
-        enterId: 'Введите 6-значный ID', msg: 'Сообщение iMessage...', send: 'Отпр.', edited: 'ред.',
+        enterId: 'Введите 6-значный ID', msg: 'Сообщение...', send: 'Отпр.', edited: 'ред.',
         deleted: 'Сообщение удалено', save: 'Сохранить', saved: 'Настройки сохранены',
         selfSearch: 'Нельзя искать самого себя', invalidId: 'ID должен состоять из 6 цифр',
-        langLabel: 'Язык', themeLabel: 'Тема', wallpaper: 'Обои чата',
+        langLabel: 'Язык', themeLabel: 'Тема оформления', wallpaper: 'Обои чата',
         nickname: 'Ник (не меняется)', displayName: 'Отображаемое имя',
         age: 'Возраст', about: 'О себе', avatar: 'Аватар', myId: 'Мой ID',
         devices: 'Устройства', searchPlaceholder: 'Введите ID (6 цифр)',
@@ -257,7 +260,7 @@ var T = {
         chats: 'Messages', archive: 'Archive', settings: 'Settings', back: '◀ Back',
         select: 'Select contact', noContacts: 'No chats', online: 'online', offline: 'offline',
         typing: 'typing...', empty: 'Empty', notFound: 'User not found',
-        enterId: 'Enter 6-digit ID', msg: 'iMessage...', send: 'Send', edited: 'edited',
+        enterId: 'Enter 6-digit ID', msg: 'Message...', send: 'Send', edited: 'edited',
         deleted: 'Message deleted', save: 'Save', saved: 'Settings saved',
         selfSearch: 'You cannot search for yourself', invalidId: 'ID must be 6 digits',
         langLabel: 'Language', themeLabel: 'Theme', wallpaper: 'Chat Wallpaper',
@@ -279,11 +282,14 @@ function generateEmptyAvatar() {
     document.body.appendChild(canvas);
     var ctx = canvas.getContext('2d');
     ctx.fillStyle = '#95a5a6';
-    ctx.beginPath(); ctx.arc(size/2, size/2, size/2-2, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath();
+    ctx.arc(size / 2, size / 2, size / 2 - 2, 0, Math.PI * 2);
+    ctx.fill();
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 20px Helvetica, Arial, sans-serif';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('U', size/2, size/2+1);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('U', size / 2, size / 2 + 1);
     var dataUrl = canvas.toDataURL('image/png');
     document.body.removeChild(canvas);
     return dataUrl;
@@ -421,7 +427,7 @@ function showTab(tab) {
     byId('chat-area').style.display = 'none';
     var navs = document.getElementsByClassName('nav-btn');
     for (var i = 0; i < navs.length; i++) navs[i].className = 'nav-btn';
-    byId('bottom-nav').style.display = 'flex';
+    byId('bottom-nav').style.display = 'table';
     byId('btn-back').style.display = 'none';
     byId('chat-title').innerHTML = 'iChatter';
     if (tab === 'chats') {
@@ -446,7 +452,7 @@ function openChat(em) {
     byId('archive-panel').style.display = 'none';
     byId('settings-panel').style.display = 'none';
     byId('chat-area').style.display = 'block';
-    byId('bottom-nav').style.display = 'none';
+    byId('bottom-nav').style.display = 'table';
     byId('btn-back').style.display = 'block';
     var name = pendingName;
     if (!name) {
@@ -560,7 +566,7 @@ function loadSettings() {
         byId('set-age').value = profile.age || '';
         byId('set-about').value = profile.about || '';
         byId('lang-select').value = profile.language || lang;
-        var savedTheme = profile.theme || 'ios6';
+        var savedTheme = profile.theme || 'dark';
         byId('theme-select').value = savedTheme;
         setTheme(savedTheme);
         byId('my-id-display').innerHTML = profile.searchId || '';
@@ -581,7 +587,6 @@ function loadAvatars() {
     var img = document.createElement('img');
     img.src = avatarUrl;
     img.className = 'selected';
-    img.title = t('avatar');
     img.onerror = function () { this.onerror = null; this.src = generateEmptyAvatar(); };
     grid.appendChild(img);
 }
@@ -641,10 +646,10 @@ function saveSettings() {
 }
 function setLang(l) { lang = l; localStorage.setItem('lang', lang); updateNavTexts(); if (byId('lang-select')) byId('lang-select').value = lang; }
 function setTheme(th) {
-    var themeClass = (th || 'ios6') + '-mode';
+    var themeClass = (th || 'dark') + '-mode';
     document.body.className = themeClass;
     if (profile) profile.theme = th;
-    if (byId('theme-select')) byId('theme-select').value = th || 'ios6';
+    if (byId('theme-select')) byId('theme-select').value = th || 'dark';
 }
 function uploadCustomAvatar(input) {
     if (!input.files || !input.files[0]) return;
@@ -700,8 +705,12 @@ function initEmojiPicker() {
 function toggleEmojiPicker() {
     var picker = byId('emoji-picker');
     if (!picker) return;
-    if (picker.style.display === 'grid') { picker.style.display = 'none'; }
-    else { initEmojiPicker(); picker.style.display = 'grid'; }
+    if (picker.style.display === 'grid') {
+        picker.style.display = 'none';
+    } else {
+        initEmojiPicker();
+        picker.style.display = 'grid';
+    }
 }
 
 function sendMessage() {
@@ -783,6 +792,6 @@ byId('input').addEventListener('focus', function () {
     setTimeout(function () { byId('messages').scrollTop = byId('messages').scrollHeight; }, 100);
 });
 
-setTheme('ios6');
+setTheme('dark');
 connectSocket();
 showTab('chats');

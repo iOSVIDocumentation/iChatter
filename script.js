@@ -92,6 +92,29 @@ function decryptLocal(encBase64, key) {
     return bytesToString(decrypted);
 }
 
+function getChatKey(email1, email2) {
+    var a = email1.toLowerCase().trim();
+    var b = email2.toLowerCase().trim();
+    if (a > b) { var tmp = a; a = b; b = tmp; }
+    return a + '|' + b;
+}
+
+function encryptMsg(text, partnerEmail) {
+    if (!text) return text;
+    var key = getChatKey(myEmail, partnerEmail);
+    return 'ENC:' + encryptLocal(text, key);
+}
+
+function decryptMsg(text, partnerEmail) {
+    if (!text) return '';
+    if (text.indexOf('ENC:') === 0) {
+        var key = getChatKey(myEmail, partnerEmail);
+        try { return decryptLocal(text.substring(4), key); }
+        catch (e) { return text; }
+    }
+    return text;
+}
+
 var audioCtx = null;
 function getAudioContext() {
     if (!audioCtx && (window.AudioContext || window.webkitAudioContext)) {
@@ -218,10 +241,10 @@ function api(method, url, data, callback, isFormData) {
 
 var T = {
     ru: {
-        chats: 'Сообщения', archive: 'Архив', settings: 'Настройки', back: 'Назад',
+        chats: 'Сообщения', archive: 'Архив', settings: 'Настройки', back: '◀ Назад',
         select: 'Выберите контакт', noContacts: 'Нет чатов', online: 'онлайн', offline: 'офлайн',
         typing: 'печатает...', empty: 'Пусто', notFound: 'Пользователь не найден',
-        enterId: 'Введите 6-значный ID', msg: 'Сообщение...', send: 'Отпр.', edited: 'ред.',
+        enterId: 'Введите 6-значный ID', msg: 'Сообщение iMessage...', send: 'Отпр.', edited: 'ред.',
         deleted: 'Сообщение удалено', save: 'Сохранить', saved: 'Настройки сохранены',
         selfSearch: 'Нельзя искать самого себя', invalidId: 'ID должен состоять из 6 цифр',
         langLabel: 'Язык', themeLabel: 'Тема', wallpaper: 'Обои чата',
@@ -231,10 +254,10 @@ var T = {
         uploadAvatar: 'Загрузить свой аватар', noAvatar: 'Аватар не установлен'
     },
     en: {
-        chats: 'Messages', archive: 'Archive', settings: 'Settings', back: 'Back',
+        chats: 'Messages', archive: 'Archive', settings: 'Settings', back: '◀ Back',
         select: 'Select contact', noContacts: 'No chats', online: 'online', offline: 'offline',
         typing: 'typing...', empty: 'Empty', notFound: 'User not found',
-        enterId: 'Enter 6-digit ID', msg: 'Message...', send: 'Send', edited: 'edited',
+        enterId: 'Enter 6-digit ID', msg: 'iMessage...', send: 'Send', edited: 'edited',
         deleted: 'Message deleted', save: 'Save', saved: 'Settings saved',
         selfSearch: 'You cannot search for yourself', invalidId: 'ID must be 6 digits',
         langLabel: 'Language', themeLabel: 'Theme', wallpaper: 'Chat Wallpaper',
@@ -320,7 +343,9 @@ function addMsg(msg) {
     div.id = 'msg-' + msg.id;
     var senderName = msg.fromUsername || msg.from.split('@')[0];
     var timeStr = formatTime(msg.timestamp);
-    var displayText = msg.text || '';
+    var partnerEmail = (msg.from === myEmail) ? (msg.to || chatWith) : msg.from;
+    var rawText = msg.text || '';
+    var displayText = msg.deleted ? '' : decryptMsg(rawText, partnerEmail || chatWith);
     var textContent = msg.deleted ? '<i>' + t('deleted') + '</i>' : parseMessageText(displayText);
     if (msg.media && !msg.deleted) {
         var mediaUrl = (msg.media.indexOf('/uploads/') === 0) ? API + msg.media : msg.media;
@@ -340,9 +365,10 @@ function addMsg(msg) {
 function updMsg(id, text, edited) {
     var el = byId('msg-' + id);
     if (!el) return;
+    var decrypted = decryptMsg(text, chatWith);
     var textDivs = el.getElementsByClassName('text');
     if (textDivs.length > 0) {
-        textDivs[0].innerHTML = parseMessageText(text) + (edited ? ' <span class="edited-tag">(' + t('edited') + ')</span>' : '');
+        textDivs[0].innerHTML = parseMessageText(decrypted) + (edited ? ' <span class="edited-tag">(' + t('edited') + ')</span>' : '');
     }
 }
 
@@ -503,7 +529,7 @@ function loadArchive() {
             var c = items[i];
             var div = document.createElement('div');
             div.className = 'chat-item';
-            div.innerHTML = '<div class="name">' + esc(c.displayName || c.username) + '</div><button class="archive-btn unarchive-btn" onclick="event.stopPropagation();unarchiveChat(\'' + c.email + '\')">&#8617;</button>';
+            div.innerHTML = '<div class="name">' + esc(c.displayName || c.username) + '</div><button class="archive-btn unarchive-btn" onclick="event.stopPropagation();unarchiveChat(\'' + c.email + '\')">↩</button>';
             div.onclick = (function (email, name) { return function () { pendingName = name; openChat(email); }; })(c.email, c.displayName || c.username);
             list.appendChild(div);
         }
@@ -626,7 +652,7 @@ function uploadCustomAvatar(input) {
     var formData = new FormData();
     formData.append('avatar', file);
     api('POST', '/api/upload-avatar', formData, function (err, resp) {
-        if (!err && resp.success) { alert('Аватар обновлен!'); profile.avatar = resp.url; loadAvatars(); }
+        if (!err && resp.success) { alert('Аватар обновлён!'); profile.avatar = resp.url; loadAvatars(); }
     }, true);
     input.value = '';
 }
@@ -638,7 +664,8 @@ function sendImageAttachment(input) {
     reader.onload = function (e) {
         var dataUrl = e.target.result;
         var formattedMsg = '[img]' + dataUrl + '[/img]';
-        socket.emit('send_message', { to: chatWith, text: formattedMsg });
+        var encImg = encryptMsg(formattedMsg, chatWith);
+        socket.emit('send_message', { to: chatWith, text: encImg });
         playSentSound();
     };
     reader.readAsDataURL(file);
@@ -682,10 +709,12 @@ function sendMessage() {
     var text = input.value.trim();
     if (!text || !chatWith || !socket) return;
     if (editingId) {
-        socket.emit('edit_message', { id: editingId, newText: text, to: chatWith });
+        var encEdited = encryptMsg(text, chatWith);
+        socket.emit('edit_message', { id: editingId, newText: encEdited, to: chatWith });
         editingId = null;
     } else {
-        socket.emit('send_message', { to: chatWith, text: text });
+        var encText = encryptMsg(text, chatWith);
+        socket.emit('send_message', { to: chatWith, text: encText });
         playSentSound();
     }
     input.value = '';
@@ -698,7 +727,7 @@ function connectSocket() {
     if (typeof io !== 'undefined') {
         socket = io(API, { query: { token: token } });
     } else {
-        console.warn('Socket.IO not loaded');
+        console.warn('Socket.IO library not loaded yet');
         return;
     }
     socket.on('receive_message', function (msg) {

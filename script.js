@@ -313,6 +313,11 @@ function addMsg(msg) {
         div.innerHTML += '<div class="actions"><button class="edit-btn" onclick="editMsg(\'' + msg.id + '\',\'' + esc(displayText).replace(/'/g, "\\'") + '\')">✎</button><button class="del-btn" onclick="delMsg(\'' + msg.id + '\')">✕</button></div>';
     }
     container.appendChild(div);
+    var clr = document.createElement('div');
+    clr.style.clear = 'both';
+    clr.style.height = '0';
+    clr.style.fontSize = '0';
+    container.appendChild(clr);
     container.scrollTop = container.scrollHeight;
 }
 
@@ -660,10 +665,15 @@ function toggleEmojiPicker() {
     }
 }
 
+var _sending = false;
 function sendMessage() {
+    if (_sending) return;
     var input = byId('input');
     var text = input.value.trim();
     if (!text || !chatWith || !socket) return;
+    _sending = true;
+    input.value = '';
+    byId('emoji-picker').style.display = 'none';
     if (editingId) {
         var encEdited = encryptMsg(text, chatWith);
         socket.emit('edit_message', { id: editingId, newText: encEdited, to: chatWith });
@@ -672,8 +682,7 @@ function sendMessage() {
         var encText = encryptMsg(text, chatWith);
         socket.emit('send_message', { to: chatWith, text: encText });
     }
-    input.value = '';
-    byId('emoji-picker').style.display = 'none';
+    setTimeout(function () { _sending = false; }, 300);
 }
 function editMsg(id, text) { editingId = id; byId('input').value = text; byId('input').focus(); }
 function delMsg(id) { if (confirm('Удалить сообщение?')) socket.emit('delete_message', { id: id, to: chatWith }); }

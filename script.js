@@ -115,7 +115,13 @@ function decryptMsg(text, partnerEmail) {
     return text;
 }
 
+// ==============================================
+// ЗВУКОВЫЕ ЭФФЕКТЫ iOS 6 (Web Audio API)
+// ==============================================
 var audioCtx = null;
+// === ЗВУК УВЕДОМЛЕНИЙ (меняй здесь: 'tritone', 'bell', 'pop', 'none') ===
+var notifSound = 'tritone';
+
 function getAudioContext() {
     if (!audioCtx && (window.AudioContext || window.webkitAudioContext)) {
         var AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -125,24 +131,25 @@ function getAudioContext() {
 }
 
 function playSentSound() {
+    if (notifSound === 'none') return;
     try {
         var ctx = getAudioContext();
         if (!ctx) return;
         var osc = ctx.createOscillator();
         var gain = ctx.createGain();
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(523.25, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(783.99, ctx.currentTime + 0.12);
-        gain.gain.setValueAtTime(0.2, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1318, ctx.currentTime + 0.08);
+        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
         osc.connect(gain);
         gain.connect(ctx.destination);
         osc.start();
-        osc.stop(ctx.currentTime + 0.15);
+        osc.stop(ctx.currentTime + 0.1);
     } catch (e) {}
 }
 
-function playReceivedSound() {
+function playTritone() {
     try {
         var ctx = getAudioContext();
         if (!ctx) return;
@@ -166,6 +173,48 @@ function playReceivedSound() {
             })(notes[i], i * 140);
         }
     } catch (e) {}
+}
+
+function playBell() {
+    try {
+        var ctx = getAudioContext();
+        if (!ctx) return;
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1046.5, ctx.currentTime);
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.6);
+    } catch (e) {}
+}
+
+function playPop() {
+    try {
+        var ctx = getAudioContext();
+        if (!ctx) return;
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(400, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.05);
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.06);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.06);
+    } catch (e) {}
+}
+
+function playReceivedSound() {
+    if (notifSound === 'none') return;
+    if (notifSound === 'bell') { playBell(); return; }
+    if (notifSound === 'pop') { playPop(); return; }
+    playTritone();
 }
 
 function getParam(name) {
@@ -705,11 +754,11 @@ function initEmojiPicker() {
 function toggleEmojiPicker() {
     var picker = byId('emoji-picker');
     if (!picker) return;
-    if (picker.style.display === 'grid') {
+    if (picker.style.display === 'block') {
         picker.style.display = 'none';
     } else {
         initEmojiPicker();
-        picker.style.display = 'grid';
+        picker.style.display = 'block';
     }
 }
 

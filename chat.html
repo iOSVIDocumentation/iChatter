@@ -68,6 +68,14 @@
         .chat-item .archive-btn { position: absolute; right: 10px; top: 12px; background: #e74c3c; color: white; border: none; padding: 4px 10px; border-radius: 3px; font-size: 10px; cursor: pointer; }
         .chat-item .unarchive-btn { background: #27ae60; }
 
+        /* Красный кружок (Badge) для непрочитанных сообщений */
+        .unread-badge {
+            position: absolute; right: 42px; top: 14px;
+            background: #e74c3c; color: white; font-weight: bold;
+            font-size: 11px; padding: 2px 7px; border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+        }
+
         .msg { padding: 8px 10px; background: #2c3e50; margin-bottom: 8px; border-radius: 8px; word-wrap: break-word; font-size: 14px; position: relative; max-width: 80%; color: #fff; clear: both; float: left; cursor: pointer; }
         .msg.my { background: #27ae60; float: right; }
         .msg .sender { font-weight: bold; font-size: 12px; color: #ccc; margin-bottom: 2px; }
@@ -76,6 +84,11 @@
         .msg .text { display: inline; }
         .msg img.msg-img { max-width: 100%; border-radius: 6px; margin-top: 5px; display: block; }
         .msg .edited-tag { font-size: 10px; color: #ddd; font-style: italic; }
+
+        /* Галочки статуса сообщений (✓ / ✓✓) */
+        .status-ticks { font-size: 12px; margin-left: 4px; color: rgba(255,255,255,0.7); font-weight: bold; }
+        .status-ticks.read { color: #3498db; }
+
         .msg .actions { display: none; position: absolute; right: 5px; top: -14px; z-index: 100; }
         .msg:hover .actions, .msg.show-actions .actions { display: block; }
         .msg .actions button { font-size: 10px; padding: 2px 6px; border: none; border-radius: 3px; cursor: pointer; color: white; float: left; margin-left: 2px; }
@@ -129,9 +142,26 @@
         #partner-profile-box .close-btn { position: absolute; top: 10px; right: 15px; font-size: 22px; cursor: pointer; color: #aaa; font-weight: bold; }
         .partner-detail { margin: 6px 0; font-size: 14px; color: #ccc; }
         .partner-detail b { color: white; }
+
+        /* Выплывающий баннер уведомления iOS 6 */
+        #notification-banner {
+            position: fixed; top: -60px; left: 0; right: 0; height: 50px;
+            background: #2c3e50; border-bottom: 2px solid #27ae60; color: white;
+            z-index: 10000; padding: 6px 12px; box-sizing: border-box;
+            -webkit-transition: top 0.3s ease-in-out; transition: top 0.3s ease-in-out;
+            cursor: pointer; display: block;
+        }
+        #notification-banner.show { top: 0; }
+        #notification-banner .notif-title { font-weight: bold; font-size: 13px; color: #27ae60; }
+        #notification-banner .notif-body { font-size: 12px; color: #ddd; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     </style>
 </head>
 <body class="dark-mode">
+    <div id="notification-banner" onclick="openNotifChat()">
+        <div class="notif-title" id="notif-title">Новое сообщение</div>
+        <div class="notif-body" id="notif-body">...</div>
+    </div>
+
     <div id="header">
         <button id="btn-back" onclick="goBack()">&#9664; Назад</button>
         <span id="chat-title">iChatter</span>

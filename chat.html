@@ -34,7 +34,8 @@
         #chat-title { font-size: 14px; font-weight: bold; display: inline; cursor: pointer; vertical-align: middle; }
 
         #main-content { position: fixed; top: 44px; bottom: 50px; left: 0; right: 0; overflow: hidden; }
-        #chats-panel, #archive-panel, #settings-panel, #chat-area { position: absolute; top: 0; bottom: 0; left: 0; width: 100%; background: #3b434a; overflow-y: scroll; -webkit-overflow-scrolling: touch; z-index: 2; display: none; }
+        #chats-panel, #archive-panel, #settings-panel { position: absolute; top: 0; bottom: 0; left: 0; width: 100%; background: #3b434a; overflow-y: scroll; -webkit-overflow-scrolling: touch; z-index: 2; display: none; }
+        #chat-area { position: absolute; top: 0; bottom: 0; left: 0; width: 100%; background: #3b434a; overflow: hidden; z-index: 2; display: none; }
 
         #messages { position: absolute; top: 0; left: 0; right: 0; bottom: 50px; padding: 10px; overflow-y: scroll; -webkit-overflow-scrolling: touch; box-sizing: border-box; background: #555d65; }
 
@@ -51,7 +52,6 @@
         .media-btn:active, .emoji-btn:active { background: #37526a; }
 
         #input { position: absolute; left: 42px; top: 5px; bottom: 5px; right: 114px; width: auto; box-sizing: border-box; font-size: 15px; border-radius: 4px; border: none; padding: 0 8px; background: white; color: #222; outline: none; }
-
         #send-btn { position: absolute; right: 0; top: 5px; bottom: 5px; width: 66px; background: #27ae60; color: white; border: none; border-radius: 4px; font-size: 13px; font-weight: bold; cursor: pointer; }
         #send-btn:active { background: #1e8449; }
 
@@ -77,8 +77,8 @@
         .msg img.msg-img { max-width: 100%; border-radius: 6px; margin-top: 5px; display: block; }
         .msg .edited-tag { font-size: 10px; color: #ddd; font-style: italic; }
         .msg .actions { display: none; position: absolute; right: 5px; top: -12px; }
-        .msg:hover .actions { display: -webkit-box; display: -webkit-flex; display: flex; gap: 3px; }
-        .msg .actions button { font-size: 10px; padding: 2px 5px; border: none; border-radius: 3px; cursor: pointer; color: white; }
+        .msg:hover .actions { display: block; }
+        .msg .actions button { font-size: 10px; padding: 2px 5px; border: none; border-radius: 3px; cursor: pointer; color: white; float: left; margin-left: 2px; }
         .msg .actions .edit-btn { background: #f39c12; }
         .msg .actions .del-btn { background: #e74c3c; }
 
@@ -113,11 +113,21 @@
         }
         .emoji-item:active { background: #4a627a; }
 
-        #partner-profile-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); z-index: 9999; display: none; justify-content: center; align-items: center; }
-        #partner-profile-box { background: #3b434a; color: white; width: 280px; padding: 20px; border-radius: 12px; text-align: center; position: relative; margin: 50px auto 0; border: 1px solid #4a627a; box-shadow: 0 10px 25px rgba(0,0,0,0.6); }
-        #partner-profile-box img { width: 80px; height: 80px; border-radius: 50%; margin-bottom: 10px; border: 2px solid #27ae60; }
-        #partner-profile-box .close-btn { position: absolute; top: 10px; right: 15px; font-size: 20px; cursor: pointer; color: #aaa; font-weight: bold; }
-        .partner-detail { margin: 8px 0; font-size: 14px; color: #ccc; }
+        #partner-profile-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.75); z-index: 9999;
+            display: none; overflow-y: auto;
+        }
+        #partner-profile-box {
+            background: #3b434a; color: white;
+            width: 260px; padding: 20px; border-radius: 12px;
+            text-align: center; position: relative;
+            margin: 60px auto 40px auto;
+            border: 1px solid #4a627a;
+        }
+        #partner-profile-box img { width: 80px; height: 80px; border-radius: 40px; margin-bottom: 10px; border: 2px solid #27ae60; display: block; margin-left: auto; margin-right: auto; }
+        #partner-profile-box .close-btn { position: absolute; top: 10px; right: 15px; font-size: 22px; cursor: pointer; color: #aaa; font-weight: bold; }
+        .partner-detail { margin: 6px 0; font-size: 14px; color: #ccc; }
         .partner-detail b { color: white; }
     </style>
 </head>
@@ -199,12 +209,12 @@
             <div id="messages"></div>
             <div id="emoji-picker"></div>
             <div id="form-container">
-                <form id="form" onsubmit="return false;">
+                <form id="form" onsubmit="return false;" autocomplete="off">
                     <button type="button" class="media-btn" onclick="document.getElementById('media-input').click()">📷</button>
                     <input type="file" id="media-input" accept="image/*" style="display:none;" onchange="sendImageAttachment(this)">
-                    <input id="input" autocomplete="off" placeholder="Сообщение...">
+                    <input id="input" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Сообщение...">
                     <button type="button" class="emoji-btn" onclick="toggleEmojiPicker()">😊</button>
-                    <button type="button" id="send-btn" onclick="sendMessage()">Отпр.</button>
+                    <button type="button" id="send-btn">Отпр.</button>
                 </form>
             </div>
         </div>
@@ -218,7 +228,7 @@
 
     <div id="partner-profile-overlay" onclick="closePartnerProfile()">
         <div id="partner-profile-box" onclick="event.stopPropagation()">
-            <span class="close-btn" onclick="closePartnerProfile()">×</span>
+            <span class="close-btn" onclick="closePartnerProfile()">x</span>
             <img id="partner-avatar" src="" alt="Avatar">
             <div class="partner-detail"><b id="partner-displayname"></b></div>
             <div class="partner-detail">@<span id="partner-username"></span></div>

@@ -28,7 +28,7 @@
         body.light-mode .nav-btn.active { background: #4a627a; }
         body.light-mode #emoji-picker { background: #dde2e8; border-top-color: #bbb; }
 
-        #header { position: fixed; top: 0; left: 0; right: 0; height: 44px; background: #2c3e50; color: white; line-height: 44px; padding: 0 10px; z-index: 10; box-sizing: border-box; }
+        #header { position: fixed; top: 0; left: 0; right: 0; height: 44px; background: #2c3e50; color: white; line-height: 44px; padding: 0 10px; z-index: 100; box-sizing: border-box; -webkit-transform: translateZ(0); transform: translateZ(0); }
         #btn-back { background: #4a627a; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; margin-right: 8px; display: none; font-weight: bold; }
         #btn-back:active { background: #37526a; }
         #chat-title { font-size: 14px; font-weight: bold; display: inline; cursor: pointer; vertical-align: middle; }
@@ -68,7 +68,7 @@
         .chat-item .archive-btn { position: absolute; right: 10px; top: 12px; background: #e74c3c; color: white; border: none; padding: 4px 10px; border-radius: 3px; font-size: 10px; cursor: pointer; }
         .chat-item .unarchive-btn { background: #27ae60; }
 
-        .msg { padding: 8px 10px; background: #2c3e50; margin-bottom: 8px; border-radius: 8px; word-wrap: break-word; font-size: 14px; position: relative; max-width: 80%; color: #fff; clear: both; float: left; }
+        .msg { padding: 8px 10px; background: #2c3e50; margin-bottom: 8px; border-radius: 8px; word-wrap: break-word; font-size: 14px; position: relative; max-width: 80%; color: #fff; clear: both; float: left; cursor: pointer; }
         .msg.my { background: #27ae60; float: right; }
         .msg .sender { font-weight: bold; font-size: 12px; color: #ccc; margin-bottom: 2px; }
         .msg.my .sender { color: rgba(255,255,255,0.75); }
@@ -76,9 +76,9 @@
         .msg .text { display: inline; }
         .msg img.msg-img { max-width: 100%; border-radius: 6px; margin-top: 5px; display: block; }
         .msg .edited-tag { font-size: 10px; color: #ddd; font-style: italic; }
-        .msg .actions { display: none; position: absolute; right: 5px; top: -12px; }
-        .msg:hover .actions { display: block; }
-        .msg .actions button { font-size: 10px; padding: 2px 5px; border: none; border-radius: 3px; cursor: pointer; color: white; float: left; margin-left: 2px; }
+        .msg .actions { display: none; position: absolute; right: 5px; top: -14px; z-index: 100; }
+        .msg:hover .actions, .msg.show-actions .actions { display: block; }
+        .msg .actions button { font-size: 10px; padding: 2px 6px; border: none; border-radius: 3px; cursor: pointer; color: white; float: left; margin-left: 2px; }
         .msg .actions .edit-btn { background: #f39c12; }
         .msg .actions .del-btn { background: #e74c3c; }
 
@@ -95,7 +95,7 @@
         .wallpaper-grid img { width: 70px; height: 44px; margin: 4px; border: 2px solid transparent; cursor: pointer; object-fit: cover; float: left; border-radius: 4px; }
         .wallpaper-grid img.selected { border-color: #27ae60; }
 
-        #bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: 50px; background: #3b434a; display: table; width: 100%; z-index: 20; }
+        #bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: 50px; background: #3b434a; display: table; width: 100%; z-index: 20; -webkit-transform: translateZ(0); transform: translateZ(0); }
         .nav-btn { display: table-cell; text-align: center; vertical-align: middle; background: #2c3e50; color: #aaa; font-size: 12px; cursor: pointer; border-right: 1px solid #4a627a; }
         .nav-btn:last-child { border-right: none; }
         .nav-btn.active { background: #4a627a; color: white; font-weight: bold; }

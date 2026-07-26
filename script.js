@@ -2,9 +2,6 @@ var BASE = window.location.protocol + '//' + window.location.host;
 var API = BASE;
 var STATIC_URL = BASE;
 
-// ==============================================
-// БЕЗОПАСНЫЙ BASE64 (совместимость с iOS 6 + RFC 4648)
-// ==============================================
 var base64chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
 function toBase64(bytes) {
@@ -170,8 +167,14 @@ var profile = null;
 var contacts = [];
 var pendingName = null;
 var loadedMessageIds = {};
+var notifTargetEmail = null;
 
 if (!token || !myEmail) { window.location.href = 'login.html'; }
+
+// Запрос разрешения на браузерные Push-уведомления
+if (window.Notification && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+    Notification.requestPermission();
+}
 
 function byId(id) { return document.getElementById(id); }
 
@@ -266,6 +269,38 @@ function generateEmptyAvatar() {
     return dataUrl;
 }
 
+function triggerNotification(title, text, fromEmail) {
+    notifTargetEmail = fromEmail;
+    // 1. HTML5 System Push Notification (для ПК / Android)
+    if (window.Notification && Notification.permission === 'granted') {
+        try {
+            var n = new Notification(title, { body: text, icon: generateEmptyAvatar() });
+            n.onclick = function () {
+                window.focus();
+                if (fromEmail) openChat(fromEmail);
+                n.close();
+            };
+        } catch (e) {}
+    }
+    // 2. Всплывающий баннер iOS 6 (для iOS 6 и старых браузеров)
+    var banner = byId('notification-banner');
+    if (banner) {
+        byId('notif-title').textContent = title;
+        byId('notif-body').textContent = text;
+        banner.className = 'show';
+        clearTimeout(window.notifBannerTimer);
+        window.notifBannerTimer = setTimeout(function () {
+            banner.className = '';
+        }, 3500);
+    }
+}
+
+function openNotifChat() {
+    var banner = byId('notification-banner');
+    if (banner) banner.className = '';
+    if (notifTargetEmail) openChat(notifTargetEmail);
+}
+
 function getStorageKey() { return 'ichatter_key_' + (myEmail || '').toLowerCase().trim(); }
 
 function saveLocalMessages(chat, msgs) {
@@ -330,9 +365,18 @@ function addMsg(msg) {
     }
     var edited = msg.edited ? ' <span class="edited-tag">(' + t('edited') + ')</span>' : '';
     var senderClick = (msg.from !== myEmail) ? ' onclick="showPartnerProfile()" style="cursor:pointer;"' : '';
+
+    // Рендеринг галочек доставки/прочтения (✓ / ✓✓) для моих сообщений
+    var tickHtml = '';
+    if (msg.from === myEmail && !msg.deleted) {
+        var tickClass = msg.read ? 'read' : '';
+        var tickSymbol = msg.read ? '✓✓' : '✓';
+        tickHtml = '<span class="status-ticks ' + tickClass + '" id="tick-' + msg.id + '">' + tickSymbol + '</span>';
+    }
+
     div.innerHTML = '<div class="sender"' + senderClick + '>' + esc(senderName) + '</div>' +
                     '<div class="text">' + textContent + edited + '</div>' +
-                    '<span class="time">' + timeStr + '</span>';
+                    '<span class="time">' + timeStr + tickHtml + '</span>';
 
     // Для тачскринов iOS 6: клик по своему сообщению переключает показ кнопок редактирования/удаления
     if (msg.from === myEmail && !msg.deleted) {
@@ -453,6 +497,16 @@ function openChat(em) {
     byId('chat-title').onclick = showPartnerProfile;
     loadedMessageIds = {};
     byId('messages').innerHTML = '';
+
+    // Сбросить непрочитанный счётчик в локальном списке контактов
+    for (var cIdx = 0; cIdx < contacts.length; cIdx++) {
+        if (contacts[cIdx].email === em) { contacts[cIdx].unreadCount = 0; break; }
+    }
+    renderContacts();
+
+    // Отправить на сервер событие mark_read для этого чата
+    if (socket) socket.emit('mark_read', { with: em });
+
     if (profile && profile.wallpaper) {
         var wp = profile.wallpaper;
         var wpUrl = (wp.indexOf('/uploads/') === 0) ? API + wp : STATIC_URL + '/wallpapers/' + wp;
@@ -461,13 +515,16 @@ function openChat(em) {
     } else {
         byId('messages').style.backgroundImage = '';
     }
+
     if (!hasContact(em)) {
         addContactToServer(em);
-        contacts.push({ email: em, username: em.split('@')[0], displayName: em.split('@')[0], searchId: '', avatar: 'av1.png', age: 0, about: '', isOnline: false });
+        contacts.push({ email: em, username: em.split('@')[0], displayName: em.split('@')[0], searchId: '', avatar: 'av1.png', age: 0, about: '', unreadCount: 0, isOnline: false });
         renderContacts();
     }
+
     var localMsgs = loadLocalMessages(em);
     for (var j = 0; j < localMsgs.length; j++) addMsg(localMsgs[j]);
+
     var xhr2 = new XMLHttpRequest();
     xhr2.open('GET', API + '/api/messages?with=' + encodeURIComponent(em) + '&limit=100&token=' + encodeURIComponent(token), true);
     xhr2.onreadystatechange = function() {
@@ -508,11 +565,14 @@ function renderContacts() {
         var div = document.createElement('div');
         div.className = 'chat-item';
         var statusClass = c.isOnline ? 'online' : '';
-        div.innerHTML = '<div class="name">' + esc(c.displayName || c.username) + '</div><div class="status ' + statusClass + '">' + (c.isOnline ? t('online') : t('offline')) + '</div><button class="archive-btn" onclick="event.stopPropagation();archiveChat(\'' + c.email + '\')">📦</button>';
+        // Красный кружок (Badge) при наличии непрочитанных сообщений
+        var badgeHtml = (c.unreadCount && c.unreadCount > 0) ? '<span class="unread-badge">' + c.unreadCount + '</span>' : '';
+        div.innerHTML = '<div class="name">' + esc(c.displayName || c.username) + '</div><div class="status ' + statusClass + '">' + (c.isOnline ? t('online') : t('offline')) + '</div>' + badgeHtml + '<button class="archive-btn" onclick="event.stopPropagation();archiveChat(\'' + c.email + '\')">📦</button>';
         div.onclick = (function (email) { return function () { openChat(email); }; })(c.email);
         list.appendChild(div);
     }
 }
+
 function loadArchive() {
     api('GET', '/api/archived-chats', null, function (err, data) {
         if (err) return;
@@ -732,17 +792,36 @@ function connectSocket() {
     }
 
     socket.on('receive_message', function (msg) {
+        var senderName = msg.fromUsername || msg.from.split('@')[0];
+        var decText = decryptMsg(msg.text || '', msg.from);
+
         if (chatWith === msg.from) {
             addMsg(msg);
+            // Если чат открыт — сразу отправляем маркер прочитано
+            socket.emit('mark_read', { with: msg.from });
+        } else {
+            // Уведомление (системное + плашка iOS 6)
+            triggerNotification(senderName, decText, msg.from);
+
+            // Увеличиваем красный кружок (unread badge) для этого контакта
+            var found = false;
+            for (var i = 0; i < contacts.length; i++) {
+                if (contacts[i].email === msg.from) {
+                    contacts[i].unreadCount = (contacts[i].unreadCount || 0) + 1;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) { addContactToServer(msg.from); loadContacts(); }
+            renderContacts();
         }
-        var target = msg.from === myEmail ? msg.to : msg.from;
-        var arr = loadLocalMessages(target);
+
+        var arr = loadLocalMessages(msg.from);
         arr.push(msg);
         if (arr.length > 500) arr = arr.slice(-500);
-        saveLocalMessages(target, arr);
-        if (!hasContact(msg.from)) { addContactToServer(msg.from); loadContacts(); }
-        loadContacts();
+        saveLocalMessages(msg.from, arr);
     });
+
     socket.on('message_sent', function (msg) {
         if (chatWith === msg.to) addMsg(msg);
         var arr = loadLocalMessages(msg.to);
@@ -752,18 +831,32 @@ function connectSocket() {
         if (!hasContact(msg.to)) { addContactToServer(msg.to); loadContacts(); }
         loadContacts();
     });
+
+    // Когда собеседник прочитал мои сообщения — меняем ✓ на ✓✓ (две галочки)
+    socket.on('messages_read', function (d) {
+        if (chatWith === d.by) {
+            var ticks = document.getElementsByClassName('status-ticks');
+            for (var i = 0; i < ticks.length; i++) {
+                ticks[i].textContent = '✓✓';
+                ticks[i].className = 'status-ticks read';
+            }
+        }
+    });
+
     socket.on('update_message', function (d) {
         updMsg(d.id, d.text, d.edited);
         var arr = loadLocalMessages(chatWith);
         for (var i = 0; i < arr.length; i++) if (arr[i].id === d.id) { arr[i].text = d.text; arr[i].edited = d.edited; break; }
         saveLocalMessages(chatWith, arr);
     });
+
     socket.on('remove_message', function (d) {
         delMsgUI(d.id);
         var arr = loadLocalMessages(chatWith);
         for (var i = 0; i < arr.length; i++) if (arr[i].id === d.id) { arr[i].deleted = true; arr[i].text = ''; break; }
         saveLocalMessages(chatWith, arr);
     });
+
     socket.on('user_typing', function (data) {
         if (chatWith === data.from && data.isTyping) {
             byId('chat-title').innerHTML = data.username + ' (' + t('typing') + ')';

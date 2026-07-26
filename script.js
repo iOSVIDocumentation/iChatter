@@ -223,7 +223,7 @@ var T = {
         selfSearch: 'Нельзя искать самого себя', invalidId: 'ID должен состоять из 6 цифр',
         langLabel: 'Язык', themeLabel: 'Тема оформления', wallpaper: 'Обои чата',
         nickname: 'Ник (не меняется)', displayName: 'Отображаемое имя',
-        age: 'Возраст', about: 'О себе', avatar: 'Аватар', myId: 'Мой ID',
+        age: 'Возраст', about: 'О себе', avatar: 'Аватар', myId: 'Мой ID', notSpecified: 'не указан',
         devices: 'Устройства', searchPlaceholder: 'Введите ID (6 цифр)',
         uploadAvatar: 'Загрузить свой аватар', noAvatar: 'Аватар не установлен'
     },
@@ -236,7 +236,7 @@ var T = {
         selfSearch: 'You cannot search for yourself', invalidId: 'ID must be 6 digits',
         langLabel: 'Language', themeLabel: 'Theme', wallpaper: 'Chat Wallpaper',
         nickname: 'Nickname (unchangeable)', displayName: 'Display Name',
-        age: 'Age', about: 'About', avatar: 'Avatar', myId: 'My ID',
+        age: 'Age', about: 'About', avatar: 'Avatar', myId: 'My ID', notSpecified: 'not specified',
         devices: 'Devices', searchPlaceholder: 'Enter ID (6 digits)',
         uploadAvatar: 'Upload Custom Avatar', noAvatar: 'No avatar'
     }
@@ -333,8 +333,19 @@ function addMsg(msg) {
     div.innerHTML = '<div class="sender"' + senderClick + '>' + esc(senderName) + '</div>' +
                     '<div class="text">' + textContent + edited + '</div>' +
                     '<span class="time">' + timeStr + '</span>';
+
+    // Для тачскринов iOS 6: клик по своему сообщению переключает показ кнопок редактирования/удаления
     if (msg.from === myEmail && !msg.deleted) {
-        div.innerHTML += '<div class="actions"><button class="edit-btn" onclick="editMsg(\'' + msg.id + '\',\'' + esc(displayText).replace(/'/g, "\\'") + '\')">✎</button><button class="del-btn" onclick="delMsg(\'' + msg.id + '\')">✕</button></div>';
+        div.onclick = function (e) {
+            var target = (e && e.target) ? e.target : window.event.srcElement;
+            if (target && target.tagName === 'BUTTON') return;
+            if (div.className.indexOf('show-actions') !== -1) {
+                div.className = div.className.replace(' show-actions', '');
+            } else {
+                div.className += ' show-actions';
+            }
+        };
+        div.innerHTML += '<div class="actions"><button class="edit-btn" onclick="if(event.stopPropagation)event.stopPropagation();else event.cancelBubble=true;editMsg(\'' + msg.id + '\',\'' + esc(displayText).replace(/'/g, "\\'") + '\')">✎</button><button class="del-btn" onclick="if(event.stopPropagation)event.stopPropagation();else event.cancelBubble=true;delMsg(\'' + msg.id + '\')">✕</button></div>';
     }
     container.appendChild(div);
     var clr = document.createElement('div');
@@ -343,6 +354,7 @@ function addMsg(msg) {
     clr.style.fontSize = '0';
     container.appendChild(clr);
     container.scrollTop = container.scrollHeight;
+    window.scrollTo(0, 0);
 }
 
 function updMsg(id, text, edited) {
@@ -373,7 +385,7 @@ function showPartnerProfile() {
         byId('partner-username').textContent = chatWith.split('@')[0];
         byId('partner-id').textContent = '';
         byId('partner-status').textContent = '';
-        byId('partner-age').textContent = '';
+        byId('partner-age').textContent = t('age') + ': ' + t('notSpecified');
         byId('partner-about').textContent = '';
         byId('partner-avatar').src = generateEmptyAvatar();
         byId('partner-profile-overlay').style.display = 'block';
@@ -383,7 +395,7 @@ function showPartnerProfile() {
     byId('partner-username').textContent = partner.username || '';
     byId('partner-id').textContent = partner.searchId || '';
     byId('partner-status').textContent = partner.isOnline ? t('online') : t('offline');
-    byId('partner-age').textContent = partner.age ? (t('age') + ': ' + partner.age) : '';
+    byId('partner-age').textContent = t('age') + ': ' + (partner.age ? partner.age : t('notSpecified'));
     byId('partner-about').textContent = partner.about || '';
     var avUrl = generateEmptyAvatar();
     if (partner.avatar) {

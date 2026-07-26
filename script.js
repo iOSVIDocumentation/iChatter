@@ -2,6 +2,9 @@ var BASE = window.location.protocol + '//' + window.location.host;
 var API = BASE;
 var STATIC_URL = BASE;
 
+// ==============================================
+// БЕЗОПАСНЫЙ BASE64 (совместимость с iOS 6 + RFC 4648)
+// ==============================================
 var base64chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
 function toBase64(bytes) {
@@ -14,9 +17,17 @@ function toBase64(bytes) {
         var enc2 = ((b1 & 3) << 4) | (b2 >> 4);
         var enc3 = ((b2 & 15) << 2) | (b3 >> 6);
         var enc4 = b3 & 63;
-        if (i + 1 >= bytes.length) enc3 = enc4 = 64;
-        else if (i + 2 >= bytes.length) enc4 = 64;
-        result += base64chars.charAt(enc1) + base64chars.charAt(enc2) + base64chars.charAt(enc3) + base64chars.charAt(enc4);
+
+        if (i + 1 >= bytes.length) {
+            enc3 = 64;
+            enc4 = 64;
+        } else if (i + 2 >= bytes.length) {
+            enc4 = 64;
+        }
+
+        result += base64chars.charAt(enc1) + base64chars.charAt(enc2) +
+            (enc3 === 64 ? '=' : base64chars.charAt(enc3)) +
+            (enc4 === 64 ? '=' : base64chars.charAt(enc4));
     }
     return result;
 }
@@ -24,21 +35,34 @@ function toBase64(bytes) {
 function fromBase64(str) {
     var bytes = [];
     var i = 0;
+    str = (str || '').replace(/[^A-Za-z0-9\+\/\=]/g, '');
     while (i < str.length) {
-        var enc1 = base64chars.indexOf(str.charAt(i++));
-        var enc2 = base64chars.indexOf(str.charAt(i++));
-        var enc3 = base64chars.indexOf(str.charAt(i++));
-        var enc4 = base64chars.indexOf(str.charAt(i++));
+        var c1 = str.charAt(i++);
+        var c2 = str.charAt(i++);
+        var c3 = str.charAt(i++);
+        var c4 = str.charAt(i++);
+
+        var enc1 = base64chars.indexOf(c1);
+        var enc2 = base64chars.indexOf(c2);
+        var enc3 = (c3 === '=' || c3 === '') ? 64 : base64chars.indexOf(c3);
+        var enc4 = (c4 === '=' || c4 === '') ? 64 : base64chars.indexOf(c4);
+
+        if (enc1 === -1 || enc2 === -1) break;
+
         var b1 = (enc1 << 2) | (enc2 >> 4);
-        var b2 = ((enc2 & 15) << 4) | (enc3 >> 2);
-        var b3 = ((enc3 & 3) << 6) | enc4;
+        var b2 = ((enc2 & 15) << 4) | (enc3 === 64 ? 0 : (enc3 >> 2));
+        var b3 = ((enc3 & 3) << 6) | (enc4 === 64 ? 0 : enc4);
+
         bytes.push(b1);
-        if (enc3 != 64) bytes.push(b2);
-        if (enc4 != 64) bytes.push(b3);
+        if (enc3 !== 64) bytes.push(b2);
+        if (enc4 !== 64) bytes.push(b3);
     }
     return bytes;
 }
 
+// ==============================================
+// XOR ШИФРОВАНИЕ
+// ==============================================
 function stringToBytes(str) {
     var bytes = [];
     for (var i = 0; i < str.length; i++) {
@@ -472,7 +496,7 @@ function renderContacts() {
         var div = document.createElement('div');
         div.className = 'chat-item';
         var statusClass = c.isOnline ? 'online' : '';
-        div.innerHTML = '<div class="name">' + esc(c.displayName || c.username) + '</div><div class="status ' + statusClass + '">' + (c.isOnline ? t('online') : t('offline')) + '</div><button class="archive-btn" onclick="event.stopPropagation();archiveChat(\'' + c.email + '\')">&#128230;</button>';
+        div.innerHTML = '<div class="name">' + esc(c.displayName || c.username) + '</div><div class="status ' + statusClass + '">' + (c.isOnline ? t('online') : t('offline')) + '</div><button class="archive-btn" onclick="event.stopPropagation();archiveChat(\'' + c.email + '\')">📦</button>';
         div.onclick = (function (email) { return function () { openChat(email); }; })(c.email);
         list.appendChild(div);
     }
@@ -488,7 +512,7 @@ function loadArchive() {
             var c = items[i];
             var div = document.createElement('div');
             div.className = 'chat-item';
-            div.innerHTML = '<div class="name">' + esc(c.displayName || c.username) + '</div><button class="archive-btn unarchive-btn" onclick="event.stopPropagation();unarchiveChat(\'' + c.email + '\')">&#8617;</button>';
+            div.innerHTML = '<div class="name">' + esc(c.displayName || c.username) + '</div><button class="archive-btn unarchive-btn" onclick="event.stopPropagation();unarchiveChat(\'' + c.email + '\')">↩</button>';
             div.onclick = (function (email, name) { return function () { pendingName = name; openChat(email); }; })(c.email, c.displayName || c.username);
             list.appendChild(div);
         }
@@ -694,8 +718,11 @@ function connectSocket() {
         console.warn('Socket.IO library not loaded yet');
         return;
     }
+
     socket.on('receive_message', function (msg) {
-        if (chatWith === msg.from) { addMsg(msg); }
+        if (chatWith === msg.from) {
+            addMsg(msg);
+        }
         var target = msg.from === myEmail ? msg.to : msg.from;
         var arr = loadLocalMessages(target);
         arr.push(msg);

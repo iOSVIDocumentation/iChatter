@@ -164,13 +164,8 @@ var profile = null;
 var contacts = [];
 var pendingName = null;
 var loadedMessageIds = {};
-var notifTargetEmail = null;
 
 if (!token || !myEmail) { window.location.href = 'login.html'; }
-
-if (window.Notification && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
-    Notification.requestPermission();
-}
 
 function byId(id) { return document.getElementById(id); }
 
@@ -265,38 +260,6 @@ function generateEmptyAvatar() {
     return dataUrl;
 }
 
-function triggerNotification(title, text, fromEmail) {
-    notifTargetEmail = fromEmail;
-    
-    if (window.Notification && Notification.permission === 'granted') {
-        try {
-            var n = new Notification(title, { body: text, icon: generateEmptyAvatar() });
-            n.onclick = function () {
-                window.focus();
-                if (fromEmail) openChat(fromEmail);
-                n.close();
-            };
-        } catch (e) {}
-    }
-
-    var banner = byId('notification-banner');
-    if (banner) {
-        byId('notif-title').textContent = title;
-        byId('notif-body').textContent = text;
-        banner.className = 'show';
-        clearTimeout(window.notifBannerTimer);
-        window.notifBannerTimer = setTimeout(function () {
-            banner.className = '';
-        }, 3500);
-    }
-}
-
-function openNotifChat() {
-    var banner = byId('notification-banner');
-    if (banner) banner.className = '';
-    if (notifTargetEmail) openChat(notifTargetEmail);
-}
-
 function getStorageKey() { return 'ichatter_key_' + (myEmail || '').toLowerCase().trim(); }
 
 function saveLocalMessages(chat, msgs) {
@@ -372,7 +335,6 @@ function addMsg(msg) {
     div.innerHTML = '<div class="sender"' + senderClick + '>' + esc(senderName) + '</div>' +
                     '<div class="text">' + textContent + edited + '</div>' +
                     '<span class="time">' + timeStr + tickHtml + '</span>';
-
 
     if (msg.from === myEmail && !msg.deleted) {
         div.onclick = function (e) {
@@ -558,7 +520,6 @@ function renderContacts() {
         var div = document.createElement('div');
         div.className = 'chat-item';
         var statusClass = c.isOnline ? 'online' : '';
-
         var badgeHtml = (c.unreadCount && c.unreadCount > 0) ? '<span class="unread-badge">' + c.unreadCount + '</span>' : '';
         div.innerHTML = '<div class="name">' + esc(c.displayName || c.username) + '</div><div class="status ' + statusClass + '">' + (c.isOnline ? t('online') : t('offline')) + '</div>' + badgeHtml + '<button class="archive-btn" onclick="event.stopPropagation();archiveChat(\'' + c.email + '\')">📦</button>';
         div.onclick = (function (email) { return function () { openChat(email); }; })(c.email);
@@ -785,17 +746,10 @@ function connectSocket() {
     }
 
     socket.on('receive_message', function (msg) {
-        var senderName = msg.fromUsername || msg.from.split('@')[0];
-        var decText = decryptMsg(msg.text || '', msg.from);
-
         if (chatWith === msg.from) {
             addMsg(msg);
-
             socket.emit('mark_read', { with: msg.from });
         } else {
-
-            triggerNotification(senderName, decText, msg.from);
-
             var found = false;
             for (var i = 0; i < contacts.length; i++) {
                 if (contacts[i].email === msg.from) {
@@ -823,7 +777,6 @@ function connectSocket() {
         if (!hasContact(msg.to)) { addContactToServer(msg.to); loadContacts(); }
         loadContacts();
     });
-
 
     socket.on('messages_read', function (d) {
         if (chatWith === d.by) {

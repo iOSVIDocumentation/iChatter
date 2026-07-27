@@ -57,9 +57,6 @@ function fromBase64(str) {
     return bytes;
 }
 
-// ==============================================
-// XOR ШИФРОВАНИЕ
-// ==============================================
 function stringToBytes(str) {
     var bytes = [];
     for (var i = 0; i < str.length; i++) {
@@ -171,7 +168,6 @@ var notifTargetEmail = null;
 
 if (!token || !myEmail) { window.location.href = 'login.html'; }
 
-// Запрос разрешения на браузерные Push-уведомления
 if (window.Notification && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
     Notification.requestPermission();
 }
@@ -271,7 +267,7 @@ function generateEmptyAvatar() {
 
 function triggerNotification(title, text, fromEmail) {
     notifTargetEmail = fromEmail;
-    // 1. HTML5 System Push Notification (для ПК / Android)
+    
     if (window.Notification && Notification.permission === 'granted') {
         try {
             var n = new Notification(title, { body: text, icon: generateEmptyAvatar() });
@@ -282,7 +278,7 @@ function triggerNotification(title, text, fromEmail) {
             };
         } catch (e) {}
     }
-    // 2. Всплывающий баннер iOS 6 (для iOS 6 и старых браузеров)
+
     var banner = byId('notification-banner');
     if (banner) {
         byId('notif-title').textContent = title;
@@ -366,7 +362,6 @@ function addMsg(msg) {
     var edited = msg.edited ? ' <span class="edited-tag">(' + t('edited') + ')</span>' : '';
     var senderClick = (msg.from !== myEmail) ? ' onclick="showPartnerProfile()" style="cursor:pointer;"' : '';
 
-    // Рендеринг галочек доставки/прочтения (✓ / ✓✓) для моих сообщений
     var tickHtml = '';
     if (msg.from === myEmail && !msg.deleted) {
         var tickClass = msg.read ? 'read' : '';
@@ -378,7 +373,7 @@ function addMsg(msg) {
                     '<div class="text">' + textContent + edited + '</div>' +
                     '<span class="time">' + timeStr + tickHtml + '</span>';
 
-    // Для тачскринов iOS 6: клик по своему сообщению переключает показ кнопок редактирования/удаления
+
     if (msg.from === myEmail && !msg.deleted) {
         div.onclick = function (e) {
             var target = (e && e.target) ? e.target : window.event.srcElement;
@@ -498,13 +493,11 @@ function openChat(em) {
     loadedMessageIds = {};
     byId('messages').innerHTML = '';
 
-    // Сбросить непрочитанный счётчик в локальном списке контактов
     for (var cIdx = 0; cIdx < contacts.length; cIdx++) {
         if (contacts[cIdx].email === em) { contacts[cIdx].unreadCount = 0; break; }
     }
     renderContacts();
 
-    // Отправить на сервер событие mark_read для этого чата
     if (socket) socket.emit('mark_read', { with: em });
 
     if (profile && profile.wallpaper) {
@@ -565,7 +558,7 @@ function renderContacts() {
         var div = document.createElement('div');
         div.className = 'chat-item';
         var statusClass = c.isOnline ? 'online' : '';
-        // Красный кружок (Badge) при наличии непрочитанных сообщений
+
         var badgeHtml = (c.unreadCount && c.unreadCount > 0) ? '<span class="unread-badge">' + c.unreadCount + '</span>' : '';
         div.innerHTML = '<div class="name">' + esc(c.displayName || c.username) + '</div><div class="status ' + statusClass + '">' + (c.isOnline ? t('online') : t('offline')) + '</div>' + badgeHtml + '<button class="archive-btn" onclick="event.stopPropagation();archiveChat(\'' + c.email + '\')">📦</button>';
         div.onclick = (function (email) { return function () { openChat(email); }; })(c.email);
@@ -797,13 +790,12 @@ function connectSocket() {
 
         if (chatWith === msg.from) {
             addMsg(msg);
-            // Если чат открыт — сразу отправляем маркер прочитано
+
             socket.emit('mark_read', { with: msg.from });
         } else {
-            // Уведомление (системное + плашка iOS 6)
+
             triggerNotification(senderName, decText, msg.from);
 
-            // Увеличиваем красный кружок (unread badge) для этого контакта
             var found = false;
             for (var i = 0; i < contacts.length; i++) {
                 if (contacts[i].email === msg.from) {
@@ -832,7 +824,7 @@ function connectSocket() {
         loadContacts();
     });
 
-    // Когда собеседник прочитал мои сообщения — меняем ✓ на ✓✓ (две галочки)
+
     socket.on('messages_read', function (d) {
         if (chatWith === d.by) {
             var ticks = document.getElementsByClassName('status-ticks');

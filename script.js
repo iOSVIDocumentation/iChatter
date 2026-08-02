@@ -922,7 +922,7 @@ function updateIosKeyboardOffset(isFocused) {
     if (isFocused) {
         var isLandscape = (window.orientation === 90 || window.orientation === -90 || window.innerWidth > window.innerHeight);
         var isPad = /iPad/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-        var kbdHeight = isPad ? (isLandscape ? 352 : 264) : (isLandscape ? 162 : 216);
+        var kbdHeight = isPad ? (isLandscape ? 260 : 260) : (isLandscape ? 162 : 216);
 
         byId('form-container').style.bottom = kbdHeight + 'px';
         byId('messages').style.bottom = (kbdHeight + 50) + 'px';
@@ -935,7 +935,21 @@ function updateIosKeyboardOffset(isFocused) {
     }, 100);
 }
 
-byId('send-btn').onclick = sendMessage;
+var sendBtn = byId('send-btn');
+function handleSendTouch(e) {
+    if (e) {
+        if (e.preventDefault) e.preventDefault();
+        if (e.stopPropagation) e.stopPropagation();
+    }
+    sendMessage();
+    return false;
+}
+sendBtn.onmousedown = handleSendTouch;
+if ('ontouchstart' in window) {
+    sendBtn.ontouchstart = handleSendTouch;
+}
+sendBtn.onclick = sendMessage;
+
 byId('input').onkeydown = function (e) { if (e.keyCode === 13) { e.preventDefault(); sendMessage(); } };
 byId('input').oninput = function () {
     if (chatWith && socket) socket.emit('typing', { to: chatWith, isGroup: isGroupChat, isTyping: true });

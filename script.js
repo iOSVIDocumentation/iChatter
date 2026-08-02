@@ -119,6 +119,7 @@ function getChatKey(email1, email2) {
 
 function encryptMsg(text, partnerEmail) {
     if (!text) return text;
+    if (partnerEmail && partnerEmail.indexOf('group_') === 0) return text;
     var key = getChatKey(myEmail, partnerEmail);
     return 'ENC:' + encryptLocal(text, key);
 }
@@ -159,9 +160,11 @@ var myEmail = localStorage.getItem('email');
 var lang = localStorage.getItem('lang') || 'ru';
 var socket = null;
 var chatWith = null;
+var isGroupChat = false;
 var editingId = null;
 var profile = null;
 var contacts = [];
+var groups = [];
 var pendingName = null;
 var loadedMessageIds = {};
 
@@ -323,10 +326,10 @@ function addMsg(msg) {
         textContent += (textContent ? '<br>' : '') + '<img src="' + esc(mediaUrl) + '" class="msg-img" onclick="window.open(this.src)">';
     }
     var edited = msg.edited ? ' <span class="edited-tag">(' + t('edited') + ')</span>' : '';
-    var senderClick = (msg.from !== myEmail) ? ' onclick="showPartnerProfile()" style="cursor:pointer;"' : '';
+    var senderClick = (msg.from !== myEmail && !isGroupChat) ? ' onclick="showPartnerProfile()" style="cursor:pointer;"' : '';
 
     var tickHtml = '';
-    if (msg.from === myEmail && !msg.deleted) {
+    if (msg.from === myEmail && !msg.deleted && !isGroupChat) {
         var tickClass = msg.read ? 'read' : '';
         var tickSymbol = msg.read ? '✓✓' : '✓';
         tickHtml = '<span class="status-ticks ' + tickClass + '" id="tick-' + msg.id + '">' + tickSymbol + '</span>';
@@ -378,7 +381,7 @@ function delMsgUI(id) {
 }
 
 function showPartnerProfile() {
-    if (!chatWith) return;
+    if (!chatWith || isGroupChat) return;
     var partner = null;
     for (var i = 0; i < contacts.length; i++) if (contacts[i].email === chatWith) { partner = contacts[i]; break; }
     if (!partner) {
@@ -410,6 +413,41 @@ function showPartnerProfile() {
 }
 function closePartnerProfile() { byId('partner-profile-overlay').style.display = 'none'; }
 
+function openCreateGroupModal() {
+    var container = byId('group-members-list');
+    container.innerHTML = '';
+    if (!contacts.length) {
+        container.innerHTML = '<div style="font-size:12px;color:#aaa;">Нет контактов для добавления</div>';
+    } else {
+        for (var i = 0; i < contacts.length; i++) {
+            var c = contacts[i];
+            var div = document.createElement('div');
+            div.className = 'group-member-item';
+            div.innerHTML = '<label><input type="checkbox" value="' + esc(c.email) + '"> ' + esc(c.displayName || c.username) + '</label>';
+            container.appendChild(div);
+        }
+    }
+    byId('group-name-input').value = '';
+    byId('create-group-overlay').style.display = 'block';
+}
+function closeCreateGroupModal() { byId('create-group-overlay').style.display = 'none'; }
+
+function submitCreateGroup() {
+    var name = byId('group-name-input').value.trim();
+    if (!name) { alert('Введите название группы'); return; }
+    var checkboxes = byId('group-members-list').getElementsByTagName('input');
+    var selected = [];
+    for (var i = 0; i < checkboxes.length; i++) {
+        if (checkboxes[i].checked) selected.push(checkboxes[i].value);
+    }
+    api('POST', '/api/create-group', { name: name, members: selected }, function (err, res) {
+        if (err || !res.success) { alert('Ошибка создания группы'); return; }
+        closeCreateGroupModal();
+        loadContacts();
+        openChat(res.group.id);
+    });
+}
+
 function showTab(tab) {
     byId('chats-panel').style.display = 'none';
     byId('archive-panel').style.display = 'none';
@@ -438,29 +476,36 @@ function showTab(tab) {
 
 function openChat(em) {
     chatWith = em;
+    isGroupChat = (em && em.indexOf('group_') === 0);
     byId('chats-panel').style.display = 'none';
     byId('archive-panel').style.display = 'none';
     byId('settings-panel').style.display = 'none';
     byId('chat-area').style.display = 'block';
     byId('bottom-nav').style.display = 'table';
     byId('btn-back').style.display = 'block';
+
     var name = pendingName;
     if (!name) {
-        for (var i = 0; i < contacts.length; i++) if (contacts[i].email === em) { name = contacts[i].displayName || contacts[i].username; break; }
+        if (isGroupChat) {
+            for (var gIdx = 0; gIdx < groups.length; gIdx++) if (groups[gIdx].id === em) { name = '👥 ' + groups[gIdx].name; break; }
+        } else {
+            for (var i = 0; i < contacts.length; i++) if (contacts[i].email === em) { name = contacts[i].displayName || contacts[i].username; break; }
+        }
     }
-    if (!name) name = em.split('@')[0];
+    if (!name) name = isGroupChat ? '👥 Группа' : em.split('@')[0];
     pendingName = null;
     byId('chat-title').innerHTML = name;
-    byId('chat-title').onclick = showPartnerProfile;
+    byId('chat-title').onclick = isGroupChat ? null : showPartnerProfile;
     loadedMessageIds = {};
     byId('messages').innerHTML = '';
 
-    for (var cIdx = 0; cIdx < contacts.length; cIdx++) {
-        if (contacts[cIdx].email === em) { contacts[cIdx].unreadCount = 0; break; }
+    if (!isGroupChat) {
+        for (var cIdx = 0; cIdx < contacts.length; cIdx++) {
+            if (contacts[cIdx].email === em) { contacts[cIdx].unreadCount = 0; break; }
+        }
+        renderContacts();
+        if (socket) socket.emit('mark_read', { with: em });
     }
-    renderContacts();
-
-    if (socket) socket.emit('mark_read', { with: em });
 
     if (profile && profile.wallpaper) {
         var wp = profile.wallpaper;
@@ -471,7 +516,7 @@ function openChat(em) {
         byId('messages').style.backgroundImage = '';
     }
 
-    if (!hasContact(em)) {
+    if (!isGroupChat && !hasContact(em)) {
         addContactToServer(em);
         contacts.push({ email: em, username: em.split('@')[0], displayName: em.split('@')[0], searchId: '', avatar: 'av1.png', age: 0, about: '', unreadCount: 0, isOnline: false });
         renderContacts();
@@ -480,8 +525,12 @@ function openChat(em) {
     var localMsgs = loadLocalMessages(em);
     for (var j = 0; j < localMsgs.length; j++) addMsg(localMsgs[j]);
 
+    var reqUrl = isGroupChat
+        ? API + '/api/group-messages?groupId=' + encodeURIComponent(em) + '&token=' + encodeURIComponent(token)
+        : API + '/api/messages?with=' + encodeURIComponent(em) + '&limit=100&token=' + encodeURIComponent(token);
+
     var xhr2 = new XMLHttpRequest();
-    xhr2.open('GET', API + '/api/messages?with=' + encodeURIComponent(em) + '&limit=100&token=' + encodeURIComponent(token), true);
+    xhr2.open('GET', reqUrl, true);
     xhr2.onreadystatechange = function() {
         if (xhr2.readyState === 4 && xhr2.status === 200) {
             var data = {};
@@ -506,15 +555,34 @@ function updateNavTexts() {
 
 function addContactToServer(email) { api('POST', '/api/add-contact', { email: email }, function () {}); }
 function hasContact(email) { for (var i = 0; i < contacts.length; i++) if (contacts[i].email === email) return true; return false; }
+
 function loadContacts() {
     api('GET', '/api/contacts', null, function (err, data) {
-        if (!err) { contacts = data.contacts || []; renderContacts(); }
+        if (!err) { contacts = data.contacts || []; }
+        api('GET', '/api/my-groups', null, function (gErr, gData) {
+            if (!gErr) { groups = gData.groups || []; }
+            renderContacts();
+        });
     });
 }
+
 function renderContacts() {
     var list = byId('chats-list');
     list.innerHTML = '';
-    if (!contacts.length) { list.innerHTML = '<div style="padding:20px;text-align:center;color:#666;">' + t('noContacts') + '</div>'; return; }
+    if (!contacts.length && !groups.length) {
+        list.innerHTML = '<div style="padding:20px;text-align:center;color:#666;">' + t('noContacts') + '</div>';
+        return;
+    }
+
+    for (var g = 0; g < groups.length; g++) {
+        var grp = groups[g];
+        var divG = document.createElement('div');
+        divG.className = 'chat-item';
+        divG.innerHTML = '<div class="name">👥 ' + esc(grp.name) + '</div><div class="status">' + grp.members.length + ' участников</div>';
+        divG.onclick = (function (id, gName) { return function () { pendingName = '👥 ' + gName; openChat(id); }; })(grp.id, grp.name);
+        list.appendChild(divG);
+    }
+
     for (var i = 0; i < contacts.length; i++) {
         var c = contacts[i];
         var div = document.createElement('div');
@@ -673,7 +741,7 @@ function sendImageAttachment(input) {
         var dataUrl = e.target.result;
         var formattedMsg = '[img]' + dataUrl + '[/img]';
         var encImg = encryptMsg(formattedMsg, chatWith);
-        socket.emit('send_message', { to: chatWith, text: encImg });
+        socket.emit('send_message', { to: chatWith, text: encImg, isGroup: isGroupChat });
     };
     reader.readAsDataURL(file);
     input.value = '';
@@ -730,7 +798,7 @@ function sendMessage() {
         editingId = null;
     } else {
         var encText = encryptMsg(text, chatWith);
-        socket.emit('send_message', { to: chatWith, text: encText });
+        socket.emit('send_message', { to: chatWith, text: encText, isGroup: isGroupChat });
     }
     setTimeout(function () { _sending = false; }, 300);
 }
@@ -746,10 +814,10 @@ function connectSocket() {
     }
 
     socket.on('receive_message', function (msg) {
-        if (chatWith === msg.from) {
+        if (chatWith === msg.from || (msg.isGroup && chatWith === msg.to)) {
             addMsg(msg);
-            socket.emit('mark_read', { with: msg.from });
-        } else {
+            if (!msg.isGroup) socket.emit('mark_read', { with: msg.from });
+        } else if (!msg.isGroup) {
             var found = false;
             for (var i = 0; i < contacts.length; i++) {
                 if (contacts[i].email === msg.from) {
@@ -762,10 +830,10 @@ function connectSocket() {
             renderContacts();
         }
 
-        var arr = loadLocalMessages(msg.from);
+        var arr = loadLocalMessages(msg.isGroup ? msg.to : msg.from);
         arr.push(msg);
         if (arr.length > 500) arr = arr.slice(-500);
-        saveLocalMessages(msg.from, arr);
+        saveLocalMessages(msg.isGroup ? msg.to : msg.from, arr);
     });
 
     socket.on('message_sent', function (msg) {
@@ -774,7 +842,7 @@ function connectSocket() {
         arr.push(msg);
         if (arr.length > 500) arr = arr.slice(-500);
         saveLocalMessages(msg.to, arr);
-        if (!hasContact(msg.to)) { addContactToServer(msg.to); loadContacts(); }
+        if (!msg.isGroup && !hasContact(msg.to)) { addContactToServer(msg.to); loadContacts(); }
         loadContacts();
     });
 
@@ -803,7 +871,7 @@ function connectSocket() {
     });
 
     socket.on('user_typing', function (data) {
-        if (chatWith === data.from && data.isTyping) {
+        if (chatWith === data.from && data.isTyping && !isGroupChat) {
             byId('chat-title').innerHTML = data.username + ' (' + t('typing') + ')';
             clearTimeout(window.typingTimer);
             window.typingTimer = setTimeout(function () {
@@ -819,7 +887,7 @@ function connectSocket() {
 
 byId('send-btn').onclick = sendMessage;
 byId('input').onkeydown = function (e) { if (e.keyCode === 13) { e.preventDefault(); sendMessage(); } };
-byId('input').oninput = function () { if (chatWith && socket) socket.emit('typing', { to: chatWith, isTyping: true }); };
+byId('input').oninput = function () { if (chatWith && socket && !isGroupChat) socket.emit('typing', { to: chatWith, isTyping: true }); };
 byId('input').addEventListener('focus', function () {
     setTimeout(function () { byId('messages').scrollTop = byId('messages').scrollHeight; }, 100);
 });

@@ -124,12 +124,12 @@
         }
         .emoji-item:active { background: #4a627a; }
 
-        #partner-profile-overlay, #create-group-overlay {
+        #partner-profile-overlay, #create-group-overlay, #group-info-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.75); z-index: 9999;
             display: none; overflow-y: auto;
         }
-        #partner-profile-box, #create-group-box {
+        #partner-profile-box, #create-group-box, #group-info-box {
             background: #3b434a; color: white;
             width: 280px; padding: 20px; border-radius: 12px;
             text-align: center; position: relative;
@@ -146,6 +146,12 @@
             padding: 6px 8px; border-bottom: 1px solid #37526a; font-size: 13px; text-align: left;
         }
         .group-member-item input { margin-right: 8px; }
+
+        .group-member-view {
+            padding: 8px; border-bottom: 1px solid #4a627a; text-align: left; font-size: 13px;
+        }
+        .group-member-view .m-status { float: right; font-size: 11px; color: #aaa; }
+        .group-member-view .m-status.online { color: #4cd964; font-weight: bold; }
     </style>
 </head>
 <body class="dark-mode">
@@ -270,6 +276,17 @@
                 <div id="group-members-list" style="max-height:150px;overflow-y:auto;background:#2c3e50;padding:6px;border-radius:4px;border:1px solid #4a627a;"></div>
             </div>
             <button onclick="submitCreateGroup()" style="width:100%;padding:10px;background:#27ae60;color:white;border:none;border-radius:4px;font-size:14px;font-weight:bold;cursor:pointer;">Создать</button>
+        </div>
+    </div>
+
+    <div id="group-info-overlay" onclick="closeGroupInfoModal()">
+        <div id="group-info-box" onclick="event.stopPropagation()">
+            <span class="close-btn" onclick="closeGroupInfoModal()">x</span>
+            <h3 style="margin-top:0;font-size:16px;text-align:center;" id="group-info-title">Группа</h3>
+            <div style="margin-bottom:12px;text-align:left;font-size:13px;">
+                <b>Участники (<span id="group-info-count">0</span>):</b>
+                <div id="group-info-members" style="max-height:200px;overflow-y:auto;background:#2c3e50;margin-top:6px;border-radius:6px;border:1px solid #4a627a;"></div>
+            </div>
         </div>
     </div>
 

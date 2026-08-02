@@ -358,7 +358,6 @@ function addMsg(msg) {
     clr.style.fontSize = '0';
     container.appendChild(clr);
     container.scrollTop = container.scrollHeight;
-    window.scrollTo(0, 0);
 }
 
 function updMsg(id, text, edited) {
@@ -916,28 +915,33 @@ function connectSocket() {
     });
 }
 
-function lockIosScroll() {
-    window.scrollTo(0, 0);
-    document.body.scrollTop = 0;
-    document.documentElement.scrollTop = 0;
-}
+function updateIosKeyboardOffset(isFocused) {
+    var isIos = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    if (!isIos) return;
 
-window.addEventListener('scroll', lockIosScroll);
-window.addEventListener('orientationchange', lockIosScroll);
+    if (isFocused) {
+        var isLandscape = (window.orientation === 90 || window.orientation === -90 || window.innerWidth > window.innerHeight);
+        var isPad = /iPad/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        var kbdHeight = isPad ? (isLandscape ? 352 : 264) : (isLandscape ? 162 : 216);
+
+        byId('form-container').style.bottom = kbdHeight + 'px';
+        byId('messages').style.bottom = (kbdHeight + 50) + 'px';
+    } else {
+        byId('form-container').style.bottom = '0px';
+        byId('messages').style.bottom = '50px';
+    }
+    setTimeout(function() {
+        byId('messages').scrollTop = byId('messages').scrollHeight;
+    }, 100);
+}
 
 byId('send-btn').onclick = sendMessage;
 byId('input').onkeydown = function (e) { if (e.keyCode === 13) { e.preventDefault(); sendMessage(); } };
 byId('input').oninput = function () {
     if (chatWith && socket) socket.emit('typing', { to: chatWith, isGroup: isGroupChat, isTyping: true });
 };
-byId('input').addEventListener('focus', function () {
-    lockIosScroll();
-    setTimeout(function () {
-        lockIosScroll();
-        byId('messages').scrollTop = byId('messages').scrollHeight;
-    }, 100);
-});
-byId('input').addEventListener('blur', lockIosScroll);
+byId('input').addEventListener('focus', function () { updateIosKeyboardOffset(true); });
+byId('input').addEventListener('blur', function () { updateIosKeyboardOffset(false); });
 
 setTheme('dark');
 connectSocket();

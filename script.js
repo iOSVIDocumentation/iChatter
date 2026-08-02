@@ -916,14 +916,28 @@ function connectSocket() {
     });
 }
 
+function lockIosScroll() {
+    window.scrollTo(0, 0);
+    document.body.scrollTop = 0;
+    document.documentElement.scrollTop = 0;
+}
+
+window.addEventListener('scroll', lockIosScroll);
+window.addEventListener('orientationchange', lockIosScroll);
+
 byId('send-btn').onclick = sendMessage;
 byId('input').onkeydown = function (e) { if (e.keyCode === 13) { e.preventDefault(); sendMessage(); } };
 byId('input').oninput = function () {
     if (chatWith && socket) socket.emit('typing', { to: chatWith, isGroup: isGroupChat, isTyping: true });
 };
 byId('input').addEventListener('focus', function () {
-    setTimeout(function () { byId('messages').scrollTop = byId('messages').scrollHeight; }, 100);
+    lockIosScroll();
+    setTimeout(function () {
+        lockIosScroll();
+        byId('messages').scrollTop = byId('messages').scrollHeight;
+    }, 100);
 });
+byId('input').addEventListener('blur', lockIosScroll);
 
 setTheme('dark');
 connectSocket();

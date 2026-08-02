@@ -2,13 +2,18 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>iChatter</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; background: #555d65; color: #fff; font-family: Helvetica, sans-serif; overflow: hidden; }
+        html, body {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: #555d65; color: #fff; font-family: Helvetica, sans-serif;
+            overflow: hidden; -webkit-text-size-adjust: 100%;
+        }
         body.light-mode { background: #E2E7ED; color: #222; }
         body.light-mode #header { background: #2c3e50; }
         body.light-mode #chats-panel, body.light-mode #archive-panel, body.light-mode #settings-panel { background: white; }
@@ -28,12 +33,18 @@
         body.light-mode .nav-btn.active { background: #4a627a; }
         body.light-mode #emoji-picker { background: #dde2e8; border-top-color: #bbb; }
 
-        #header { position: fixed; top: 0; left: 0; right: 0; height: 44px; background: #2c3e50; color: white; line-height: 44px; padding: 0 10px; z-index: 100; box-sizing: border-box; -webkit-transform: translateZ(0); transform: translateZ(0); }
+        #header {
+            position: absolute; top: 0; left: 0; right: 0; height: 44px;
+            background: #2c3e50; color: white; line-height: 44px; padding: 0 10px;
+            z-index: 99999; box-sizing: border-box;
+            -webkit-transform: translate3d(0,0,0); transform: translate3d(0,0,0);
+            -webkit-backface-visibility: hidden; backface-visibility: hidden;
+        }
         #btn-back { background: #4a627a; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; margin-right: 8px; display: none; font-weight: bold; }
         #btn-back:active { background: #37526a; }
         #chat-title { font-size: 14px; font-weight: bold; display: inline; cursor: pointer; vertical-align: middle; }
 
-        #main-content { position: fixed; top: 44px; bottom: 50px; left: 0; right: 0; overflow: hidden; }
+        #main-content { position: absolute; top: 44px; bottom: 50px; left: 0; right: 0; overflow: hidden; }
         #chats-panel, #archive-panel, #settings-panel { position: absolute; top: 0; bottom: 0; left: 0; width: 100%; background: #3b434a; overflow-y: scroll; -webkit-overflow-scrolling: touch; z-index: 2; display: none; }
         #chat-area { position: absolute; top: 0; bottom: 0; left: 0; width: 100%; background: #3b434a; overflow: hidden; z-index: 2; display: none; }
 
@@ -106,7 +117,7 @@
         .wallpaper-grid img { width: 70px; height: 44px; margin: 4px; border: 2px solid transparent; cursor: pointer; object-fit: cover; float: left; border-radius: 4px; }
         .wallpaper-grid img.selected { border-color: #27ae60; }
 
-        #bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: 50px; background: #3b434a; display: table; width: 100%; z-index: 20; -webkit-transform: translateZ(0); transform: translateZ(0); }
+        #bottom-nav { position: absolute; bottom: 0; left: 0; right: 0; height: 50px; background: #3b434a; display: table; width: 100%; z-index: 99999; -webkit-transform: translate3d(0,0,0); transform: translate3d(0,0,0); }
         .nav-btn { display: table-cell; text-align: center; vertical-align: middle; background: #2c3e50; color: #aaa; font-size: 12px; cursor: pointer; border-right: 1px solid #4a627a; }
         .nav-btn:last-child { border-right: none; }
         .nav-btn.active { background: #4a627a; color: white; font-weight: bold; }
@@ -126,7 +137,7 @@
 
         #partner-profile-overlay, #create-group-overlay, #group-info-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.75); z-index: 9999;
+            background: rgba(0,0,0,0.75); z-index: 99999;
             display: none; overflow-y: auto;
         }
         #partner-profile-box, #create-group-box, #group-info-box {

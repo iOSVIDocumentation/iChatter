@@ -413,6 +413,27 @@ function showPartnerProfile() {
 }
 function closePartnerProfile() { byId('partner-profile-overlay').style.display = 'none'; }
 
+function showGroupInfo() {
+    if (!chatWith || !isGroupChat) return;
+    api('GET', '/api/group-info?groupId=' + encodeURIComponent(chatWith), null, function (err, data) {
+        if (err || !data.group) return;
+        byId('group-info-title').textContent = '👥 ' + data.group.name;
+        byId('group-info-count').textContent = data.memberDetails.length;
+        var list = byId('group-info-members');
+        list.innerHTML = '';
+        for (var i = 0; i < data.memberDetails.length; i++) {
+            var m = data.memberDetails[i];
+            var div = document.createElement('div');
+            div.className = 'group-member-view';
+            var stClass = m.isOnline ? 'online' : '';
+            div.innerHTML = esc(m.displayName) + ' (@' + esc(m.username) + ') <span class="m-status ' + stClass + '">' + (m.isOnline ? t('online') : t('offline')) + '</span>';
+            list.appendChild(div);
+        }
+        byId('group-info-overlay').style.display = 'block';
+    });
+}
+function closeGroupInfoModal() { byId('group-info-overlay').style.display = 'none'; }
+
 function openCreateGroupModal() {
     var container = byId('group-members-list');
     container.innerHTML = '';
@@ -495,7 +516,7 @@ function openChat(em) {
     if (!name) name = isGroupChat ? '👥 Группа' : em.split('@')[0];
     pendingName = null;
     byId('chat-title').innerHTML = name;
-    byId('chat-title').onclick = isGroupChat ? null : showPartnerProfile;
+    byId('chat-title').onclick = isGroupChat ? showGroupInfo : showPartnerProfile;
     loadedMessageIds = {};
     byId('messages').innerHTML = '';
 
@@ -871,7 +892,17 @@ function connectSocket() {
     });
 
     socket.on('user_typing', function (data) {
-        if (chatWith === data.from && data.isTyping && !isGroupChat) {
+        if (isGroupChat && data.groupId === chatWith && data.isTyping) {
+            var originalName = '👥 Группа';
+            for (var gIdx = 0; gIdx < groups.length; gIdx++) if (groups[gIdx].id === chatWith) { originalName = '👥 ' + groups[gIdx].name; break; }
+            byId('chat-title').innerHTML = originalName + ' <span style="font-size:11px;color:#4cd964;">(' + esc(data.username) + ' ' + t('typing') + ')</span>';
+            clearTimeout(window.typingTimer);
+            window.typingTimer = setTimeout(function () {
+                if (chatWith === data.groupId) {
+                    byId('chat-title').innerHTML = originalName;
+                }
+            }, 2000);
+        } else if (!isGroupChat && chatWith === data.from && data.isTyping) {
             byId('chat-title').innerHTML = data.username + ' (' + t('typing') + ')';
             clearTimeout(window.typingTimer);
             window.typingTimer = setTimeout(function () {
@@ -887,7 +918,9 @@ function connectSocket() {
 
 byId('send-btn').onclick = sendMessage;
 byId('input').onkeydown = function (e) { if (e.keyCode === 13) { e.preventDefault(); sendMessage(); } };
-byId('input').oninput = function () { if (chatWith && socket && !isGroupChat) socket.emit('typing', { to: chatWith, isTyping: true }); };
+byId('input').oninput = function () {
+    if (chatWith && socket) socket.emit('typing', { to: chatWith, isGroup: isGroupChat, isTyping: true });
+};
 byId('input').addEventListener('focus', function () {
     setTimeout(function () { byId('messages').scrollTop = byId('messages').scrollHeight; }, 100);
 });

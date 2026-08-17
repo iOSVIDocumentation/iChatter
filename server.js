@@ -170,15 +170,37 @@ function migrateDatabaseToEncryptedEmails() {
         if (db.users && Array.isArray(db.users)) {
             db.users.forEach(function(user) {
                 if (user.email && typeof user.email === 'string' && !user.email.includes(':')) {
-                    console.log('[МИГРАЦИЯ] Автоматически зашифрован email для: ' + (user.displayName || user.username));
+                    console.log('[МИГРАЦИЯ] Зашифрован email для: ' + (user.displayName || user.username));
                     user.email = encryptEmail(user.email);
                     updated = true;
                 }
+                if (user.contacts && Array.isArray(user.contacts)) {
+                    user.contacts = user.contacts.map(function(c) {
+                        if (c && typeof c === 'string' && !c.includes(':')) {
+                            updated = true;
+                            return encryptEmail(c);
+                        }
+                        return c;
+                    });
+                }
             });
+        }
+        if (db.archivedChats && typeof db.archivedChats === 'object') {
+            for (let k in db.archivedChats) {
+                if (Array.isArray(db.archivedChats[k])) {
+                    db.archivedChats[k] = db.archivedChats[k].map(function(c) {
+                        if (c && typeof c === 'string' && !c.includes(':')) {
+                            updated = true;
+                            return encryptEmail(c);
+                        }
+                        return c;
+                    });
+                }
+            }
         }
         if (updated) {
             writeDatabase(db);
-            console.log('[МИГРАЦИЯ] База данных успешно зашифрована без сброса и без потери данных!');
+            console.log('[МИГРАЦИЯ] Все контакты и почты успешно зашифрованы без потери данных!');
         }
     } catch (e) {
         console.error('[МИГРАЦИЯ ОШИБКА]', e);
@@ -404,8 +426,12 @@ app.post('/api/add-contact', function(req, res) {
     const user = findUserByEmail(db, currentUserEmail);
     if (user) {
         if (!user.contacts) user.contacts = [];
-        if (!user.contacts.includes(email)) {
-            user.contacts.push(email);
+        const normTarget = email.toLowerCase().trim();
+        const exists = user.contacts.some(function(c) {
+            return decryptEmail(c).toLowerCase().trim() === normTarget;
+        });
+        if (!exists) {
+            user.contacts.push(encryptEmail(normTarget));
             writeDatabase(db);
         }
         res.json({ success: true });
@@ -420,7 +446,8 @@ app.get('/api/contacts', function(req, res) {
     const user = findUserByEmail(db, currentUserEmail);
     if (!user) return res.status(404).json({ error: 'Polzovatel ne najden' });
 
-    const contacts = (user.contacts || []).map(function(email) {
+    const contacts = (user.contacts || []).map(function(encEmail) {
+        const email = decryptEmail(encEmail);
         const contactUser = findUserByEmail(db, email);
         const unreadCount = (db.messages || []).filter(function(m) {
             return (m.from || '').toLowerCase().trim() === email.toLowerCase().trim() &&
@@ -437,7 +464,7 @@ app.get('/api/contacts', function(req, res) {
             age: contactUser ? contactUser.age : 0,
             about: contactUser ? contactUser.about : '',
             unreadCount: unreadCount,
-            isOnline: Object.values(connectedUsers).some(function(s) { return s.user && s.user.email === email; })
+            isOnline: Object.values(connectedUsers).some(function(s) { return s.user && decryptEmail(s.user.email) === email; })
         };
     });
     res.json({ contacts: contacts });
@@ -455,7 +482,7 @@ app.get('/api/find-user', function(req, res) {
         res.json({
             found: true,
             user: {
-                email: user.email,
+                email: decryptEmail(user.email),
                 username: user.username,
                 displayName: user.displayName || user.username,
                 searchId: user.searchId,

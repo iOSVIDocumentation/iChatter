@@ -398,7 +398,7 @@ app.post('/api/update-profile', function(req, res) {
         writeDatabase(db);
         const safeUser = Object.assign({}, user, { email: decryptEmail(user.email) });
         res.json({ success: true, user: safeUser });
-    } else res.status(404).json({ error: 'Polzovatel ne найden' });
+    } else res.status(404).json({ error: 'Polzovatel ne najden' });
 });
 
 app.get('/api/my-devices', function(req, res) {
@@ -464,7 +464,7 @@ app.get('/api/contacts', function(req, res) {
     const currentUserEmail = (activeTokens[token].email || '').toLowerCase().trim();
     const db = readDatabase();
     const user = findUserByEmail(db, currentUserEmail);
-    if (!user) return res.status(404).json({ error: 'Polzovatel ne найden' });
+    if (!user) return res.status(404).json({ error: 'Polzovatel ne najden' });
 
     const contacts = (user.contacts || []).map(function(encEmail) {
         const email = decryptEmail(encEmail).toLowerCase().trim();

@@ -50,10 +50,10 @@ Create a `.env` file in the root directory and configure your mail credentials:
 
 ```env
 # Server port
-PORT=8080
+PORT=your_port
 
 # Gmail address for sending verification codes
-EMAIL_USER=1r1krol4k2@gmail.com
+EMAIL_USER=your_email
 
 # 16-character Gmail App Password
 EMAIL_PASS=your_gmail_app_password

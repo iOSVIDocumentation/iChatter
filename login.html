@@ -3,148 +3,258 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>iChatter - Вход</title>
+    <title>iChatter</title>
     <style>
-        html, body { height: 100%; margin: 0; padding: 0; background: #555d65; font-family: Helvetica, sans-serif; }
-        .wrapper { display: table; width: 100%; height: 100%; }
-        .cell { display: table-cell; vertical-align: middle; text-align: center; }
-        .login-box { background: #3b434a; padding: 20px; border-radius: 8px; width: 280px; margin: 0 auto; color: white; box-sizing: border-box; }
-        .lang-switch { text-align: right; margin-bottom: 10px; }
-        .lang-switch button { background: #4a627a; color: white; border: none; padding: 4px 10px; border-radius: 3px; font-size: 12px; cursor: pointer; }
-        .tabs { margin-bottom: 15px; }
-        .tab-btn { width: 48%; padding: 8px 0; background: #2c3e50; color: #aaa; border: none; cursor: pointer; border-radius: 4px; font-size: 14px; }
-        .tab-btn.active { background: #4a627a; color: white; font-weight: bold; }
-        input { width: 100%; padding: 10px; margin: 8px 0; border: none; border-radius: 4px; box-sizing: border-box; font-size: 16px; }
-        .action-btn { width: 100%; padding: 10px; background: #27ae60; color: white; border: none; cursor: pointer; border-radius: 4px; font-size: 16px; margin-top: 10px; }
-        #code-section { background: #2c3e50; padding: 10px; border-radius: 4px; margin-top: 15px; display: none; }
+        body, html { margin: 0; padding: 0; height: 100%; background: #2c3e50; color: #fff; font-family: Helvetica, sans-serif; display: flex; justify-content: center; align-items: center; }
+        .container { width: 300px; max-width: 90%; background: #34495e; border-radius: 12px; padding: 24px; box-sizing: border-box; text-align: center; }
+        h2 { margin-top: 0; font-size: 22px; }
+        .tabs { display: flex; margin-bottom: 16px; border-radius: 8px; overflow: hidden; }
+        .tabs button { flex: 1; padding: 10px; background: #2c3e50; border: none; color: #aaa; font-size: 14px; cursor: pointer; }
+        .tabs button.active { background: #1abc9c; color: white; font-weight: bold; }
+        .form { display: none; }
+        .form.active { display: block; }
+        .field { margin-bottom: 12px; text-align: left; }
+        .field label { font-size: 13px; display: block; margin-bottom: 4px; }
+        .field input { width: 100%; padding: 10px; border: none; border-radius: 6px; font-size: 14px; background: #ecf0f1; color: #222; box-sizing: border-box; }
+        .btn { width: 100%; padding: 12px; background: #1abc9c; border: none; color: white; font-size: 16px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 6px; }
+        .btn:active { background: #16a085; }
+        .info { font-size: 13px; margin: 16px 0; }
+        .error { color: #e74c3c; font-size: 13px; margin-top: 8px; }
+        .lang-row { text-align: right; margin-bottom: 12px; }
+        .lang-row select { padding: 4px 8px; border-radius: 4px; border: none; background: #ecf0f1; color: #222; font-size: 13px; }
     </style>
 </head>
 <body>
-    <div class="wrapper">
-        <div class="cell">
-            <div class="login-box">
-                <div class="lang-switch">
-                    <button onclick="switchLang()" id="lang-btn">EN</button>
-                </div>
-                <div class="tabs">
-                    <button id="tab-login" class="tab-btn active" onclick="setMode('login')">Вход</button>
-                    <button id="tab-register" class="tab-btn" onclick="setMode('register')">Регистрация</button>
-                </div>
-                <input type="email" id="email" placeholder="Почта">
-                <input type="text" id="username" placeholder="Имя пользователя" style="display:none;">
-                <input type="password" id="password" placeholder="Пароль">
-                <button id="main-btn" class="action-btn" onclick="sendCode()">Войти</button>
-                <div id="code-section">
-                    <p id="code-text">Код отправлен на почту</p>
-                    <input type="text" id="code" placeholder="Код из письма">
-                    <button class="action-btn" style="background: #2980b9;" onclick="verifyCode()">Подтвердить</button>
-                </div>
+    <div class="container">
+        <div class="lang-row">
+            <select id="lang-select" onchange="changeLang(this.value)">
+                <option value="ru">Русский</option>
+                <option value="en">English</option>
+            </select>
+        </div>
+        <h2>iChatter</h2>
+        <div class="tabs">
+            <button id="tab-login" class="active" onclick="switchTab('login')">Вход</button>
+            <button id="tab-reg" onclick="switchTab('register')">Регистрация</button>
+            <button id="tab-forgot" onclick="switchTab('forgot')">Сброс</button>
+        </div>
+
+        <!-- Вход -->
+        <div id="form-login" class="form active">
+            <div class="field">
+                <label>Email</label>
+                <input type="email" id="login-email" placeholder="you@example.com">
             </div>
+            <div class="field">
+                <label>Пароль</label>
+                <input type="password" id="login-password" placeholder="Введите пароль">
+            </div>
+            <button class="btn" onclick="requestCode('login')">Получить код</button>
+        </div>
+
+        <!-- Регистрация -->
+        <div id="form-register" class="form">
+            <div class="field">
+                <label>Email</label>
+                <input type="email" id="reg-email" placeholder="you@example.com">
+            </div>
+            <div class="field">
+                <label>Ник</label>
+                <input type="text" id="reg-username" placeholder="Придумайте ник">
+            </div>
+            <div class="field">
+                <label>Пароль</label>
+                <input type="password" id="reg-password" placeholder="Введите пароль">
+            </div>
+            <button class="btn" onclick="requestCode('register')">Получить код</button>
+        </div>
+
+        <!-- Сброс пароля -->
+        <div id="form-forgot" class="form">
+            <div class="field">
+                <label>Email</label>
+                <input type="email" id="forgot-email" placeholder="you@example.com">
+            </div>
+            <button class="btn" onclick="requestResetCode()">Получить код сброса</button>
+        </div>
+
+        <!-- Подтверждение сброса пароля -->
+        <div id="form-reset-confirm" class="form">
+            <p class="info">Введите код сброса и новый пароль</p>
+            <div class="field">
+                <label>Код сброса</label>
+                <input type="text" id="reset-code-input" placeholder="6-значный код" maxlength="6">
+            </div>
+            <div class="field">
+                <label>Новый пароль</label>
+                <input type="password" id="reset-new-password" placeholder="Новый пароль">
+            </div>
+            <button class="btn" onclick="submitResetPassword()">Сохранить пароль</button>
+            <button class="btn" style="background:#7f8c8d; margin-top:8px;" onclick="switchTab('login')">← Отмена</button>
+        </div>
+
+        <!-- Код подтверждения -->
+        <div id="form-code" class="form">
+            <p class="info">Введите код, отправленный на почту</p>
+            <div class="field">
+                <input type="text" id="code-input" placeholder="6-значный код" maxlength="6">
+            </div>
+            <button class="btn" onclick="verifyCode()">Подтвердить</button>
+            <button class="btn" style="background:#7f8c8d; margin-top:8px;" onclick="resetToLogin()">← Назад</button>
+            <div id="error-msg" class="error"></div>
         </div>
     </div>
+
     <script>
+        var BASE = window.location.protocol + '//' + window.location.host;
+        var API = BASE;
+        var mode = 'login';
+        var lang = 'ru';
+        var pendingEmail = '';
+        var pendingUsername = '';
 
-        var API = 'https://identification-best-leasing-runtime.trycloudflare.com'
-        var currentMode = 'login';
-        var currentLang = 'ru';
+        function byId(id) { return document.getElementById(id); }
 
-        var texts = {
-            ru: {
-                login: 'Вход', register: 'Регистрация', email: 'Почта', username: 'Имя пользователя',
-                password: 'Пароль', enter: 'Войти', regBtn: 'Зарегистрироваться',
-                codeSent: 'Код отправлен на почту', codePlaceholder: 'Код из письма', confirm: 'Подтвердить',
-                fillAll: 'Заполните все поля', enterCode: 'Введите код', wrongCode: 'Неверный код', error: 'Ошибка'
-            },
-            en: {
-                login: 'Login', register: 'Register', email: 'Email', username: 'Username',
-                password: 'Password', enter: 'Login', regBtn: 'Register',
-                codeSent: 'Code sent to email', codePlaceholder: 'Code from email', confirm: 'Confirm',
-                fillAll: 'Fill all fields', enterCode: 'Enter code', wrongCode: 'Wrong code', error: 'Error'
-            }
-        };
-
-        function t(key) { return texts[currentLang][key] || key; }
-
-        function switchLang() {
-            currentLang = currentLang === 'ru' ? 'en' : 'ru';
-            document.getElementById('lang-btn').innerHTML = currentLang === 'ru' ? 'EN' : 'RU';
-            updateUI();
+        function changeLang(l) {
+            lang = l;
         }
 
-        function updateUI() {
-            document.getElementById('tab-login').innerHTML = t('login');
-            document.getElementById('tab-register').innerHTML = t('register');
-            document.getElementById('email').placeholder = t('email');
-            document.getElementById('username').placeholder = t('username');
-            document.getElementById('password').placeholder = t('password');
-            document.getElementById('main-btn').innerHTML = currentMode === 'login' ? t('enter') : t('regBtn');
-            document.getElementById('code-text').innerHTML = t('codeSent');
-            document.getElementById('code').placeholder = t('codePlaceholder');
+        function switchTab(tab) {
+            mode = tab;
+            byId('tab-login').className = tab === 'login' ? 'active' : '';
+            byId('tab-reg').className = tab === 'register' ? 'active' : '';
+            if (byId('tab-forgot')) byId('tab-forgot').className = tab === 'forgot' ? 'active' : '';
+            byId('form-login').style.display = tab === 'login' ? 'block' : 'none';
+            byId('form-register').style.display = tab === 'register' ? 'block' : 'none';
+            if (byId('form-forgot')) byId('form-forgot').style.display = tab === 'forgot' ? 'block' : 'none';
+            if (byId('form-reset-confirm')) byId('form-reset-confirm').style.display = 'none';
+            byId('form-code').style.display = 'none';
         }
 
-        function setMode(mode) {
-            currentMode = mode;
-            document.getElementById('code-section').style.display = 'none';
-            if (mode === 'register') {
-                document.getElementById('tab-register').className = 'tab-btn active';
-                document.getElementById('tab-login').className = 'tab-btn';
-                document.getElementById('username').style.display = 'block';
-                document.getElementById('main-btn').innerHTML = t('regBtn');
+        function requestResetCode() {
+            var email = byId('forgot-email').value.trim().toLowerCase();
+            if (!email) { alert('Введите Email'); return; }
+            pendingEmail = email;
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', API + '/api/forgot-password', true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        byId('form-forgot').style.display = 'none';
+                        byId('form-reset-confirm').style.display = 'block';
+                    } else {
+                        try {
+                            var err = JSON.parse(xhr.responseText);
+                            alert(err.error || 'Ошибка');
+                        } catch (e) { alert('Ошибка'); }
+                    }
+                }
+            };
+            xhr.send(JSON.stringify({ email: email }));
+        }
+
+        function submitResetPassword() {
+            var code = byId('reset-code-input').value.trim();
+            var newPass = byId('reset-new-password').value;
+            if (!code || !newPass) { alert('Заполните все поля'); return; }
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', API + '/api/reset-password', true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        alert('Пароль успешно изменён! Зайдите под новым паролем.');
+                        switchTab('login');
+                    } else {
+                        try {
+                            var err = JSON.parse(xhr.responseText);
+                            alert(err.error || 'Ошибка');
+                        } catch (e) { alert('Ошибка'); }
+                    }
+                }
+            };
+            xhr.send(JSON.stringify({ email: pendingEmail, code: code, newPassword: newPass }));
+        }
+
+        function requestCode(act) {
+            var email, password, username;
+            if (act === 'register') {
+                email = byId('reg-email').value.trim().toLowerCase();
+                password = byId('reg-password').value;
+                username = byId('reg-username').value.trim();
             } else {
-                document.getElementById('tab-login').className = 'tab-btn active';
-                document.getElementById('tab-register').className = 'tab-btn';
-                document.getElementById('username').style.display = 'none';
-                document.getElementById('main-btn').innerHTML = t('enter');
+                email = byId('login-email').value.trim().toLowerCase();
+                password = byId('login-password').value;
             }
-        }
 
-        function sendCode() {
-            var email = document.getElementById('email').value.trim();
-            var password = document.getElementById('password').value;
-            var username = document.getElementById('username').value.trim();
-            if (!email || !password || (currentMode === 'register' && !username)) {
-                alert(t('fillAll'));
+            if (!email || !password || (act === 'register' && !username)) {
+                alert('Заполните все поля');
                 return;
             }
+
+            pendingEmail = email;
+            pendingUsername = username || '';
+
             var xhr = new XMLHttpRequest();
             xhr.open('POST', API + '/api/send-code', true);
             xhr.setRequestHeader('Content-Type', 'application/json');
-            xhr.onreadystatechange = function() {
-                if (xhr.readyState === 4) {
-                    var data = {};
-                    try { data = JSON.parse(xhr.responseText); } catch(e) {}
-                    if (xhr.status === 200 && data.success) {
-                        document.getElementById('code-section').style.display = 'block';
-                    } else {
-                        alert(data.error || t('error'));
-                    }
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    byId('form-login').style.display = 'none';
+                    byId('form-register').style.display = 'none';
+                    byId('form-code').style.display = 'block';
+                    byId('code-input').value = '';
+                    byId('error-msg').textContent = '';
+                } else if (xhr.readyState === 4 && xhr.status >= 400) {
+                    try {
+                        var err = JSON.parse(xhr.responseText);
+                        alert(err.error || 'Ошибка');
+                    } catch (e) { alert('Ошибка'); }
                 }
             };
-            xhr.send(JSON.stringify({ email: email, password: password, username: username, mode: currentMode, language: currentLang }));
+            xhr.send(JSON.stringify({
+                email: email,
+                username: username || '',
+                password: password,
+                mode: act,
+                language: lang
+            }));
         }
 
         function verifyCode() {
-            var email = document.getElementById('email').value.trim();
-            var code = document.getElementById('code').value.trim();
-            if (!code) { alert(t('enterCode')); return; }
+            var code = byId('code-input').value.trim();
+            if (!code) return;
+
             var xhr = new XMLHttpRequest();
             xhr.open('POST', API + '/api/verify-code', true);
             xhr.setRequestHeader('Content-Type', 'application/json');
-            xhr.onreadystatechange = function() {
-                if (xhr.readyState === 4) {
-                    var data = {};
-                    try { data = JSON.parse(xhr.responseText); } catch(e) {}
-                    if (xhr.status === 200 && data.success) {
-                        localStorage.setItem('token', data.token);
-                        localStorage.setItem('email', email);
-                        localStorage.setItem('lang', currentLang);
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    var resp = JSON.parse(xhr.responseText);
+                    if (resp.success) {
+                        localStorage.setItem('token', resp.token);
+                        localStorage.setItem('email', pendingEmail);
                         window.location.href = 'chat.html';
-                    } else {
-                        alert(data.error || t('wrongCode'));
                     }
+                } else if (xhr.readyState === 4 && xhr.status >= 400) {
+                    byId('error-msg').textContent = 'Неверный код';
                 }
             };
-            xhr.send(JSON.stringify({ email: email, code: code, device: 'Web' }));
+            xhr.send(JSON.stringify({
+                email: pendingEmail,
+                code: code,
+                device: 'Web'
+            }));
+        }
+
+        function resetToLogin() {
+            byId('form-code').style.display = 'none';
+            if (mode === 'register') {
+                byId('form-register').style.display = 'block';
+            } else {
+                byId('form-login').style.display = 'block';
+            }
         }
     </script>
 </body>

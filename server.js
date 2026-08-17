@@ -123,11 +123,13 @@ function generateSearchId(db) {
     }
 }
 
+// Хеширование паролей (SHA-256 + Соль)
 function hashPassword(password) {
     if (!password) return '';
     return crypto.createHash('sha256').update(password + (process.env.HASH_SECRET || 'ichatter_secure_salt_2026')).digest('hex');
 }
 
+// Шифрование Email (AES-256-CBC)
 const EMAIL_KEY = crypto.createHash('sha256').update(process.env.EMAIL_SECRET || 'ichatter_email_secret_2026').digest();
 function encryptEmail(email) {
     if (!email) return '';
@@ -163,6 +165,7 @@ function findUserByEmail(db, email) {
     });
 }
 
+// Запрос кода авторизации
 app.post('/api/send-code', function(req, res) {
     const { email, username, password, mode, language } = req.body;
     const targetEmail = email.toLowerCase().trim();
@@ -220,7 +223,7 @@ app.post('/api/send-code', function(req, res) {
         : 'Vash kod dlya iChatter: ' + code + '\nDeystvuet 10 minut.';
 
     transporter.sendMail({
-        from: '"iChatter" <1r1krol4k2@gmail.com@gmail.com>',
+        from: '"iChatter" <1rol4k2@gmail.com>',
         to: targetEmail,
         subject: subject,
         text: text
@@ -234,6 +237,7 @@ app.post('/api/send-code', function(req, res) {
     });
 });
 
+// Запрос сброса пароля
 app.post('/api/forgot-password', function(req, res) {
     const { email } = req.body;
     if (!email) return res.status(400).json({ error: 'Укажите email' });
@@ -259,6 +263,7 @@ app.post('/api/forgot-password', function(req, res) {
     });
 });
 
+// Подтверждение сброса пароля
 app.post('/api/reset-password', function(req, res) {
     const { email, code, newPassword } = req.body;
     if (!email || !code || !newPassword) {
@@ -281,6 +286,7 @@ app.post('/api/reset-password', function(req, res) {
     res.status(404).json({ error: 'Пользователь не найден' });
 });
 
+// Подтверждение кода и получение токена
 app.post('/api/verify-code', function(req, res) {
     const { email, code, device } = req.body;
     const targetEmail = email.toLowerCase().trim();

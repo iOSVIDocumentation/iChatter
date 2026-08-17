@@ -31,10 +31,28 @@
         #main-content { position: fixed; top: 44px; bottom: 50px; left: 0; right: 0; overflow: hidden; }
         #chats-panel, #archive-panel, #settings-panel, #chat-area { position: absolute; top: 0; bottom: 0; left: 0; width: 100%; background: #3b434a; overflow-y: scroll; -webkit-overflow-scrolling: touch; z-index: 2; display: none; }
         #messages { position: absolute; top: 0; left: 0; right: 0; bottom: 50px; padding: 10px; overflow-y: scroll; -webkit-overflow-scrolling: touch; box-sizing: border-box; background: #555d65; }
-        #form-container { position: absolute; bottom: 0; left: 0; right: 0; height: 50px; background: #3b434a; box-sizing: border-box; padding: 5px; display: block; }
+        
+        #form-container { position: absolute; bottom: 0; left: 0; right: 0; height: 50px; background: #3b434a; box-sizing: border-box; padding: 5px; display: block; z-index: 5; }
         #form { position: relative; width: 100%; height: 100%; }
-        #input { position: absolute; left: 0; top: 5px; bottom: 5px; right: 75px; width: auto; box-sizing: border-box; font-size: 16px; border-radius: 4px; border: none; padding: 5px; background: white; color: #222; }
-        #send-btn { position: absolute; right: 0; top: 5px; bottom: 5px; width: 70px; background: #27ae60; color: white; border: none; border-radius: 4px; font-size: 14px; cursor: pointer; }
+        #photo-btn { position: absolute; left: 0; top: 4px; bottom: 4px; width: 38px; background: #4a627a; color: white; border: none; border-radius: 4px; font-size: 18px; cursor: pointer; padding: 0; line-height: 32px; }
+        #input { position: absolute; left: 44px; top: 4px; bottom: 4px; right: 105px; width: auto; box-sizing: border-box; font-size: 16px; border-radius: 4px; border: none; padding: 5px 8px; background: white; color: #222; }
+        #emoji-btn { position: absolute; right: 70px; top: 4px; bottom: 4px; width: 30px; background: transparent; border: none; font-size: 18px; cursor: pointer; padding: 0; }
+        #send-btn { position: absolute; right: 0; top: 4px; bottom: 4px; width: 65px; background: #27ae60; color: white; border: none; border-radius: 4px; font-size: 14px; font-weight: bold; cursor: pointer; }
+        
+        #emoji-picker { display: none; position: absolute; bottom: 52px; right: 10px; width: 280px; max-height: 180px; background: #2c3e50; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); padding: 8px; overflow-y: auto; z-index: 100; border: 1px solid #4a627a; box-sizing: border-box; }
+        .emoji-item { display: inline-block; font-size: 22px; padding: 5px; cursor: pointer; }
+        .emoji-item:hover { transform: scale(1.2); }
+
+        #voice-record-panel { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #2c3e50; align-items: center; justify-content: space-between; padding: 0 10px; box-sizing: border-box; z-index: 10; }
+        #voice-record-panel button { padding: 6px 12px; border-radius: 4px; border: none; color: white; cursor: pointer; font-size: 12px; }
+
+        #video-circle-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10000; justify-content: center; align-items: center; }
+        .video-circle-wrap { width: 260px; height: 260px; border-radius: 50%; overflow: hidden; position: relative; border: 3px solid #27ae60; background: black; }
+        #video-preview { width: 100%; height: 100%; object-fit: cover; }
+        #video-circle-timer { position: absolute; top: 15px; left: 0; right: 0; text-align: center; color: white; font-weight: bold; font-size: 14px; text-shadow: 0 1px 3px black; }
+        .video-circle-actions { position: absolute; bottom: 15px; left: 0; right: 0; display: flex; justify-content: center; gap: 20px; }
+        .video-circle-actions button { width: 40px; height: 40px; border-radius: 50%; border: none; color: white; font-size: 18px; cursor: pointer; }
+
         .panel-section { padding: 10px; border-bottom: 1px solid #4a627a; background: #2c3e50; }
         .panel-section input { width: 58%; padding: 8px; border: none; border-radius: 4px; font-size: 14px; background: white; color: #222; }
         .panel-section button { width: 30%; padding: 8px; background: #4a627a; color: white; border: none; border-radius: 4px; font-size: 14px; }
@@ -54,6 +72,10 @@
         .msg .actions button { font-size: 10px; padding: 2px 5px; margin-left: 3px; border: none; border-radius: 3px; cursor: pointer; color: white; }
         .msg .actions .edit-btn { background: #f39c12; }
         .msg .actions .del-btn { background: #e74c3c; }
+        .msg-img { max-width: 220px; max-height: 220px; border-radius: 6px; margin-top: 5px; display: block; cursor: pointer; }
+        .msg-video-circle { width: 160px; height: 160px; border-radius: 50%; object-fit: cover; margin-top: 5px; border: 2px solid #27ae60; }
+        .msg-audio-player { margin-top: 5px; }
+
         .settings-row { padding: 12px 10px; border-bottom: 1px solid #4a627a; }
         .settings-row label { font-weight: bold; display: block; margin-bottom: 5px; font-size: 13px; }
         .settings-row input, .settings-row select { width: 100%; padding: 8px; border: none; border-radius: 4px; font-size: 14px; box-sizing: border-box; background: white; color: #222; }
@@ -154,10 +176,23 @@
             <div id="messages"></div>
             <div id="form-container">
                 <form id="form" onsubmit="return false;">
+                    <button type="button" id="photo-btn" onclick="document.getElementById('image-file').click()">📷</button>
+                    <input type="file" id="image-file" accept="image/*" style="display:none;" onchange="sendImageAttachment(this)">
                     <input id="input" autocomplete="off" placeholder="Сообщение...">
+                    <button type="button" id="emoji-btn" onclick="toggleEmojiPicker()">😊</button>
                     <button type="button" id="send-btn" onclick="sendMessage()">Отпр.</button>
                 </form>
+                <div id="emoji-picker"></div>
+                <div id="voice-record-panel">
+                    <span id="voice-timer" style="color:#e74c3c;font-weight:bold;">00:00</span>
+                    <div>
+                        <button type="button" style="background:#e74c3c;margin-right:8px;" onclick="cancelVoiceRecord()">✕ Отмена</button>
+                        <button type="button" style="background:#27ae60;" onclick="stopAndSendVoiceRecord()">✓ Отправить</button>
+                    </div>
+                </div>
             </div>
+            <input type="file" id="voice-file-input" accept="audio/*" style="display:none;" onchange="uploadAudioFileFallback(this)">
+            <input type="file" id="video-circle-file-input" accept="video/*" style="display:none;" onchange="uploadVideoFileFallback(this)">
         </div>
     </div>
 
@@ -177,6 +212,17 @@
             <div class="partner-detail" id="partner-status"></div>
             <div class="partner-detail" id="partner-age"></div>
             <div class="partner-detail" id="partner-about"></div>
+        </div>
+    </div>
+
+    <div id="video-circle-modal">
+        <div class="video-circle-wrap">
+            <video id="video-preview" autoplay playsinline muted></video>
+            <span id="video-circle-timer">00:00</span>
+            <div class="video-circle-actions">
+                <button type="button" style="background:#e74c3c;" onclick="cancelVideoCircleRecord()">✕</button>
+                <button type="button" style="background:#27ae60;" onclick="stopAndSendVideoCircleRecord()">✓</button>
+            </div>
         </div>
     </div>
 

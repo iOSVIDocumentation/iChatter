@@ -206,11 +206,11 @@ function migrateDatabaseToEncryptedEmails() {
         if (db.messages && Array.isArray(db.messages)) {
             db.messages.forEach(function(m) {
                 if (m.from && m.from.includes(':')) {
-                    m.from = decryptEmail(m.from);
+                    m.from = decryptEmail(m.from).toLowerCase().trim();
                     updated = true;
                 }
                 if (m.to && m.to.includes(':') && !m.to.startsWith('group_')) {
-                    m.to = decryptEmail(m.to);
+                    m.to = decryptEmail(m.to).toLowerCase().trim();
                     updated = true;
                 }
             });
@@ -398,7 +398,7 @@ app.post('/api/update-profile', function(req, res) {
         writeDatabase(db);
         const safeUser = Object.assign({}, user, { email: decryptEmail(user.email) });
         res.json({ success: true, user: safeUser });
-    } else res.status(404).json({ error: 'Polzovatel ne najden' });
+    } else res.status(404).json({ error: 'Polzovatel ne найden' });
 });
 
 app.get('/api/my-devices', function(req, res) {
@@ -461,18 +461,18 @@ app.post('/api/add-contact', function(req, res) {
 app.get('/api/contacts', function(req, res) {
     const { token } = req.query;
     if (!activeTokens[token]) return res.status(401).json({ error: 'Unauthorized' });
-    const currentUserEmail = activeTokens[token].email;
+    const currentUserEmail = (activeTokens[token].email || '').toLowerCase().trim();
     const db = readDatabase();
     const user = findUserByEmail(db, currentUserEmail);
-    if (!user) return res.status(404).json({ error: 'Polzovatel ne najden' });
+    if (!user) return res.status(404).json({ error: 'Polzovatel ne найden' });
 
     const contacts = (user.contacts || []).map(function(encEmail) {
-        const email = decryptEmail(encEmail);
+        const email = decryptEmail(encEmail).toLowerCase().trim();
         const contactUser = findUserByEmail(db, email);
         const unreadCount = (db.messages || []).filter(function(m) {
             const mFrom = decryptEmail(m.from || '').toLowerCase().trim();
             const mTo = decryptEmail(m.to || '').toLowerCase().trim();
-            return mFrom === email.toLowerCase().trim() &&
+            return mFrom === email &&
                    mTo === currentUserEmail &&
                    !m.read && !m.deleted;
         }).length;
@@ -490,6 +490,66 @@ app.get('/api/contacts', function(req, res) {
         };
     });
     res.json({ contacts: contacts });
+});
+
+app.get('/api/archived-chats', function(req, res) {
+    const { token } = req.query;
+    if (!activeTokens[token]) return res.status(401).json({ error: 'Unauthorized' });
+    const currentUserEmail = activeTokens[token].email;
+    const db = readDatabase();
+    const archived = (db.archivedChats[currentUserEmail] || []).filter(function(email) { return email; });
+    const archivedContacts = archived.map(function(encEmail) {
+        const email = decryptEmail(encEmail);
+        const user = findUserByEmail(db, email);
+        return {
+            email: email,
+            username: user ? user.username : (email ? email.split('@')[0] : 'Unknown'),
+            displayName: user ? (user.displayName || user.username) : (email ? email.split('@')[0] : 'Unknown'),
+            searchId: user ? user.searchId : '',
+            avatar: user ? user.avatar : 'av1.png',
+            age: user ? user.age : 0,
+            about: user ? user.about : ''
+        };
+    });
+    res.json({ contacts: archivedContacts });
+});
+
+app.post('/api/archive-chat', function(req, res) {
+    const { token, email } = req.body;
+    if (!activeTokens[token]) return res.status(401).json({ error: 'Unauthorized' });
+    const currentUserEmail = activeTokens[token].email;
+    const db = readDatabase();
+    const user = findUserByEmail(db, currentUserEmail);
+    if (user) {
+        const norm = email.toLowerCase().trim();
+        user.contacts = (user.contacts || []).filter(function(e) { return decryptEmail(e).toLowerCase().trim() !== norm; });
+        if (!db.archivedChats[currentUserEmail]) db.archivedChats[currentUserEmail] = [];
+        const existsInArchived = db.archivedChats[currentUserEmail].some(function(e) { return decryptEmail(e).toLowerCase().trim() === norm; });
+        if (!existsInArchived) {
+            db.archivedChats[currentUserEmail].push(encryptEmail(norm));
+        }
+        writeDatabase(db);
+        res.json({ success: true });
+    } else res.status(404).json({ error: 'Polzovatel ne najden' });
+});
+
+app.post('/api/unarchive-chat', function(req, res) {
+    const { token, email } = req.body;
+    if (!activeTokens[token]) return res.status(401).json({ error: 'Unauthorized' });
+    const currentUserEmail = activeTokens[token].email;
+    const db = readDatabase();
+    const user = findUserByEmail(db, currentUserEmail);
+    if (user) {
+        const norm = email.toLowerCase().trim();
+        if (db.archivedChats[currentUserEmail]) {
+            db.archivedChats[currentUserEmail] = db.archivedChats[currentUserEmail].filter(function(e) { return decryptEmail(e).toLowerCase().trim() !== norm; });
+        }
+        if (!user.contacts) user.contacts = [];
+        const existsInContacts = user.contacts.some(function(e) { return decryptEmail(e).toLowerCase().trim() === norm; });
+        if (!existsInContacts) user.contacts.push(encryptEmail(norm));
+        writeDatabase(db);
+        res.json({ success: true });
+    } else res.status(404).json({ error: 'Polzovatel ne najden' });
 });
 
 app.get('/api/find-user', function(req, res) {
@@ -522,7 +582,7 @@ app.get('/api/messages', function(req, res) {
     const withEmail = req.query['with'];
     const limit = req.query.limit;
     if (!activeTokens[token]) return res.status(401).json({ error: 'Unauthorized' });
-    const currentUserEmail = activeTokens[token].email.toLowerCase().trim();
+    const currentUserEmail = (activeTokens[token].email || '').toLowerCase().trim();
     const targetEmail = (withEmail || '').toLowerCase().trim();
     const db = readDatabase();
 
@@ -532,13 +592,127 @@ app.get('/api/messages', function(req, res) {
         return (from === currentUserEmail && to === targetEmail) || (from === targetEmail && to === currentUserEmail);
     }).map(function(m) {
         return Object.assign({}, m, {
-            from: decryptEmail(m.from),
-            to: decryptEmail(m.to)
+            from: decryptEmail(m.from || '').toLowerCase().trim(),
+            to: decryptEmail(m.to || '').toLowerCase().trim()
         });
     });
 
     const maxLimit = parseInt(limit) || 100;
     res.json({ messages: chatMsgs.slice(-maxLimit) });
+});
+
+app.post('/api/create-group', function(req, res) {
+    const { token, name, members } = req.body;
+    if (!activeTokens[token]) return res.status(401).json({ error: 'Unauthorized' });
+    const currentUserEmail = activeTokens[token].email.toLowerCase().trim();
+    if (!name || !name.trim()) return res.status(400).json({ error: 'Vvedite nazvanie gruppy' });
+
+    const db = readDatabase();
+    if (!db.groups) db.groups = [];
+    const groupMembers = Array.isArray(members) ? members.map(function(m){ return m.toLowerCase().trim(); }) : [];
+    if (!groupMembers.includes(currentUserEmail)) groupMembers.push(currentUserEmail);
+
+    const group = {
+        id: 'group_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+        name: name.trim(),
+        avatar: 'av1.png',
+        creator: currentUserEmail,
+        members: groupMembers,
+        created: Date.now()
+    };
+    db.groups.push(group);
+    writeDatabase(db);
+
+    groupMembers.forEach(function(email) {
+        for (let sId in connectedUsers) {
+            if (connectedUsers[sId].user && connectedUsers[sId].user.email === email) {
+                connectedUsers[sId].join(group.id);
+            }
+        }
+    });
+
+    res.json({ success: true, group: group });
+});
+
+app.get('/api/my-groups', function(req, res) {
+    const { token } = req.query;
+    if (!activeTokens[token]) return res.status(401).json({ error: 'Unauthorized' });
+    const currentUserEmail = activeTokens[token].email.toLowerCase().trim();
+    const db = readDatabase();
+    const myGroups = (db.groups || []).filter(function(g) {
+        return g.members && g.members.includes(currentUserEmail);
+    });
+    res.json({ groups: myGroups });
+});
+
+app.get('/api/group-info', function(req, res) {
+    const { token, groupId } = req.query;
+    if (!activeTokens[token]) return res.status(401).json({ error: 'Unauthorized' });
+    const db = readDatabase();
+    const group = (db.groups || []).find(function(g) { return g.id === groupId; });
+    if (!group) return res.status(404).json({ error: 'Gруппа не найдена' });
+
+    const memberDetails = group.members.map(function(email) {
+        const u = findUserByEmail(db, email);
+        return {
+            email: email,
+            username: u ? u.username : email.split('@')[0],
+            displayName: u ? (u.displayName || u.username) : email.split('@')[0],
+            isOnline: Object.values(connectedUsers).some(function(s) { return s.user && s.user.email === email; })
+        };
+    });
+
+    res.json({ group: group, memberDetails: memberDetails });
+});
+
+app.get('/api/group-messages', function(req, res) {
+    const { token, groupId, limit } = req.query;
+    if (!activeTokens[token]) return res.status(401).json({ error: 'Unauthorized' });
+    const db = readDatabase();
+    const msgs = (db.messages || []).filter(function(m) {
+        return m.to === groupId;
+    });
+    const maxLimit = parseInt(limit) || 100;
+    res.json({ messages: msgs.slice(-maxLimit) });
+});
+
+app.post('/api/upload-media', function(req, res) {
+    const token = req.query.token;
+    if (!activeTokens[token]) return res.status(401).json({ error: 'Unauthorized' });
+    uploadMedia.single('file')(req, res, function(err) {
+        if (err) return res.status(400).json({ error: 'Oshibka zagruzki fayla' });
+        if (!req.file) return res.status(400).json({ error: 'Fayl ne vibran' });
+        const fileUrl = '/uploads/media/' + req.file.filename;
+        res.json({ success: true, url: fileUrl, type: req.file.mimetype });
+    });
+});
+
+app.post('/api/upload-avatar', function(req, res) {
+    const token = req.query.token;
+    if (!activeTokens[token]) return res.status(401).json({ error: 'Unauthorized' });
+    uploadAvatar.single('avatar')(req, res, function(err) {
+        if (err) return res.status(400).json({ error: 'Oshibka zagruzki avatara' });
+        if (!req.file) return res.status(400).json({ error: 'Fayl ne vibran' });
+        const avatarUrl = '/uploads/avatars/' + req.file.filename;
+        const db = readDatabase();
+        const user = findUserByEmail(db, activeTokens[token].email);
+        if (user) { user.avatar = avatarUrl; writeDatabase(db); }
+        res.json({ success: true, url: avatarUrl });
+    });
+});
+
+app.post('/api/upload-wallpaper', function(req, res) {
+    const token = req.query.token;
+    if (!activeTokens[token]) return res.status(401).json({ error: 'Unauthorized' });
+    uploadWallpaper.single('wallpaper')(req, res, function(err) {
+        if (err) return res.status(400).json({ error: 'Oshibka zagruzki oboev' });
+        if (!req.file) return res.status(400).json({ error: 'Fayl ne vibran' });
+        const wallpaperUrl = '/uploads/wallpapers/' + req.file.filename;
+        const db = readDatabase();
+        const user = findUserByEmail(db, activeTokens[token].email);
+        if (user) { user.wallpaper = wallpaperUrl; writeDatabase(db); }
+        res.json({ success: true, url: wallpaperUrl });
+    });
 });
 
 io.use(function(socket, next) {
@@ -547,7 +721,7 @@ io.use(function(socket, next) {
     if (activeTokens[token]) {
         const db = readDatabase();
         const fullUser = findUserByEmail(db, activeTokens[token].email);
-        const plainEmail = activeTokens[token].email.toLowerCase().trim();
+        const plainEmail = (activeTokens[token].email || '').toLowerCase().trim();
         socket.user = {
             username: fullUser ? (fullUser.displayName || fullUser.username) : (activeTokens[token].username || 'Unknown'),
             displayName: fullUser ? (fullUser.displayName || fullUser.username) : (activeTokens[token].username || 'Unknown'),
@@ -563,10 +737,19 @@ io.on('connection', function(socket) {
     connectedUsers[socket.id] = socket;
     socket.join(socket.user.email);
 
+    const db = readDatabase();
+    (db.groups || []).forEach(function(g) {
+        if (g.members && g.members.includes(socket.user.email)) {
+            socket.join(g.id);
+        }
+    });
+
+    io.emit('user_status', { email: socket.user.email, username: socket.user.username, status: 'online' });
+
     socket.on('send_message', function(data) {
         const isGroup = data.isGroup || (data.to && data.to.indexOf('group_') === 0);
         const plainFrom = socket.user.email.toLowerCase().trim();
-        const plainTo = (data.to || '').trim();
+        const plainTo = (data.to || '').toLowerCase().trim();
         const message = {
             id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
             from: plainFrom,
@@ -590,16 +773,67 @@ io.on('connection', function(socket) {
             socket.to(plainTo).emit('receive_message', message);
             socket.emit('message_sent', message);
         } else {
-            if (plainTo.toLowerCase() !== plainFrom) {
-                io.to(plainTo.toLowerCase()).emit('receive_message', message);
+            if (plainTo !== plainFrom) {
+                io.to(plainTo).emit('receive_message', message);
             }
             socket.emit('message_sent', message);
+        }
+    });
+
+    socket.on('mark_read', function(data) {
+        const targetWith = (data.with || '').toLowerCase().trim();
+        if (!targetWith) return;
+        const myEmail = socket.user.email.toLowerCase().trim();
+        const dbData = readDatabase();
+        let changed = false;
+
+        (dbData.messages || []).forEach(function(m) {
+            const mFrom = decryptEmail(m.from || '').toLowerCase().trim();
+            const mTo = decryptEmail(m.to || '').toLowerCase().trim();
+            if (mFrom === targetWith && mTo === myEmail && !m.read) {
+                m.read = true;
+                changed = true;
+            }
+        });
+
+        if (changed) {
+            writeDatabase(dbData);
+            io.to(targetWith).emit('messages_read', { by: myEmail });
+        }
+    });
+
+    socket.on('edit_message', function(data) {
+        const dbData = readDatabase();
+        if (dbData.messages) {
+            const m = dbData.messages.find(function(msg) { return msg.id === data.id; });
+            if (m) { m.text = data.newText; m.edited = true; writeDatabase(dbData); }
+        }
+        io.to(data.to).emit('update_message', { id: data.id, text: data.newText, edited: true });
+        socket.emit('update_message', { id: data.id, text: data.newText, edited: true });
+    });
+
+    socket.on('delete_message', function(data) {
+        const dbData = readDatabase();
+        if (dbData.messages) {
+            const m = dbData.messages.find(function(msg) { return msg.id === data.id; });
+            if (m) { m.deleted = true; m.text = ''; writeDatabase(dbData); }
+        }
+        io.to(data.to).emit('remove_message', { id: data.id });
+        socket.emit('remove_message', { id: data.id });
+    });
+
+    socket.on('typing', function(data) {
+        if (data.isGroup || (data.to && data.to.indexOf('group_') === 0)) {
+            socket.to(data.to).emit('user_typing', { from: socket.user.email, username: socket.user.displayName || socket.user.username, isTyping: data.isTyping, groupId: data.to });
+        } else if (data.to !== socket.user.email) {
+            io.to((data.to || '').toLowerCase().trim()).emit('user_typing', { from: socket.user.email, username: socket.user.displayName || socket.user.username, isTyping: data.isTyping });
         }
     });
 
     socket.on('disconnect', function() {
         console.log('[ОТКЛЮЧЕН] ' + socket.user.username);
         delete connectedUsers[socket.id];
+        io.emit('user_status', { email: socket.user.email, username: socket.user.username, status: 'offline' });
     });
 });
 

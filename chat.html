@@ -2,18 +2,11 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>iChatter</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        html, body {
-            margin: 0; padding: 0; width: 100%; height: 100%;
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: #555d65; color: #fff; font-family: Helvetica, sans-serif;
-            overflow: hidden; -webkit-text-size-adjust: 100%;
-        }
+        body, html { margin: 0; padding: 0; height: 100%; background: #555d65; color: #fff; font-family: Helvetica, sans-serif; overflow: hidden; }
         body.light-mode { background: #E2E7ED; color: #222; }
         body.light-mode #header { background: #2c3e50; }
         body.light-mode #chats-panel, body.light-mode #archive-panel, body.light-mode #settings-panel { background: white; }
@@ -31,143 +24,61 @@
         body.light-mode #bottom-nav { background: #cbd2d9; }
         body.light-mode .nav-btn { background: #2c3e50; border-color: #ccc; }
         body.light-mode .nav-btn.active { background: #4a627a; }
-        body.light-mode #emoji-picker { background: #dde2e8; border-top-color: #bbb; }
 
-        #header {
-            position: absolute; top: 0; left: 0; right: 0; height: 44px;
-            background: #2c3e50; color: white; line-height: 44px; padding: 0 10px;
-            z-index: 99999; box-sizing: border-box;
-            -webkit-transform: translate3d(0,0,0); transform: translate3d(0,0,0);
-            -webkit-backface-visibility: hidden; backface-visibility: hidden;
-        }
-        #btn-back { background: #4a627a; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; margin-right: 8px; display: none; font-weight: bold; }
-        #btn-back:active { background: #37526a; }
+        #header { position: fixed; top: 0; left: 0; right: 0; height: 44px; background: #2c3e50; color: white; line-height: 44px; padding: 0 10px; z-index: 10; box-sizing: border-box; }
+        #btn-back { background: #4a627a; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; margin-right: 8px; display: none; }
         #chat-title { font-size: 14px; font-weight: bold; display: inline; cursor: pointer; vertical-align: middle; }
-
-        #main-content { position: absolute; top: 44px; bottom: 50px; left: 0; right: 0; overflow: hidden; }
-        #chats-panel, #archive-panel, #settings-panel { position: absolute; top: 0; bottom: 0; left: 0; width: 100%; background: #3b434a; overflow-y: scroll; -webkit-overflow-scrolling: touch; z-index: 2; display: none; }
-        #chat-area { position: absolute; top: 0; bottom: 0; left: 0; width: 100%; background: #3b434a; overflow: hidden; z-index: 2; display: none; }
-
+        #main-content { position: fixed; top: 44px; bottom: 50px; left: 0; right: 0; overflow: hidden; }
+        #chats-panel, #archive-panel, #settings-panel, #chat-area { position: absolute; top: 0; bottom: 0; left: 0; width: 100%; background: #3b434a; overflow-y: scroll; -webkit-overflow-scrolling: touch; z-index: 2; display: none; }
         #messages { position: absolute; top: 0; left: 0; right: 0; bottom: 50px; padding: 10px; overflow-y: scroll; -webkit-overflow-scrolling: touch; box-sizing: border-box; background: #555d65; }
-
-        #form-container { position: absolute; bottom: 0; left: 0; right: 0; height: 50px; background: #3b434a; box-sizing: border-box; padding: 5px; display: block; z-index: 100; }
+        #form-container { position: absolute; bottom: 0; left: 0; right: 0; height: 50px; background: #3b434a; box-sizing: border-box; padding: 5px; display: block; }
         #form { position: relative; width: 100%; height: 100%; }
-
-        .media-btn, .emoji-btn {
-            position: absolute; top: 5px; bottom: 5px;
-            background: #4a627a; border: none; border-radius: 4px;
-            width: 36px; font-size: 16px; cursor: pointer; color: white;
-        }
-        .media-btn { left: 0; }
-        .emoji-btn { right: 72px; }
-        .media-btn:active, .emoji-btn:active { background: #37526a; }
-
-        #input { position: absolute; left: 42px; top: 5px; bottom: 5px; right: 114px; width: auto; box-sizing: border-box; font-size: 15px; border-radius: 4px; border: none; padding: 0 8px; background: white; color: #222; outline: none; }
-        #send-btn { position: absolute; right: 0; top: 5px; bottom: 5px; width: 66px; background: #27ae60; color: white; border: none; border-radius: 4px; font-size: 13px; font-weight: bold; cursor: pointer; }
-        #send-btn:active { background: #1e8449; }
-
-        .panel-section { padding: 10px; border-bottom: 1px solid #4a627a; background: #2c3e50; display: -webkit-box; display: -webkit-flex; display: flex; gap: 6px; }
-        .panel-section input { -webkit-box-flex: 1; -webkit-flex: 1; flex: 1; padding: 8px; border: none; border-radius: 4px; font-size: 14px; background: white; color: #222; }
-        .panel-section button { padding: 8px 12px; background: #4a627a; color: white; border: none; border-radius: 4px; font-size: 13px; font-weight: bold; cursor: pointer; }
-        .panel-section button:active { background: #37526a; }
-
+        #input { position: absolute; left: 0; top: 5px; bottom: 5px; right: 75px; width: auto; box-sizing: border-box; font-size: 16px; border-radius: 4px; border: none; padding: 5px; background: white; color: #222; }
+        #send-btn { position: absolute; right: 0; top: 5px; bottom: 5px; width: 70px; background: #27ae60; color: white; border: none; border-radius: 4px; font-size: 14px; cursor: pointer; }
+        .panel-section { padding: 10px; border-bottom: 1px solid #4a627a; background: #2c3e50; }
+        .panel-section input { width: 58%; padding: 8px; border: none; border-radius: 4px; font-size: 14px; background: white; color: #222; }
+        .panel-section button { width: 30%; padding: 8px; background: #4a627a; color: white; border: none; border-radius: 4px; font-size: 14px; }
         .chat-item { padding: 12px 10px; border-bottom: 1px solid #4a627a; cursor: pointer; position: relative; }
-        .chat-item:active { background: #4a627a; }
-        .chat-item .name { font-weight: bold; font-size: 15px; }
-        .chat-item .status { font-size: 12px; color: #aaa; margin-top: 2px; }
-        .chat-item .status.online { color: #4cd964; font-weight: bold; }
-        .chat-item .archive-btn { position: absolute; right: 10px; top: 12px; background: #e74c3c; color: white; border: none; padding: 4px 10px; border-radius: 3px; font-size: 10px; cursor: pointer; }
+        .chat-item .name { font-weight: bold; }
+        .chat-item .status { font-size: 12px; color: #aaa; }
+        .chat-item .status.online { color: #4cd964; }
+        .chat-item .archive-btn { position: absolute; right: 10px; top: 12px; background: #e74c3c; color: white; border: none; padding: 3px 8px; border-radius: 3px; font-size: 10px; cursor: pointer; }
         .chat-item .unarchive-btn { background: #27ae60; }
-
-        .unread-badge {
-            position: absolute; right: 42px; top: 14px;
-            background: #e74c3c; color: white; font-weight: bold;
-            font-size: 11px; padding: 2px 7px; border-radius: 10px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.4);
-        }
-
-        .msg { padding: 8px 10px; background: #2c3e50; margin-bottom: 8px; border-radius: 8px; word-wrap: break-word; font-size: 14px; position: relative; max-width: 80%; color: #fff; clear: both; float: left; cursor: pointer; }
-        .msg.my { background: #27ae60; float: right; }
-        .msg .sender { font-weight: bold; font-size: 12px; color: #ccc; margin-bottom: 2px; }
-        .msg.my .sender { color: rgba(255,255,255,0.75); }
-        .msg .time { font-size: 10px; color: #aaa; margin-left: 5px; float: right; margin-top: 4px; }
-        .msg .text { display: inline; }
-        .msg img.msg-img { max-width: 100%; border-radius: 6px; margin-top: 5px; display: block; }
+        .msg { padding: 8px 10px; background: #2c3e50; margin-bottom: 6px; border-radius: 8px; word-wrap: break-word; font-size: 14px; position: relative; max-width: 80%; color: #fff; }
+        .msg.my { background: #27ae60; margin-left: 20%; color: #fff; }
+        .msg .sender { font-weight: bold; font-size: 12px; color: #ccc; }
+        .msg .time { font-size: 10px; color: #aaa; margin-left: 5px; }
+        .msg .text { margin-top: 3px; }
         .msg .edited-tag { font-size: 10px; color: #ddd; font-style: italic; }
-
-        .status-ticks { font-size: 12px; margin-left: 4px; color: rgba(255,255,255,0.7); font-weight: bold; }
-        .status-ticks.read { color: #3498db; }
-
-        .msg .actions { display: none; position: absolute; right: 5px; top: -14px; z-index: 100; }
-        .msg:hover .actions, .msg.show-actions .actions { display: block; }
-        .msg .actions button { font-size: 10px; padding: 2px 6px; border: none; border-radius: 3px; cursor: pointer; color: white; float: left; margin-left: 2px; }
+        .msg .actions { display: none; position: absolute; right: 5px; top: 5px; }
+        .msg .actions button { font-size: 10px; padding: 2px 5px; margin-left: 3px; border: none; border-radius: 3px; cursor: pointer; color: white; }
         .msg .actions .edit-btn { background: #f39c12; }
         .msg .actions .del-btn { background: #e74c3c; }
-
         .settings-row { padding: 12px 10px; border-bottom: 1px solid #4a627a; }
         .settings-row label { font-weight: bold; display: block; margin-bottom: 5px; font-size: 13px; }
         .settings-row input, .settings-row select { width: 100%; padding: 8px; border: none; border-radius: 4px; font-size: 14px; box-sizing: border-box; background: white; color: #222; }
-        .settings-row button { width: 100%; padding: 10px; background: #27ae60; color: white; border: none; border-radius: 4px; font-size: 15px; font-weight: bold; cursor: pointer; }
-        .settings-row button:active { background: #1e8449; }
-
-        .avatar-grid { overflow: hidden; margin-top: 6px; }
+        .settings-row button { width: 100%; padding: 10px; background: #27ae60; color: white; border: none; border-radius: 4px; font-size: 15px; cursor: pointer; }
+        .avatar-grid { overflow: hidden; }
         .avatar-grid img { width: 44px; height: 44px; border-radius: 22px; margin: 4px; border: 2px solid transparent; cursor: pointer; float: left; }
         .avatar-grid img.selected { border-color: #27ae60; }
-        .wallpaper-grid { overflow: hidden; margin-top: 6px; }
-        .wallpaper-grid img { width: 70px; height: 44px; margin: 4px; border: 2px solid transparent; cursor: pointer; object-fit: cover; float: left; border-radius: 4px; }
+        .wallpaper-grid { overflow: hidden; }
+        .wallpaper-grid img { width: 70px; height: 44px; margin: 4px; border: 2px solid transparent; cursor: pointer; object-fit: cover; float: left; }
         .wallpaper-grid img.selected { border-color: #27ae60; }
-
-        #bottom-nav { position: absolute; bottom: 0; left: 0; right: 0; height: 50px; background: #3b434a; display: table; width: 100%; z-index: 99999; -webkit-transform: translate3d(0,0,0); transform: translate3d(0,0,0); }
+        #bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: 50px; background: #3b434a; display: table; width: 100%; z-index: 20; }
         .nav-btn { display: table-cell; text-align: center; vertical-align: middle; background: #2c3e50; color: #aaa; font-size: 12px; cursor: pointer; border-right: 1px solid #4a627a; }
         .nav-btn:last-child { border-right: none; }
         .nav-btn.active { background: #4a627a; color: white; font-weight: bold; }
 
-        #emoji-picker {
-            position: absolute; bottom: 50px; left: 0; right: 0;
-            height: 180px; background: #2c3e50;
-            border-top: 1px solid #4a627a;
-            display: none; padding: 8px; overflow-y: auto; z-index: 150;
-        }
-        .emoji-item {
-            font-size: 22px; text-align: center; cursor: pointer;
-            padding: 5px; border-radius: 4px;
-            float: left; width: 14.28%; box-sizing: border-box;
-        }
-        .emoji-item:active { background: #4a627a; }
-
-        #partner-profile-overlay, #create-group-overlay, #group-info-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.75); z-index: 99999;
-            display: none; overflow-y: auto;
-        }
-        #partner-profile-box, #create-group-box, #group-info-box {
-            background: #3b434a; color: white;
-            width: 280px; padding: 20px; border-radius: 12px;
-            text-align: center; position: relative;
-            margin: 50px auto 40px auto;
-            border: 1px solid #4a627a;
-            box-sizing: border-box;
-        }
-        #partner-profile-box img { width: 80px; height: 80px; border-radius: 40px; margin-bottom: 10px; border: 2px solid #27ae60; display: block; margin-left: auto; margin-right: auto; }
-        .close-btn { position: absolute; top: 10px; right: 15px; font-size: 22px; cursor: pointer; color: #aaa; font-weight: bold; }
-        .partner-detail { margin: 6px 0; font-size: 14px; color: #ccc; }
-        .partner-detail b { color: white; }
-
-        .group-member-item {
-            padding: 6px 8px; border-bottom: 1px solid #37526a; font-size: 13px; text-align: left;
-        }
-        .group-member-item input { margin-right: 8px; }
-
-        .group-member-view {
-            padding: 8px; border-bottom: 1px solid #4a627a; text-align: left; font-size: 13px;
-        }
-        .group-member-view .m-status { float: right; font-size: 11px; color: #aaa; }
-        .group-member-view .m-status.online { color: #4cd964; font-weight: bold; }
+        #partner-profile-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); z-index: 9999; display: none; justify-content: center; align-items: center; }
+        #partner-profile-box { background: #3b434a; color: white; width: 280px; padding: 20px; border-radius: 12px; text-align: center; position: relative; margin: 50px auto 0; }
+        #partner-profile-box img { width: 80px; height: 80px; border-radius: 50%; margin-bottom: 10px; }
+        #partner-profile-box .close-btn { position: absolute; top: 10px; right: 15px; font-size: 20px; cursor: pointer; color: #aaa; }
+        .partner-detail { margin: 8px 0; font-size: 14px; }
     </style>
 </head>
 <body class="dark-mode">
     <div id="header">
-        <button id="btn-back" onclick="goBack()">&#9664; Назад</button>
+        <button id="btn-back" onclick="goBack()">← Назад</button>
         <span id="chat-title">iChatter</span>
     </div>
 
@@ -176,18 +87,17 @@
             <div class="panel-section">
                 <input type="text" id="search-input" placeholder="Введите ID (6 цифр)">
                 <button onclick="findUser()">Найти</button>
-                <button onclick="openCreateGroupModal()" style="background:#27ae60;">+ Группа</button>
             </div>
             <div id="chats-list"></div>
         </div>
 
         <div id="archive-panel">
-            <div style="padding:10px;font-weight:bold;border-bottom:1px solid #4a627a;color:#ccc;">Архивные чаты</div>
+            <div style="padding:10px;font-weight:bold;border-bottom:1px solid #4a627a;">Архивные чаты</div>
             <div id="archive-list"></div>
         </div>
 
         <div id="settings-panel">
-            <div style="padding:10px;font-weight:bold;border-bottom:1px solid #4a627a;color:#ccc;">Настройки</div>
+            <div style="padding:10px;font-weight:bold;border-bottom:1px solid #4a627a;">Настройки</div>
             <div class="settings-row">
                 <label>Язык / Language</label>
                 <select id="lang-select" onchange="setLang(this.value)">
@@ -225,7 +135,7 @@
             <div class="settings-row">
                 <label>Аватар</label>
                 <div class="avatar-grid" id="avatar-grid"></div>
-                <button style="margin-top:6px; background:#4a627a; color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; width:100%;" onclick="document.getElementById('avatar-file').click()">Загрузить свой аватар</button>
+                <button class="upload-btn" style="margin-top:5px; background:#4a627a; color:white; border:none; padding:8px; border-radius:4px;" onclick="document.getElementById('avatar-file').click()">Загрузить свой аватар</button>
                 <input type="file" id="avatar-file" accept="image/*" style="display:none;" onchange="uploadCustomAvatar(this)">
             </div>
             <div class="settings-row">
@@ -242,14 +152,10 @@
 
         <div id="chat-area">
             <div id="messages"></div>
-            <div id="emoji-picker"></div>
             <div id="form-container">
-                <form id="form" onsubmit="return false;" autocomplete="off">
-                    <button type="button" class="media-btn" onclick="document.getElementById('media-input').click()">📷</button>
-                    <input type="file" id="media-input" accept="image/*" style="display:none;" onchange="sendImageAttachment(this)">
-                    <input id="input" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Сообщение...">
-                    <button type="button" class="emoji-btn" onclick="toggleEmojiPicker()">😊</button>
-                    <button type="button" id="send-btn">Отпр.</button>
+                <form id="form" onsubmit="return false;">
+                    <input id="input" autocomplete="off" placeholder="Сообщение...">
+                    <button type="button" id="send-btn" onclick="sendMessage()">Отпр.</button>
                 </form>
             </div>
         </div>
@@ -263,7 +169,7 @@
 
     <div id="partner-profile-overlay" onclick="closePartnerProfile()">
         <div id="partner-profile-box" onclick="event.stopPropagation()">
-            <span class="close-btn" onclick="closePartnerProfile()">x</span>
+            <span class="close-btn" onclick="closePartnerProfile()">×</span>
             <img id="partner-avatar" src="" alt="Avatar">
             <div class="partner-detail"><b id="partner-displayname"></b></div>
             <div class="partner-detail">@<span id="partner-username"></span></div>
@@ -271,33 +177,6 @@
             <div class="partner-detail" id="partner-status"></div>
             <div class="partner-detail" id="partner-age"></div>
             <div class="partner-detail" id="partner-about"></div>
-        </div>
-    </div>
-
-    <div id="create-group-overlay" onclick="closeCreateGroupModal()">
-        <div id="create-group-box" onclick="event.stopPropagation()">
-            <span class="close-btn" onclick="closeCreateGroupModal()">x</span>
-            <h3 style="margin-top:0;font-size:16px;text-align:center;">Создать группу</h3>
-            <div style="margin-bottom:12px;text-align:left;">
-                <label style="font-size:12px;font-weight:bold;display:block;margin-bottom:4px;">Название группы:</label>
-                <input type="text" id="group-name-input" placeholder="Название..." style="width:100%;padding:8px;border:none;border-radius:4px;box-sizing:border-box;background:white;color:#222;">
-            </div>
-            <div style="margin-bottom:12px;text-align:left;">
-                <label style="font-size:12px;font-weight:bold;display:block;margin-bottom:4px;">Участники:</label>
-                <div id="group-members-list" style="max-height:150px;overflow-y:auto;background:#2c3e50;padding:6px;border-radius:4px;border:1px solid #4a627a;"></div>
-            </div>
-            <button onclick="submitCreateGroup()" style="width:100%;padding:10px;background:#27ae60;color:white;border:none;border-radius:4px;font-size:14px;font-weight:bold;cursor:pointer;">Создать</button>
-        </div>
-    </div>
-
-    <div id="group-info-overlay" onclick="closeGroupInfoModal()">
-        <div id="group-info-box" onclick="event.stopPropagation()">
-            <span class="close-btn" onclick="closeGroupInfoModal()">x</span>
-            <h3 style="margin-top:0;font-size:16px;text-align:center;" id="group-info-title">Группа</h3>
-            <div style="margin-bottom:12px;text-align:left;font-size:13px;">
-                <b>Участники (<span id="group-info-count">0</span>):</b>
-                <div id="group-info-members" style="max-height:200px;overflow-y:auto;background:#2c3e50;margin-top:6px;border-radius:6px;border:1px solid #4a627a;"></div>
-            </div>
         </div>
     </div>
 

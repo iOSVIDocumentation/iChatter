@@ -58,72 +58,73 @@
         var currentMode = 'login';
         var currentLang = 'ru';
 
-        var texts = {
+        var T = {
             ru: {
-                login: 'Вход', register: 'Регистрация', reset: 'Сброс', email: 'Почта', username: 'Имя пользователя',
-                password: 'Пароль', newPassword: 'Новый пароль', enter: 'Войти', regBtn: 'Зарегистрироваться', resetBtn: 'Запросить код',
-                codeSent: 'Код отправлен на почту', resetSent: 'Код сброса отправлен на почту', codePlaceholder: 'Код из письма', resetPlaceholder: 'Код сброса',
-                confirm: 'Подтвердить', savePass: 'Сохранить пароль', fillAll: 'Заполните все поля', enterCode: 'Введите код',
-                wrongCode: 'Неверный код', error: 'Ошибка', passChanged: 'Пароль успешно изменён!'
+                login: 'Вход', register: 'Регистрация', reset: 'Сброс',
+                email: 'Почта', username: 'Имя пользователя', password: 'Пароль',
+                newPassword: 'Новый пароль',
+                btnLog: 'Войти', btnReg: 'Зарегистрироваться', btnReset: 'Запросить код',
+                btnSavePass: 'Сохранить пароль',
+                codeSent: 'Код отправлен на почту', resetCodeSent: 'Код сброса отправлен на почту',
+                btnConfirm: 'Подтвердить', enterCode: 'Введите код',
+                wrongCode: 'Неверный код', error: 'Ошибка сервера', fillAll: 'Заполните все поля',
+                passChanged: 'Пароль успешно изменен! Теперь войдите.'
             },
             en: {
-                login: 'Login', register: 'Register', reset: 'Reset', email: 'Email', username: 'Username',
-                password: 'Password', newPassword: 'New Password', enter: 'Login', regBtn: 'Register', resetBtn: 'Request Code',
-                codeSent: 'Code sent to email', resetSent: 'Reset code sent to email', codePlaceholder: 'Code from email', resetPlaceholder: 'Reset Code',
-                confirm: 'Confirm', savePass: 'Save Password', fillAll: 'Fill all fields', enterCode: 'Enter code',
-                wrongCode: 'Wrong code', error: 'Error', passChanged: 'Password successfully changed!'
+                login: 'Login', register: 'Register', reset: 'Reset',
+                email: 'Email', username: 'Username', password: 'Password',
+                newPassword: 'New Password',
+                btnLog: 'Log In', btnReg: 'Sign Up', btnReset: 'Request Code',
+                btnSavePass: 'Save Password',
+                codeSent: 'Code sent to email', resetCodeSent: 'Reset code sent to email',
+                btnConfirm: 'Confirm', enterCode: 'Enter code',
+                wrongCode: 'Invalid code', error: 'Server error', fillAll: 'Fill all fields',
+                passChanged: 'Password changed successfully! Please log in.'
             }
         };
 
-        function t(key) { return texts[currentLang][key] || key; }
+        function t(key) { return T[currentLang][key] || key; }
 
         function switchLang() {
-            currentLang = currentLang === 'ru' ? 'en' : 'ru';
-            document.getElementById('lang-btn').innerHTML = currentLang === 'ru' ? 'EN' : 'RU';
+            currentLang = (currentLang === 'ru') ? 'en' : 'ru';
+            document.getElementById('lang-btn').textContent = (currentLang === 'ru') ? 'EN' : 'RU';
             updateUI();
         }
 
         function updateUI() {
-            document.getElementById('tab-login').innerHTML = t('login');
-            document.getElementById('tab-register').innerHTML = t('register');
-            document.getElementById('tab-reset').innerHTML = t('reset');
+            document.getElementById('tab-login').textContent = t('login');
+            document.getElementById('tab-register').textContent = t('register');
+            document.getElementById('tab-reset').textContent = t('reset');
             document.getElementById('email').placeholder = t('email');
             document.getElementById('username').placeholder = t('username');
             document.getElementById('password').placeholder = t('password');
-            document.getElementById('code-text').innerHTML = t('codeSent');
-            document.getElementById('code').placeholder = t('codePlaceholder');
-            document.getElementById('reset-text').innerHTML = t('resetSent');
-            document.getElementById('reset-code').placeholder = t('resetPlaceholder');
+            document.getElementById('code-text').textContent = t('codeSent');
+            document.getElementById('reset-text').textContent = t('resetCodeSent');
+            document.getElementById('save-pass-btn').textContent = t('btnSavePass');
             document.getElementById('new-password').placeholder = t('newPassword');
-            document.getElementById('save-pass-btn').innerHTML = t('savePass');
-            
-            if (currentMode === 'login') document.getElementById('main-btn').innerHTML = t('enter');
-            else if (currentMode === 'register') document.getElementById('main-btn').innerHTML = t('regBtn');
-            else document.getElementById('main-btn').innerHTML = t('resetBtn');
+
+            if (currentMode === 'login') {
+                document.getElementById('main-btn').textContent = t('btnLog');
+            } else if (currentMode === 'register') {
+                document.getElementById('main-btn').textContent = t('btnReg');
+            } else if (currentMode === 'reset') {
+                document.getElementById('main-btn').textContent = t('btnReset');
+            }
         }
 
         function setMode(mode) {
             currentMode = mode;
+            document.getElementById('tab-login').className = (mode === 'login') ? 'tab-btn active' : 'tab-btn';
+            document.getElementById('tab-register').className = (mode === 'register') ? 'tab-btn active' : 'tab-btn';
+            document.getElementById('tab-reset').className = (mode === 'reset') ? 'tab-btn active' : 'tab-btn';
+            
+            document.getElementById('username').style.display = (mode === 'register') ? 'block' : 'none';
+            document.getElementById('password').style.display = (mode === 'reset') ? 'none' : 'block';
+            
             document.getElementById('code-section').style.display = 'none';
             document.getElementById('reset-section').style.display = 'none';
             
-            document.getElementById('tab-login').className = mode === 'login' ? 'tab-btn active' : 'tab-btn';
-            document.getElementById('tab-register').className = mode === 'register' ? 'tab-btn active' : 'tab-btn';
-            document.getElementById('tab-reset').className = mode === 'reset' ? 'tab-btn active' : 'tab-btn';
-
-            if (mode === 'register') {
-                document.getElementById('username').style.display = 'block';
-                document.getElementById('password').style.display = 'block';
-                document.getElementById('main-btn').innerHTML = t('regBtn');
-            } else if (mode === 'login') {
-                document.getElementById('username').style.display = 'none';
-                document.getElementById('password').style.display = 'block';
-                document.getElementById('main-btn').innerHTML = t('enter');
-            } else {
-                document.getElementById('username').style.display = 'none';
-                document.getElementById('password').style.display = 'none';
-                document.getElementById('main-btn').innerHTML = t('resetBtn');
-            }
+            updateUI();
         }
 
         function handleMainAction() {
@@ -138,10 +139,12 @@
             var email = document.getElementById('email').value.trim();
             var password = document.getElementById('password').value;
             var username = document.getElementById('username').value.trim();
+
             if (!email || !password || (currentMode === 'register' && !username)) {
                 alert(t('fillAll'));
                 return;
             }
+
             var xhr = new XMLHttpRequest();
             xhr.open('POST', API + '/api/send-code', true);
             xhr.setRequestHeader('Content-Type', 'application/json');

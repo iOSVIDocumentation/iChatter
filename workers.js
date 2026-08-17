@@ -16,13 +16,13 @@ async function handleRequest(request) {
         path = '/login.html'
     }
 
-    const backendTarget = 'https://identification-best-leasing-runtime.trycloudflare.com'
+    const backendTarget = 'https://yourtunnel.com'
 
     if (path.startsWith('/api/') || path.startsWith('/socket.io/')) {
         return fetch(`${backendTarget}${path}${url.search}`, request)
     }
 
-    const githubBase = 'https://raw.githubusercontent.com/iOSVIDocumentation/ichatter/main'
+    const githubBase = 'https://urlongithub.com'
 
     try {
         const response = await fetch(`${githubBase}${path}`)

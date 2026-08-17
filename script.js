@@ -512,8 +512,10 @@ function showTab(tab) {
 }
 
 function openChat(em) {
-    chatWith = em;
-    isGroupChat = (em && em.indexOf('group_') === 0);
+    if (!em) return;
+    chatWith = em.trim();
+    var cleanChatWith = chatWith.toLowerCase();
+    isGroupChat = (chatWith.indexOf('group_') === 0);
     byId('chats-panel').style.display = 'none';
     byId('archive-panel').style.display = 'none';
     byId('settings-panel').style.display = 'none';
@@ -524,12 +526,12 @@ function openChat(em) {
     var name = pendingName;
     if (!name) {
         if (isGroupChat) {
-            for (var gIdx = 0; gIdx < groups.length; gIdx++) if (groups[gIdx].id === em) { name = '👥 ' + groups[gIdx].name; break; }
+            for (var gIdx = 0; gIdx < groups.length; gIdx++) if (groups[gIdx].id === chatWith) { name = '👥 ' + groups[gIdx].name; break; }
         } else {
-            for (var i = 0; i < contacts.length; i++) if (contacts[i].email === em) { name = contacts[i].displayName || contacts[i].username; break; }
+            for (var i = 0; i < contacts.length; i++) if ((contacts[i].email || '').toLowerCase().trim() === cleanChatWith) { name = contacts[i].displayName || contacts[i].username; break; }
         }
     }
-    if (!name) name = isGroupChat ? '👥 Группа' : em.split('@')[0];
+    if (!name) name = isGroupChat ? '👥 Группа' : chatWith.split('@')[0];
     pendingName = null;
     byId('chat-title').innerHTML = name;
     byId('chat-title').onclick = isGroupChat ? showGroupInfo : showPartnerProfile;
@@ -538,10 +540,10 @@ function openChat(em) {
 
     if (!isGroupChat) {
         for (var cIdx = 0; cIdx < contacts.length; cIdx++) {
-            if (contacts[cIdx].email === em) { contacts[cIdx].unreadCount = 0; break; }
+            if ((contacts[cIdx].email || '').toLowerCase().trim() === cleanChatWith) { contacts[cIdx].unreadCount = 0; break; }
         }
         renderContacts();
-        if (socket) socket.emit('mark_read', { with: em });
+        if (socket) socket.emit('mark_read', { with: chatWith });
     }
 
     if (profile && profile.wallpaper) {
@@ -553,18 +555,18 @@ function openChat(em) {
         byId('messages').style.backgroundImage = '';
     }
 
-    if (!isGroupChat && !hasContact(em)) {
-        addContactToServer(em);
-        contacts.push({ email: em, username: em.split('@')[0], displayName: em.split('@')[0], searchId: '', avatar: 'av1.png', age: 0, about: '', unreadCount: 0, isOnline: false });
+    if (!isGroupChat && !hasContact(chatWith)) {
+        addContactToServer(chatWith);
+        contacts.push({ email: chatWith, username: chatWith.split('@')[0], displayName: chatWith.split('@')[0], searchId: '', avatar: 'av1.png', age: 0, about: '', unreadCount: 0, isOnline: false });
         renderContacts();
     }
 
-    var localMsgs = loadLocalMessages(em);
+    var localMsgs = loadLocalMessages(chatWith);
     for (var j = 0; j < localMsgs.length; j++) addMsg(localMsgs[j]);
 
     var reqUrl = isGroupChat
-        ? API + '/api/group-messages?groupId=' + encodeURIComponent(em) + '&token=' + encodeURIComponent(token)
-        : API + '/api/messages?with=' + encodeURIComponent(em) + '&limit=100&token=' + encodeURIComponent(token);
+        ? API + '/api/group-messages?groupId=' + encodeURIComponent(chatWith) + '&token=' + encodeURIComponent(token)
+        : API + '/api/messages?with=' + encodeURIComponent(chatWith) + '&limit=100&token=' + encodeURIComponent(token);
 
     var xhr2 = new XMLHttpRequest();
     xhr2.open('GET', reqUrl, true);
@@ -574,7 +576,7 @@ function openChat(em) {
             try { data = JSON.parse(xhr2.responseText); } catch(e) {}
             var serverMsgs = data.messages || [];
             var merged = mergeMessages(localMsgs, serverMsgs);
-            saveLocalMessages(em, merged);
+            saveLocalMessages(chatWith, merged);
             for (var k = 0; k < merged.length; k++) addMsg(merged[k]);
         }
     };
@@ -591,7 +593,13 @@ function updateNavTexts() {
 }
 
 function addContactToServer(email) { api('POST', '/api/add-contact', { email: email }, function () {}); }
-function hasContact(email) { for (var i = 0; i < contacts.length; i++) if (contacts[i].email === email) return true; return false; }
+function hasContact(email) {
+    var target = (email || '').toLowerCase().trim();
+    for (var i = 0; i < contacts.length; i++) {
+        if ((contacts[i].email || '').toLowerCase().trim() === target) return true;
+    }
+    return false;
+}
 
 function loadContacts() {
     api('GET', '/api/contacts', null, function (err, data) {
@@ -990,13 +998,17 @@ function connectSocket() {
     }
 
     socket.on('receive_message', function (msg) {
-        if (chatWith === msg.from || (msg.isGroup && chatWith === msg.to)) {
+        var msgFrom = (msg.from || '').toLowerCase().trim();
+        var msgTo = (msg.to || '').toLowerCase().trim();
+        var curChat = (chatWith || '').toLowerCase().trim();
+
+        if (curChat === msgFrom || (msg.isGroup && curChat === msgTo)) {
             addMsg(msg);
             if (!msg.isGroup) socket.emit('mark_read', { with: msg.from });
         } else if (!msg.isGroup) {
             var found = false;
             for (var i = 0; i < contacts.length; i++) {
-                if (contacts[i].email === msg.from) {
+                if ((contacts[i].email || '').toLowerCase().trim() === msgFrom) {
                     contacts[i].unreadCount = (contacts[i].unreadCount || 0) + 1;
                     found = true;
                     break;
@@ -1006,14 +1018,17 @@ function connectSocket() {
             renderContacts();
         }
 
-        var arr = loadLocalMessages(msg.isGroup ? msg.to : msg.from);
+        var storeKey = msg.isGroup ? msg.to : msg.from;
+        var arr = loadLocalMessages(storeKey);
         arr.push(msg);
         if (arr.length > 500) arr = arr.slice(-500);
-        saveLocalMessages(msg.isGroup ? msg.to : msg.from, arr);
+        saveLocalMessages(storeKey, arr);
     });
 
     socket.on('message_sent', function (msg) {
-        if (chatWith === msg.to) addMsg(msg);
+        var msgTo = (msg.to || '').toLowerCase().trim();
+        var curChat = (chatWith || '').toLowerCase().trim();
+        if (curChat === msgTo) addMsg(msg);
         var arr = loadLocalMessages(msg.to);
         arr.push(msg);
         if (arr.length > 500) arr = arr.slice(-500);

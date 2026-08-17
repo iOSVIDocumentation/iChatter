@@ -203,6 +203,18 @@ function migrateDatabaseToEncryptedEmails() {
                 }
             }
         }
+        if (db.messages && Array.isArray(db.messages)) {
+            db.messages.forEach(function(m) {
+                if (m.from && m.from.includes(':')) {
+                    m.from = decryptEmail(m.from);
+                    updated = true;
+                }
+                if (m.to && m.to.includes(':') && !m.to.startsWith('group_')) {
+                    m.to = decryptEmail(m.to);
+                    updated = true;
+                }
+            });
+        }
         if (updated) {
             writeDatabase(db);
             console.log('[МИГРАЦИЯ] Все пароли, контакты и почты успешно зашифрованы без потери данных!');
@@ -347,15 +359,15 @@ app.post('/api/verify-code', function(req, res) {
     const token = crypto.randomBytes(64).toString('hex');
     activeTokens[token] = {
         email: targetEmail,
-        username: user ? user.username : record.username,
+        username: user ? (user.displayName || user.username) : record.username,
         searchId: user ? user.searchId : '000000',
         device: device || 'Web',
         created: Date.now()
     };
     saveTokens();
-    console.log('[ВХОД] ' + (user ? user.username : record.username));
+    console.log('[ВХОД] ' + (user ? (user.displayName || user.username) : record.username));
 
-    res.json({ success: true, token: token, user: user || { username: record.username } });
+    res.json({ success: true, token: token, user: user ? Object.assign({}, user, { email: targetEmail }) : { username: record.username, email: targetEmail } });
     delete tempCodes[targetEmail];
 });
 
@@ -364,8 +376,10 @@ app.get('/api/my-profile', function(req, res) {
     if (!activeTokens[token]) return res.status(401).json({ error: 'Unauthorized' });
     const db = readDatabase();
     const user = findUserByEmail(db, activeTokens[token].email);
-    if (user) res.json({ user: user });
-    else res.status(404).json({ error: 'Polzovatel ne najden' });
+    if (user) {
+        const safeUser = Object.assign({}, user, { email: decryptEmail(user.email) });
+        res.json({ user: safeUser });
+    } else res.status(404).json({ error: 'Polzovatel ne najden' });
 });
 
 app.post('/api/update-profile', function(req, res) {
@@ -382,8 +396,9 @@ app.post('/api/update-profile', function(req, res) {
         if (language) user.language = language;
         if (wallpaper !== undefined) user.wallpaper = wallpaper;
         writeDatabase(db);
-        res.json({ success: true, user: user });
-    } else res.status(404).json({ error: 'Polzovatel ne найden' });
+        const safeUser = Object.assign({}, user, { email: decryptEmail(user.email) });
+        res.json({ success: true, user: safeUser });
+    } else res.status(404).json({ error: 'Polzovatel ne najden' });
 });
 
 app.get('/api/my-devices', function(req, res) {
@@ -455,8 +470,10 @@ app.get('/api/contacts', function(req, res) {
         const email = decryptEmail(encEmail);
         const contactUser = findUserByEmail(db, email);
         const unreadCount = (db.messages || []).filter(function(m) {
-            return (m.from || '').toLowerCase().trim() === email.toLowerCase().trim() &&
-                   (m.to || '').toLowerCase().trim() === currentUserEmail.toLowerCase().trim() &&
+            const mFrom = decryptEmail(m.from || '').toLowerCase().trim();
+            const mTo = decryptEmail(m.to || '').toLowerCase().trim();
+            return mFrom === email.toLowerCase().trim() &&
+                   mTo === currentUserEmail &&
                    !m.read && !m.deleted;
         }).length;
 
@@ -469,7 +486,7 @@ app.get('/api/contacts', function(req, res) {
             age: contactUser ? contactUser.age : 0,
             about: contactUser ? contactUser.about : '',
             unreadCount: unreadCount,
-            isOnline: Object.values(connectedUsers).some(function(s) { return s.user && decryptEmail(s.user.email) === email; })
+            isOnline: Object.values(connectedUsers).some(function(s) { return s.user && s.user.email === email; })
         };
     });
     res.json({ contacts: contacts });
@@ -510,9 +527,14 @@ app.get('/api/messages', function(req, res) {
     const db = readDatabase();
 
     const chatMsgs = (db.messages || []).filter(function(m) {
-        const from = (m.from || '').toLowerCase().trim();
-        const to = (m.to || '').toLowerCase().trim();
+        const from = decryptEmail(m.from || '').toLowerCase().trim();
+        const to = decryptEmail(m.to || '').toLowerCase().trim();
         return (from === currentUserEmail && to === targetEmail) || (from === targetEmail && to === currentUserEmail);
+    }).map(function(m) {
+        return Object.assign({}, m, {
+            from: decryptEmail(m.from),
+            to: decryptEmail(m.to)
+        });
     });
 
     const maxLimit = parseInt(limit) || 100;
@@ -525,10 +547,12 @@ io.use(function(socket, next) {
     if (activeTokens[token]) {
         const db = readDatabase();
         const fullUser = findUserByEmail(db, activeTokens[token].email);
-        socket.user = fullUser || {
-            username: activeTokens[token].username || 'Unknown',
-            email: activeTokens[token].email,
-            searchId: activeTokens[token].searchId || '000000'
+        const plainEmail = activeTokens[token].email.toLowerCase().trim();
+        socket.user = {
+            username: fullUser ? (fullUser.displayName || fullUser.username) : (activeTokens[token].username || 'Unknown'),
+            displayName: fullUser ? (fullUser.displayName || fullUser.username) : (activeTokens[token].username || 'Unknown'),
+            email: plainEmail,
+            searchId: fullUser ? fullUser.searchId : (activeTokens[token].searchId || '000000')
         };
         next();
     } else next(new Error("Unauthorized"));
@@ -541,12 +565,14 @@ io.on('connection', function(socket) {
 
     socket.on('send_message', function(data) {
         const isGroup = data.isGroup || (data.to && data.to.indexOf('group_') === 0);
+        const plainFrom = socket.user.email.toLowerCase().trim();
+        const plainTo = (data.to || '').trim();
         const message = {
             id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-            from: socket.user.email.toLowerCase().trim(),
+            from: plainFrom,
             fromUsername: socket.user.displayName || socket.user.username,
             fromSearchId: socket.user.searchId,
-            to: data.to.trim(),
+            to: plainTo,
             isGroup: isGroup,
             text: data.text,
             media: data.media || null,
@@ -561,11 +587,11 @@ io.on('connection', function(socket) {
         writeDatabase(dbData);
 
         if (isGroup) {
-            socket.to(data.to).emit('receive_message', message);
+            socket.to(plainTo).emit('receive_message', message);
             socket.emit('message_sent', message);
         } else {
-            if (data.to !== socket.user.email) {
-                io.to(data.to).emit('receive_message', message);
+            if (plainTo.toLowerCase() !== plainFrom) {
+                io.to(plainTo.toLowerCase()).emit('receive_message', message);
             }
             socket.emit('message_sent', message);
         }

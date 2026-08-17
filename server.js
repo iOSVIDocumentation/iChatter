@@ -174,6 +174,11 @@ function migrateDatabaseToEncryptedEmails() {
                     user.email = encryptEmail(user.email);
                     updated = true;
                 }
+                if (user.password && typeof user.password === 'string' && !/^[0-9a-f]{64}$/i.test(user.password)) {
+                    console.log('[МИГРАЦИЯ] Захеширован пароль для: ' + (user.displayName || user.username));
+                    user.password = hashPassword(user.password);
+                    updated = true;
+                }
                 if (user.contacts && Array.isArray(user.contacts)) {
                     user.contacts = user.contacts.map(function(c) {
                         if (c && typeof c === 'string' && !c.includes(':')) {
@@ -200,7 +205,7 @@ function migrateDatabaseToEncryptedEmails() {
         }
         if (updated) {
             writeDatabase(db);
-            console.log('[МИГРАЦИЯ] Все контакты и почты успешно зашифрованы без потери данных!');
+            console.log('[МИГРАЦИЯ] Все пароли, контакты и почты успешно зашифрованы без потери данных!');
         }
     } catch (e) {
         console.error('[МИГРАЦИЯ ОШИБКА]', e);
@@ -378,7 +383,7 @@ app.post('/api/update-profile', function(req, res) {
         if (wallpaper !== undefined) user.wallpaper = wallpaper;
         writeDatabase(db);
         res.json({ success: true, user: user });
-    } else res.status(404).json({ error: 'Polzovatel ne najden' });
+    } else res.status(404).json({ error: 'Polzovatel ne найden' });
 });
 
 app.get('/api/my-devices', function(req, res) {

@@ -110,8 +110,8 @@ function decryptLocal(encBase64, key) {
 }
 
 function getChatKey(email1, email2) {
-    var a = email1.toLowerCase().trim();
-    var b = email2.toLowerCase().trim();
+    var a = (email1 || '').toLowerCase().trim();
+    var b = (email2 || '').toLowerCase().trim();
     if (a > b) { var tmp = a; a = b; b = tmp; }
     return a + '|' + b;
 }
@@ -308,27 +308,45 @@ function parseMessageText(text) {
 }
 
 function addMsg(msg) {
+    if (!msg || !msg.id) return;
     if (loadedMessageIds[msg.id]) return;
     loadedMessageIds[msg.id] = true;
     var container = byId('messages');
+    var isMe = (msg.from || '').toLowerCase().trim() === (myEmail || '').toLowerCase().trim();
     var div = document.createElement('div');
-    div.className = 'msg ' + (msg.from === myEmail ? 'my' : 'partner');
+    div.className = 'msg ' + (isMe ? 'my' : 'partner');
     div.id = 'msg-' + msg.id;
-    var senderName = msg.fromUsername || msg.from.split('@')[0];
-    var timeStr = formatTime(msg.timestamp);
-    var partnerEmail = (msg.from === myEmail) ? (msg.to || chatWith) : msg.from;
+    var senderName = msg.fromUsername || (msg.from ? msg.from.split('@')[0] : 'User');
+    var timeStr = formatTime(msg.timestamp || Date.now());
+    var partnerEmail = isMe ? (msg.to || chatWith) : (msg.from || chatWith);
     var rawText = msg.text || '';
     var displayText = msg.deleted ? '' : decryptMsg(rawText, partnerEmail || chatWith);
     var textContent = msg.deleted ? '<i>' + t('deleted') + '</i>' : parseMessageText(displayText);
+
     if (msg.media && !msg.deleted) {
         var mediaUrl = (msg.media.indexOf('/uploads/') === 0) ? API + msg.media : msg.media;
-        textContent += (textContent ? '<br>' : '') + '<img src="' + esc(mediaUrl) + '" class="msg-img" onclick="window.open(this.src)">';
+        var type = msg.mediaType || '';
+        if (!type) {
+            if (/\.(webm|mp4|mov)$/i.test(msg.media)) type = 'video-circle';
+            else if (/\.(ogg|mp3|wav|m4a|aac)$/i.test(msg.media)) type = 'audio';
+        }
+
+        if (type === 'audio') {
+            textContent += (textContent ? '<br>' : '') +
+                '<div class="msg-audio-player"><audio src="' + esc(mediaUrl) + '" controls playsinline></audio></div>';
+        } else if (type === 'video-circle') {
+            textContent += (textContent ? '<br>' : '') +
+                '<video src="' + esc(mediaUrl) + '" class="msg-video-circle" controls playsinline loop></video>';
+        } else {
+            textContent += (textContent ? '<br>' : '') + '<img src="' + esc(mediaUrl) + '" class="msg-img" onclick="window.open(this.src)">';
+        }
     }
+
     var edited = msg.edited ? ' <span class="edited-tag">(' + t('edited') + ')</span>' : '';
-    var senderClick = (msg.from !== myEmail && !isGroupChat) ? ' onclick="showPartnerProfile()" style="cursor:pointer;"' : '';
+    var senderClick = (!isMe && !isGroupChat) ? ' onclick="showPartnerProfile()" style="cursor:pointer;"' : '';
 
     var tickHtml = '';
-    if (msg.from === myEmail && !msg.deleted && !isGroupChat) {
+    if (isMe && !msg.deleted && !isGroupChat) {
         var tickClass = msg.read ? 'read' : '';
         var tickSymbol = msg.read ? '✓✓' : '✓';
         tickHtml = '<span class="status-ticks ' + tickClass + '" id="tick-' + msg.id + '">' + tickSymbol + '</span>';
@@ -338,10 +356,10 @@ function addMsg(msg) {
                     '<div class="text">' + textContent + edited + '</div>' +
                     '<span class="time">' + timeStr + tickHtml + '</span>';
 
-    if (msg.from === myEmail && !msg.deleted) {
+    if (isMe && !msg.deleted) {
         div.onclick = function (e) {
             var target = (e && e.target) ? e.target : window.event.srcElement;
-            if (target && target.tagName === 'BUTTON') return;
+            if (target && (target.tagName === 'BUTTON' || target.tagName === 'AUDIO' || target.tagName === 'VIDEO')) return;
             if (div.className.indexOf('show-actions') !== -1) {
                 div.className = div.className.replace(' show-actions', '');
             } else {
@@ -766,6 +784,145 @@ function sendImageAttachment(input) {
     input.value = '';
 }
 
+var audioRecorder = null;
+var audioChunks = [];
+var voiceTimerInterval = null;
+var voiceSec = 0;
+
+function toggleVoiceRecord() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        byId('voice-file-input').click();
+        return;
+    }
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+        audioChunks = [];
+        audioRecorder = new MediaRecorder(stream);
+        audioRecorder.ondataavailable = function(e) { if (e.data.size > 0) audioChunks.push(e.data); };
+        audioRecorder.start();
+        byId('voice-record-panel').style.display = 'flex';
+        voiceSec = 0;
+        byId('voice-timer').textContent = '00:00';
+        clearInterval(voiceTimerInterval);
+        voiceTimerInterval = setInterval(function() {
+            voiceSec++;
+            var m = Math.floor(voiceSec / 60); var s = voiceSec % 60;
+            byId('voice-timer').textContent = (m < 10 ? '0' + m : m) + ':' + (s < 10 ? '0' + s : s);
+        }, 1000);
+    }).catch(function() {
+        byId('voice-file-input').click();
+    });
+}
+
+function cancelVoiceRecord() {
+    if (audioRecorder && audioRecorder.state !== 'inactive') {
+        audioRecorder.stop();
+        if (audioRecorder.stream) audioRecorder.stream.getTracks().forEach(function(t){t.stop();});
+    }
+    clearInterval(voiceTimerInterval);
+    byId('voice-record-panel').style.display = 'none';
+}
+
+function stopAndSendVoiceRecord() {
+    if (!audioRecorder || audioRecorder.state === 'inactive') return;
+    audioRecorder.onstop = function() {
+        var blob = new Blob(audioChunks, { type: 'audio/webm' });
+        if (audioRecorder.stream) audioRecorder.stream.getTracks().forEach(function(t){t.stop();});
+        var formData = new FormData();
+        formData.append('file', blob, 'voice.webm');
+        api('POST', '/api/upload-media', formData, function(err, resp) {
+            if (!err && resp.success) {
+                socket.emit('send_message', { to: chatWith, text: '', media: resp.url, mediaType: 'audio', isGroup: isGroupChat });
+            }
+        }, true);
+    };
+    audioRecorder.stop();
+    clearInterval(voiceTimerInterval);
+    byId('voice-record-panel').style.display = 'none';
+}
+
+function uploadAudioFileFallback(input) {
+    if (!input.files || !input.files[0] || !chatWith) return;
+    var file = input.files[0];
+    var formData = new FormData();
+    formData.append('file', file);
+    api('POST', '/api/upload-media', formData, function(err, resp) {
+        if (!err && resp.success) {
+            socket.emit('send_message', { to: chatWith, text: '', media: resp.url, mediaType: 'audio', isGroup: isGroupChat });
+        }
+    }, true);
+    input.value = '';
+}
+
+var videoRecorder = null;
+var videoChunks = [];
+var videoStream = null;
+var videoTimerInterval = null;
+var videoSec = 0;
+
+function toggleVideoCircleRecord() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        byId('video-circle-file-input').click();
+        return;
+    }
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 360, height: 360 }, audio: true }).then(function(stream) {
+        videoStream = stream;
+        videoChunks = [];
+        byId('video-preview').srcObject = stream;
+        byId('video-circle-modal').style.display = 'flex';
+        videoRecorder = new MediaRecorder(stream);
+        videoRecorder.ondataavailable = function(e) { if (e.data.size > 0) videoChunks.push(e.data); };
+        videoRecorder.start();
+        videoSec = 0;
+        byId('video-circle-timer').textContent = '00:00';
+        clearInterval(videoTimerInterval);
+        videoTimerInterval = setInterval(function() {
+            videoSec++;
+            var m = Math.floor(videoSec / 60); var s = videoSec % 60;
+            byId('video-circle-timer').textContent = (m < 10 ? '0' + m : m) + ':' + (s < 10 ? '0' + s : s);
+        }, 1000);
+    }).catch(function() {
+        byId('video-circle-file-input').click();
+    });
+}
+
+function cancelVideoCircleRecord() {
+    if (videoRecorder && videoRecorder.state !== 'inactive') videoRecorder.stop();
+    if (videoStream) videoStream.getTracks().forEach(function(t){t.stop();});
+    clearInterval(videoTimerInterval);
+    byId('video-circle-modal').style.display = 'none';
+}
+
+function stopAndSendVideoCircleRecord() {
+    if (!videoRecorder || videoRecorder.state === 'inactive') return;
+    videoRecorder.onstop = function() {
+        var blob = new Blob(videoChunks, { type: 'video/webm' });
+        if (videoStream) videoStream.getTracks().forEach(function(t){t.stop();});
+        var formData = new FormData();
+        formData.append('file', blob, 'circle.webm');
+        api('POST', '/api/upload-media', formData, function(err, resp) {
+            if (!err && resp.success) {
+                socket.emit('send_message', { to: chatWith, text: '', media: resp.url, mediaType: 'video-circle', isGroup: isGroupChat });
+            }
+        }, true);
+    };
+    videoRecorder.stop();
+    clearInterval(videoTimerInterval);
+    byId('video-circle-modal').style.display = 'none';
+}
+
+function uploadVideoFileFallback(input) {
+    if (!input.files || !input.files[0] || !chatWith) return;
+    var file = input.files[0];
+    var formData = new FormData();
+    formData.append('file', file);
+    api('POST', '/api/upload-media', formData, function(err, resp) {
+        if (!err && resp.success) {
+            socket.emit('send_message', { to: chatWith, text: '', media: resp.url, mediaType: 'video-circle', isGroup: isGroupChat });
+        }
+    }, true);
+    input.value = '';
+}
+
 function initEmojiPicker() {
     var emojis = [
         '😊','😂','😃','😄','😅','😆','😉','😋','😍','😎',
@@ -911,6 +1068,17 @@ function connectSocket() {
                 }
             }, 2000);
         }
+    });
+
+    socket.on('user_status', function (data) {
+        var email = (data.email || '').toLowerCase().trim();
+        for (var i = 0; i < contacts.length; i++) {
+            if ((contacts[i].email || '').toLowerCase().trim() === email) {
+                contacts[i].isOnline = (data.status === 'online');
+                break;
+            }
+        }
+        renderContacts();
     });
 }
 

@@ -123,13 +123,11 @@ function generateSearchId(db) {
     }
 }
 
-// Хеширование паролей (SHA-256 + Соль)
 function hashPassword(password) {
     if (!password) return '';
     return crypto.createHash('sha256').update(password + (process.env.HASH_SECRET || 'ichatter_secure_salt_2026')).digest('hex');
 }
 
-// Шифрование Email (AES-256-CBC)
 const EMAIL_KEY = crypto.createHash('sha256').update(process.env.EMAIL_SECRET || 'ichatter_email_secret_2026').digest();
 function encryptEmail(email) {
     if (!email) return '';
@@ -165,7 +163,30 @@ function findUserByEmail(db, email) {
     });
 }
 
-// Запрос кода авторизации
+function migrateDatabaseToEncryptedEmails() {
+    try {
+        const db = readDatabase();
+        let updated = false;
+        if (db.users && Array.isArray(db.users)) {
+            db.users.forEach(function(user) {
+                if (user.email && typeof user.email === 'string' && !user.email.includes(':')) {
+                    console.log('[МИГРАЦИЯ] Автоматически зашифрован email для: ' + (user.displayName || user.username));
+                    user.email = encryptEmail(user.email);
+                    updated = true;
+                }
+            });
+        }
+        if (updated) {
+            writeDatabase(db);
+            console.log('[МИГРАЦИЯ] База данных успешно зашифрована без сброса и без потери данных!');
+        }
+    } catch (e) {
+        console.error('[МИГРАЦИЯ ОШИБКА]', e);
+    }
+}
+
+migrateDatabaseToEncryptedEmails();
+
 app.post('/api/send-code', function(req, res) {
     const { email, username, password, mode, language } = req.body;
     const targetEmail = email.toLowerCase().trim();
@@ -222,8 +243,9 @@ app.post('/api/send-code', function(req, res) {
         ? 'Your iChatter verification code: ' + code + '\nValid for 10 minutes.'
         : 'Vash kod dlya iChatter: ' + code + '\nDeystvuet 10 minut.';
 
+    const senderEmail = process.env.EMAIL_USER || '1r1krol4k2@gmail.com';
     transporter.sendMail({
-        from: '"iChatter" <1rol4k2@gmail.com>',
+        from: '"iChatter" <' + senderEmail + '>',
         to: targetEmail,
         subject: subject,
         text: text
@@ -237,7 +259,6 @@ app.post('/api/send-code', function(req, res) {
     });
 });
 
-// Запрос сброса пароля
 app.post('/api/forgot-password', function(req, res) {
     const { email } = req.body;
     if (!email) return res.status(400).json({ error: 'Укажите email' });
@@ -253,8 +274,9 @@ app.post('/api/forgot-password', function(req, res) {
     
     console.log('[ВОССТАНОВЛЕНИЕ] Пользователю "' + userNick + '" отправлен код сброса: ' + code);
 
+    const senderEmail = process.env.EMAIL_USER || '1r1krol4k2@gmail.com';
     transporter.sendMail({
-        from: '"iChatter" <1rol4k2@gmail.com>',
+        from: '"iChatter" <' + senderEmail + '>',
         to: targetEmail,
         subject: 'iChatter Password Reset',
         text: 'Ваш код восстановления пароля iChatter: ' + code
@@ -263,7 +285,6 @@ app.post('/api/forgot-password', function(req, res) {
     });
 });
 
-// Подтверждение сброса пароля
 app.post('/api/reset-password', function(req, res) {
     const { email, code, newPassword } = req.body;
     if (!email || !code || !newPassword) {
@@ -286,7 +307,6 @@ app.post('/api/reset-password', function(req, res) {
     res.status(404).json({ error: 'Пользователь не найден' });
 });
 
-// Подтверждение кода и получение токена
 app.post('/api/verify-code', function(req, res) {
     const { email, code, device } = req.body;
     const targetEmail = email.toLowerCase().trim();

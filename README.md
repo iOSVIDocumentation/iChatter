@@ -1,3 +1,9 @@
+## 📜 License
+
+This project is licensed under **All Rights Reserved (No Derivatives)**.
+You may freely share and distribute the original source code with proper attribution. Unauthorized modifications, derivative works, and commercial use are strictly prohibited. See the [`LICENSE`](./LICENSE) file for details.
+
+
 # 💬 iChatter
 
 **iChatter** is a stylish web messenger designed with the classic retro aesthetics of iOS 6, optimized for modern desktops, smartphones, and vintage legacy devices (iOS 6+, iPad, legacy Safari browsers).
@@ -115,8 +121,3 @@ The server will be available at `http://localhost:8080` (or `http://YOUR-SERVER-
 ```
 
 ---
-
-## 📜 License
-
-This project is licensed under **All Rights Reserved (No Derivatives)**.
-You may freely share and distribute the original source code with proper attribution. Unauthorized modifications, derivative works, and commercial use are strictly prohibited. See the [`LICENSE`](./LICENSE) file for details.

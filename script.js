@@ -262,6 +262,14 @@ function generateEmptyAvatar() {
     return dataUrl;
 }
 
+try {
+    for (var lk in localStorage) {
+        if (lk && lk.indexOf('ichatter_msg_') === 0) {
+            localStorage.removeItem(lk);
+        }
+    }
+} catch (eClean) {}
+
 function getStorageKey() { return 'ichatter_key_' + (myEmail || '').toLowerCase().trim(); }
 
 function saveLocalMessages(chat, msgs) {
@@ -348,11 +356,46 @@ function parseMessageText(text) {
     return esc(text);
 }
 
+var renderedDates = {};
+
+function getDateKey(ts) {
+    var d = new Date(ts || Date.now());
+    return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+}
+
+function formatDateDivider(ts) {
+    var d = new Date(ts || Date.now());
+    var now = new Date();
+    var todayKey = now.getFullYear() + '-' + (now.getMonth() + 1) + '-' + now.getDate();
+    var dKey = d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+
+    var yesterday = new Date(now.getTime() - 86400000);
+    var yKey = yesterday.getFullYear() + '-' + (yesterday.getMonth() + 1) + '-' + yesterday.getDate();
+
+    if (dKey === todayKey) return (lang === 'en' ? 'Today' : 'Сегодня');
+    if (dKey === yKey) return (lang === 'en' ? 'Yesterday' : 'Вчера');
+
+    var monthsRu = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+    var monthsEn = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    var mName = (lang === 'en') ? monthsEn[d.getMonth()] : monthsRu[d.getMonth()];
+    return d.getDate() + ' ' + mName + (d.getFullYear() !== now.getFullYear() ? ' ' + d.getFullYear() : '');
+}
+
 function addMsg(msg) {
     if (!msg || !msg.id) return;
     if (loadedMessageIds[msg.id]) return;
     loadedMessageIds[msg.id] = true;
     var container = byId('messages');
+
+    var msgDateKey = getDateKey(msg.timestamp);
+    if (!renderedDates[msgDateKey]) {
+        renderedDates[msgDateKey] = true;
+        var dateDiv = document.createElement('div');
+        dateDiv.className = 'date-divider';
+        dateDiv.innerHTML = '<span>' + formatDateDivider(msg.timestamp) + '</span>';
+        container.appendChild(dateDiv);
+    }
+
     var isMe = (msg.from || '').toLowerCase().trim() === (myEmail || '').toLowerCase().trim();
     var div = document.createElement('div');
     div.className = 'msg ' + (isMe ? 'my' : 'partner');
@@ -394,9 +437,9 @@ function addMsg(msg) {
         tickHtml = '<span class="status-ticks ' + tickClass + '" id="tick-' + msg.id + '">' + tickSymbol + '</span>';
     }
 
-    div.innerHTML = '<div class="sender"' + senderClick + '>' + esc(senderName) + '</div>' +
+    div.innerHTML = (isGroupChat && !isMe ? '<div class="sender"' + senderClick + '>' + esc(senderName) + '</div>' : '') +
                     '<div class="text">' + textContent + edited + '</div>' +
-                    '<span class="time">' + timeStr + tickHtml + '</span>';
+                    '<div class="msg-footer"><span class="time">' + timeStr + '</span>' + tickHtml + '</div>';
 
     if (isMe && !msg.deleted) {
         div.style.cursor = 'pointer';
@@ -565,8 +608,7 @@ function showTab(tab) {
 function openChat(em) {
     if (!em) return;
     chatWith = em.trim();
-    var cleanChatWith = chatWith.toLowerCase();
-    isGroupChat = (chatWith.indexOf('group_') === 0);
+    isGroupChat = (em && em.indexOf('group_') === 0);
     byId('chats-panel').style.display = 'none';
     byId('archive-panel').style.display = 'none';
     byId('settings-panel').style.display = 'none';
@@ -577,24 +619,25 @@ function openChat(em) {
     var name = pendingName;
     if (!name) {
         if (isGroupChat) {
-            for (var gIdx = 0; gIdx < groups.length; gIdx++) if (groups[gIdx].id === chatWith) { name = '👥 ' + groups[gIdx].name; break; }
+            for (var gIdx = 0; gIdx < groups.length; gIdx++) if (groups[gIdx].id === em) { name = '👥 ' + groups[gIdx].name; break; }
         } else {
-            for (var i = 0; i < contacts.length; i++) if ((contacts[i].email || '').toLowerCase().trim() === cleanChatWith) { name = contacts[i].displayName || contacts[i].username; break; }
+            for (var i = 0; i < contacts.length; i++) if (contacts[i].email === em) { name = contacts[i].displayName || contacts[i].username; break; }
         }
     }
-    if (!name) name = isGroupChat ? '👥 Группа' : chatWith.split('@')[0];
+    if (!name) name = isGroupChat ? '👥 Группа' : em.split('@')[0];
     pendingName = null;
     byId('chat-title').innerHTML = name;
     byId('chat-title').onclick = isGroupChat ? showGroupInfo : showPartnerProfile;
     loadedMessageIds = {};
+    renderedDates = {};
     byId('messages').innerHTML = '';
 
     if (!isGroupChat) {
         for (var cIdx = 0; cIdx < contacts.length; cIdx++) {
-            if ((contacts[cIdx].email || '').toLowerCase().trim() === cleanChatWith) { contacts[cIdx].unreadCount = 0; break; }
+            if (contacts[cIdx].email === em) { contacts[cIdx].unreadCount = 0; break; }
         }
         renderContacts();
-        if (socket) socket.emit('mark_read', { with: chatWith });
+        if (socket) socket.emit('mark_read', { with: em });
     }
 
     if (profile && profile.wallpaper) {
@@ -606,9 +649,9 @@ function openChat(em) {
         byId('messages').style.backgroundImage = '';
     }
 
-    if (!isGroupChat && !hasContact(chatWith)) {
-        addContactToServer(chatWith);
-        contacts.push({ email: chatWith, username: chatWith.split('@')[0], displayName: chatWith.split('@')[0], searchId: '', avatar: 'av1.png', age: 0, about: '', unreadCount: 0, isOnline: false });
+    if (!isGroupChat && !hasContact(em)) {
+        addContactToServer(em);
+        contacts.push({ email: em, username: em.split('@')[0], displayName: em.split('@')[0], searchId: '', avatar: 'av1.png', age: 0, about: '', unreadCount: 0, isOnline: false });
         renderContacts();
     }
 
@@ -633,6 +676,7 @@ function openChat(em) {
             if (serverMsgs.length > 0 || merged.length !== localMsgs.length) {
                 byId('messages').innerHTML = '';
                 loadedMessageIds = {};
+                renderedDates = {};
                 for (var k = 0; k < merged.length; k++) addMsg(merged[k]);
                 byId('messages').scrollTop = byId('messages').scrollHeight;
             }

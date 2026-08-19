@@ -91,6 +91,13 @@ function bytesToString(bytes) {
     return str;
 }
 
+function getChatKey(email1, email2) {
+    var a = (email1 || '').toLowerCase().trim();
+    var b = (email2 || '').toLowerCase().trim();
+    if (a > b) { var tmp = a; a = b; b = tmp; }
+    return a + '|' + b;
+}
+
 function encryptLocal(text, key) {
     var textBytes = stringToBytes(text);
     var encrypted = [];
@@ -107,13 +114,6 @@ function decryptLocal(encBase64, key) {
         decrypted.push(encrypted[i] ^ key.charCodeAt(i % key.length));
     }
     return bytesToString(decrypted);
-}
-
-function getChatKey(email1, email2) {
-    var a = (email1 || '').toLowerCase().trim();
-    var b = (email2 || '').toLowerCase().trim();
-    if (a > b) { var tmp = a; a = b; b = tmp; }
-    return a + '|' + b;
 }
 
 function encryptMsg(text, partnerEmail) {
@@ -265,31 +265,72 @@ function generateEmptyAvatar() {
 function getStorageKey() { return 'ichatter_key_' + (myEmail || '').toLowerCase().trim(); }
 
 function saveLocalMessages(chat, msgs) {
+    if (!chat || !myEmail) return;
     try {
-        var json = JSON.stringify(msgs);
-        var key = getStorageKey();
         var chatKey = (chat || '').toLowerCase().trim();
-        var encrypted = encryptLocal(json, key);
-        localStorage.setItem('ichatter_msg_' + (myEmail || '').toLowerCase() + '_' + chatKey, encrypted);
-    } catch (e) {}
+        var storageKey = 'ichatter_msgs_' + (myEmail || '').toLowerCase().trim() + '_' + chatKey;
+        var safeMsgs = msgs || [];
+        if (safeMsgs.length > 200) safeMsgs = safeMsgs.slice(-200);
+        localStorage.setItem(storageKey, JSON.stringify(safeMsgs));
+    } catch (e) {
+        try {
+            var trimmed = (msgs || []).slice(-50);
+            localStorage.setItem(storageKey, JSON.stringify(trimmed));
+        } catch (e2) {}
+    }
 }
 
 function loadLocalMessages(chat) {
-    var key = getStorageKey();
+    if (!chat || !myEmail) return [];
     var chatKey = (chat || '').toLowerCase().trim();
-    var encrypted = localStorage.getItem('ichatter_msg_' + (myEmail || '').toLowerCase() + '_' + chatKey);
-    if (!encrypted) return [];
-    try { var json = decryptLocal(encrypted, key); return JSON.parse(json) || []; }
-    catch (e) { return []; }
+    var storageKey = 'ichatter_msgs_' + (myEmail || '').toLowerCase().trim() + '_' + chatKey;
+    try {
+        var stored = localStorage.getItem(storageKey);
+        if (stored) {
+            var parsed = JSON.parse(stored);
+            if (Array.isArray(parsed)) return parsed;
+        }
+        var legacyKey = 'ichatter_msg_' + (myEmail || '').toLowerCase().trim() + '_' + chatKey;
+        var legacyStored = localStorage.getItem(legacyKey);
+        if (legacyStored) {
+            try {
+                var decrypted = decryptLocal(legacyStored, getStorageKey());
+                var legParsed = JSON.parse(decrypted);
+                if (Array.isArray(legParsed)) {
+                    saveLocalMessages(chat, legParsed);
+                    localStorage.removeItem(legacyKey);
+                    return legParsed;
+                }
+            } catch(e3) {
+                try {
+                    var legParsed2 = JSON.parse(legacyStored);
+                    if (Array.isArray(legParsed2)) return legParsed2;
+                } catch(e4) {}
+            }
+        }
+        return [];
+    } catch (e) {
+        return [];
+    }
 }
 
 function mergeMessages(local, server) {
     var map = {};
-    for (var i = 0; i < local.length; i++) map[local[i].id] = local[i];
-    for (var j = 0; j < server.length; j++) map[server[j].id] = server[j];
+    for (var i = 0; i < local.length; i++) {
+        if (local[i] && local[i].id) map[local[i].id] = local[i];
+    }
+    for (var j = 0; j < server.length; j++) {
+        if (server[j] && server[j].id) map[server[j].id] = server[j];
+    }
     var merged = [];
-    for (var k in map) if (map.hasOwnProperty(k)) merged.push(map[k]);
-    merged.sort(function(a, b) { return a.timestamp - b.timestamp; });
+    for (var k in map) {
+        if (map.hasOwnProperty(k)) merged.push(map[k]);
+    }
+    merged.sort(function(a, b) {
+        var tA = a.timestamp || 0;
+        var tB = b.timestamp || 0;
+        return tA - tB;
+    });
     return merged;
 }
 
@@ -329,6 +370,7 @@ function addMsg(msg) {
         if (!type) {
             if (/\.(webm|mp4|mov)$/i.test(msg.media)) type = 'video-circle';
             else if (/\.(ogg|mp3|wav|m4a|aac)$/i.test(msg.media)) type = 'audio';
+            else type = 'image';
         }
 
         if (type === 'audio') {
@@ -357,16 +399,25 @@ function addMsg(msg) {
                     '<span class="time">' + timeStr + tickHtml + '</span>';
 
     if (isMe && !msg.deleted) {
+        div.style.cursor = 'pointer';
         div.onclick = function (e) {
             var target = (e && e.target) ? e.target : window.event.srcElement;
-            if (target && (target.tagName === 'BUTTON' || target.tagName === 'AUDIO' || target.tagName === 'VIDEO')) return;
-            if (div.className.indexOf('show-actions') !== -1) {
-                div.className = div.className.replace(' show-actions', '');
+            if (target && (target.tagName === 'BUTTON' || target.tagName === 'AUDIO' || target.tagName === 'VIDEO' || target.tagName === 'IMG' || target.tagName === 'A')) return;
+            var current = div.className;
+            if (current.indexOf('show-actions') !== -1) {
+                div.className = current.replace(' show-actions', '');
             } else {
+                var allMsgs = document.getElementsByClassName('msg');
+                for (var mIdx = 0; mIdx < allMsgs.length; mIdx++) {
+                    allMsgs[mIdx].className = allMsgs[mIdx].className.replace(' show-actions', '');
+                }
                 div.className += ' show-actions';
             }
         };
-        div.innerHTML += '<div class="actions"><button class="edit-btn" onclick="if(event.stopPropagation)event.stopPropagation();else event.cancelBubble=true;editMsg(\'' + msg.id + '\',\'' + esc(displayText).replace(/'/g, "\\'") + '\')">✎</button><button class="del-btn" onclick="if(event.stopPropagation)event.stopPropagation();else event.cancelBubble=true;delMsg(\'' + msg.id + '\')">✕</button></div>';
+        div.innerHTML += '<div class="actions">' +
+            '<button type="button" class="edit-btn" onclick="if(event.stopPropagation)event.stopPropagation();else event.cancelBubble=true;editMsg(\'' + msg.id + '\')">✎ Ред.</button>' +
+            '<button type="button" class="del-btn" onclick="if(event.stopPropagation)event.stopPropagation();else event.cancelBubble=true;delMsg(\'' + msg.id + '\')">✕ Удал.</button>' +
+            '</div>';
     }
     container.appendChild(div);
     var clr = document.createElement('div');
@@ -562,6 +613,7 @@ function openChat(em) {
     }
 
     var localMsgs = loadLocalMessages(chatWith);
+    localMsgs.sort(function (a, b) { return (a.timestamp || 0) - (b.timestamp || 0); });
     for (var j = 0; j < localMsgs.length; j++) addMsg(localMsgs[j]);
 
     var reqUrl = isGroupChat
@@ -577,7 +629,13 @@ function openChat(em) {
             var serverMsgs = data.messages || [];
             var merged = mergeMessages(localMsgs, serverMsgs);
             saveLocalMessages(chatWith, merged);
-            for (var k = 0; k < merged.length; k++) addMsg(merged[k]);
+            
+            if (serverMsgs.length > 0 || merged.length !== localMsgs.length) {
+                byId('messages').innerHTML = '';
+                loadedMessageIds = {};
+                for (var k = 0; k < merged.length; k++) addMsg(merged[k]);
+                byId('messages').scrollTop = byId('messages').scrollHeight;
+            }
         }
     };
     xhr2.send();
@@ -781,17 +839,25 @@ function uploadCustomAvatar(input) {
 function sendImageAttachment(input) {
     if (!input.files || !input.files[0] || !chatWith || !socket) return;
     var file = input.files[0];
-    var reader = new FileReader();
-    reader.onload = function (e) {
-        var dataUrl = e.target.result;
-        var formattedMsg = '[img]' + dataUrl + '[/img]';
-        var encImg = encryptMsg(formattedMsg, chatWith);
-        socket.emit('send_message', { to: chatWith, text: encImg, isGroup: isGroupChat });
-    };
-    reader.readAsDataURL(file);
+    var formData = new FormData();
+    formData.append('file', file);
+    api('POST', '/api/upload-media', formData, function (err, resp) {
+        if (!err && resp && resp.success && resp.url) {
+            socket.emit('send_message', {
+                to: chatWith,
+                text: '',
+                media: resp.url,
+                mediaType: 'image',
+                isGroup: isGroupChat
+            });
+        } else {
+            alert('Ошибка загрузки фото');
+        }
+    }, true);
     input.value = '';
 }
 
+/* VOICE & VIDEO CIRCLE LOGIC WITH IOS 6 FALLBACK */
 var audioRecorder = null;
 var audioChunks = [];
 var voiceTimerInterval = null;
@@ -971,23 +1037,66 @@ var _sending = false;
 function sendMessage() {
     if (_sending) return;
     var input = byId('input');
+    if (!input) return;
     var text = input.value.trim();
     if (!text || !chatWith || !socket) return;
     _sending = true;
     input.value = '';
-    byId('emoji-picker').style.display = 'none';
+    var ep = byId('emoji-picker');
+    if (ep) ep.style.display = 'none';
     if (editingId) {
         var encEdited = encryptMsg(text, chatWith);
         socket.emit('edit_message', { id: editingId, newText: encEdited, to: chatWith });
-        editingId = null;
+        cancelEditMsg();
     } else {
         var encText = encryptMsg(text, chatWith);
         socket.emit('send_message', { to: chatWith, text: encText, isGroup: isGroupChat });
     }
     setTimeout(function () { _sending = false; }, 300);
 }
-function editMsg(id, text) { editingId = id; byId('input').value = text; byId('input').focus(); }
-function delMsg(id) { if (confirm('Удалить сообщение?')) socket.emit('delete_message', { id: id, to: chatWith }); }
+
+function editMsg(id) {
+    var arr = loadLocalMessages(chatWith);
+    var targetMsg = null;
+    for (var i = 0; i < arr.length; i++) {
+        if (arr[i].id === id) { targetMsg = arr[i]; break; }
+    }
+    if (!targetMsg) return;
+    var rawText = targetMsg.text || '';
+    var plainText = decryptMsg(rawText, chatWith);
+    editingId = id;
+    var inp = byId('input');
+    if (inp) {
+        inp.value = plainText;
+        inp.focus();
+    }
+    var banner = byId('edit-banner');
+    if (banner) banner.style.display = 'block';
+    var allMsgs = document.getElementsByClassName('msg');
+    for (var mIdx = 0; mIdx < allMsgs.length; mIdx++) {
+        allMsgs[mIdx].className = allMsgs[mIdx].className.replace(' show-actions', '');
+    }
+}
+
+function cancelEditMsg() {
+    editingId = null;
+    var inp = byId('input');
+    if (inp) inp.value = '';
+    var banner = byId('edit-banner');
+    if (banner) banner.style.display = 'none';
+}
+
+function delMsg(id) {
+    if (confirm('Удалить сообщение?')) {
+        socket.emit('delete_message', { id: id, to: chatWith });
+        delMsgUI(id);
+        var arr = loadLocalMessages(chatWith);
+        for (var i = 0; i < arr.length; i++) {
+            if (arr[i].id === id) { arr[i].deleted = true; arr[i].text = ''; break; }
+        }
+        saveLocalMessages(chatWith, arr);
+    }
+}
 
 function connectSocket() {
     if (typeof io !== 'undefined') {
@@ -1021,7 +1130,6 @@ function connectSocket() {
         var storeKey = msg.isGroup ? msg.to : msg.from;
         var arr = loadLocalMessages(storeKey);
         arr.push(msg);
-        if (arr.length > 500) arr = arr.slice(-500);
         saveLocalMessages(storeKey, arr);
     });
 
@@ -1031,7 +1139,6 @@ function connectSocket() {
         if (curChat === msgTo) addMsg(msg);
         var arr = loadLocalMessages(msg.to);
         arr.push(msg);
-        if (arr.length > 500) arr = arr.slice(-500);
         saveLocalMessages(msg.to, arr);
         if (!msg.isGroup && !hasContact(msg.to)) { addContactToServer(msg.to); loadContacts(); }
         loadContacts();
@@ -1108,9 +1215,15 @@ function updateIosKeyboardOffset(isFocused) {
 
         byId('form-container').style.bottom = kbdHeight + 'px';
         byId('messages').style.bottom = (kbdHeight + 50) + 'px';
+        var banner = byId('edit-banner');
+        if (banner && banner.style.display !== 'none') {
+            banner.style.bottom = (kbdHeight + 50) + 'px';
+        }
     } else {
         byId('form-container').style.bottom = '0px';
         byId('messages').style.bottom = '50px';
+        var banner = byId('edit-banner');
+        if (banner) banner.style.bottom = '50px';
     }
     setTimeout(function() {
         byId('messages').scrollTop = byId('messages').scrollHeight;

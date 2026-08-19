@@ -188,12 +188,8 @@ function migrateDatabaseToEncryptedEmails() {
                         return c;
                     });
                 }
-            });
-        }
-        if (db.archivedChats && typeof db.archivedChats === 'object') {
-            for (let k in db.archivedChats) {
-                if (Array.isArray(db.archivedChats[k])) {
-                    db.archivedChats[k] = db.archivedChats[k].map(function(c) {
+                if (user.archivedChats && Array.isArray(user.archivedChats)) {
+                    user.archivedChats = user.archivedChats.map(function(c) {
                         if (c && typeof c === 'string' && !c.includes(':')) {
                             updated = true;
                             return encryptEmail(c);
@@ -201,7 +197,44 @@ function migrateDatabaseToEncryptedEmails() {
                         return c;
                     });
                 }
+            });
+        }
+        if (db.archivedChats && typeof db.archivedChats === 'object') {
+            for (let k in db.archivedChats) {
+                const plainUserEmail = decryptEmail(k).toLowerCase().trim();
+                const u = findUserByEmail(db, plainUserEmail);
+                if (u) {
+                    if (!u.archivedChats) u.archivedChats = [];
+                    if (Array.isArray(db.archivedChats[k])) {
+                        db.archivedChats[k].forEach(function(c) {
+                            const encC = (c && c.includes(':')) ? c : encryptEmail(c);
+                            if (!u.archivedChats.includes(encC)) {
+                                u.archivedChats.push(encC);
+                                updated = true;
+                            }
+                        });
+                    }
+                }
             }
+            delete db.archivedChats;
+            updated = true;
+        }
+        if (db.groups && Array.isArray(db.groups)) {
+            db.groups.forEach(function(g) {
+                if (g.creator && typeof g.creator === 'string' && !g.creator.includes(':')) {
+                    g.creator = encryptEmail(g.creator);
+                    updated = true;
+                }
+                if (g.members && Array.isArray(g.members)) {
+                    g.members = g.members.map(function(m) {
+                        if (m && typeof m === 'string' && !m.includes(':')) {
+                            updated = true;
+                            return encryptEmail(m);
+                        }
+                        return m;
+                    });
+                }
+            });
         }
         if (db.messages && Array.isArray(db.messages)) {
             db.messages.forEach(function(m) {
@@ -217,7 +250,7 @@ function migrateDatabaseToEncryptedEmails() {
         }
         if (updated) {
             writeDatabase(db);
-            console.log('[МИГРАЦИЯ] Все пароли, контакты и почты успешно зашифрованы без потери данных!');
+            console.log('[МИГРАЦИЯ] Все пароли, контакты, архивы и группы успешно зашифрованы без потери данных!');
         }
     } catch (e) {
         console.error('[МИГРАЦИЯ ОШИБКА]', e);
@@ -256,7 +289,8 @@ app.post('/api/send-code', function(req, res) {
             theme: 'dark',
             language: lang,
             publicKey: '',
-            contacts: []
+            contacts: [],
+            archivedChats: []
         });
         writeDatabase(db);
     } else {
@@ -495,20 +529,22 @@ app.get('/api/contacts', function(req, res) {
 app.get('/api/archived-chats', function(req, res) {
     const { token } = req.query;
     if (!activeTokens[token]) return res.status(401).json({ error: 'Unauthorized' });
-    const currentUserEmail = activeTokens[token].email;
+    const currentUserEmail = (activeTokens[token].email || '').toLowerCase().trim();
     const db = readDatabase();
-    const archived = (db.archivedChats[currentUserEmail] || []).filter(function(email) { return email; });
+    const user = findUserByEmail(db, currentUserEmail);
+    if (!user) return res.status(404).json({ error: 'Polzovatel ne najden' });
+    const archived = (user.archivedChats || []).filter(function(email) { return email; });
     const archivedContacts = archived.map(function(encEmail) {
         const email = decryptEmail(encEmail);
-        const user = findUserByEmail(db, email);
+        const targetUser = findUserByEmail(db, email);
         return {
             email: email,
-            username: user ? user.username : (email ? email.split('@')[0] : 'Unknown'),
-            displayName: user ? (user.displayName || user.username) : (email ? email.split('@')[0] : 'Unknown'),
-            searchId: user ? user.searchId : '',
-            avatar: user ? user.avatar : 'av1.png',
-            age: user ? user.age : 0,
-            about: user ? user.about : ''
+            username: targetUser ? targetUser.username : (email ? email.split('@')[0] : 'Unknown'),
+            displayName: targetUser ? (targetUser.displayName || targetUser.username) : (email ? email.split('@')[0] : 'Unknown'),
+            searchId: targetUser ? targetUser.searchId : '',
+            avatar: targetUser ? targetUser.avatar : 'av1.png',
+            age: targetUser ? targetUser.age : 0,
+            about: targetUser ? targetUser.about : ''
         };
     });
     res.json({ contacts: archivedContacts });
@@ -517,16 +553,16 @@ app.get('/api/archived-chats', function(req, res) {
 app.post('/api/archive-chat', function(req, res) {
     const { token, email } = req.body;
     if (!activeTokens[token]) return res.status(401).json({ error: 'Unauthorized' });
-    const currentUserEmail = activeTokens[token].email;
+    const currentUserEmail = (activeTokens[token].email || '').toLowerCase().trim();
     const db = readDatabase();
     const user = findUserByEmail(db, currentUserEmail);
     if (user) {
         const norm = email.toLowerCase().trim();
         user.contacts = (user.contacts || []).filter(function(e) { return decryptEmail(e).toLowerCase().trim() !== norm; });
-        if (!db.archivedChats[currentUserEmail]) db.archivedChats[currentUserEmail] = [];
-        const existsInArchived = db.archivedChats[currentUserEmail].some(function(e) { return decryptEmail(e).toLowerCase().trim() === norm; });
+        if (!user.archivedChats) user.archivedChats = [];
+        const existsInArchived = user.archivedChats.some(function(e) { return decryptEmail(e).toLowerCase().trim() === norm; });
         if (!existsInArchived) {
-            db.archivedChats[currentUserEmail].push(encryptEmail(norm));
+            user.archivedChats.push(encryptEmail(norm));
         }
         writeDatabase(db);
         res.json({ success: true });
@@ -536,13 +572,13 @@ app.post('/api/archive-chat', function(req, res) {
 app.post('/api/unarchive-chat', function(req, res) {
     const { token, email } = req.body;
     if (!activeTokens[token]) return res.status(401).json({ error: 'Unauthorized' });
-    const currentUserEmail = activeTokens[token].email;
+    const currentUserEmail = (activeTokens[token].email || '').toLowerCase().trim();
     const db = readDatabase();
     const user = findUserByEmail(db, currentUserEmail);
     if (user) {
         const norm = email.toLowerCase().trim();
-        if (db.archivedChats[currentUserEmail]) {
-            db.archivedChats[currentUserEmail] = db.archivedChats[currentUserEmail].filter(function(e) { return decryptEmail(e).toLowerCase().trim() !== norm; });
+        if (user.archivedChats) {
+            user.archivedChats = user.archivedChats.filter(function(e) { return decryptEmail(e).toLowerCase().trim() !== norm; });
         }
         if (!user.contacts) user.contacts = [];
         const existsInContacts = user.contacts.some(function(e) { return decryptEmail(e).toLowerCase().trim() === norm; });
@@ -616,8 +652,8 @@ app.post('/api/create-group', function(req, res) {
         id: 'group_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
         name: name.trim(),
         avatar: 'av1.png',
-        creator: currentUserEmail,
-        members: groupMembers,
+        creator: encryptEmail(currentUserEmail),
+        members: groupMembers.map(encryptEmail),
         created: Date.now()
     };
     db.groups.push(group);
@@ -631,7 +667,16 @@ app.post('/api/create-group', function(req, res) {
         }
     });
 
-    res.json({ success: true, group: group });
+    const safeGroup = {
+        id: group.id,
+        name: group.name,
+        avatar: group.avatar,
+        creator: currentUserEmail,
+        members: groupMembers,
+        created: group.created
+    };
+
+    res.json({ success: true, group: safeGroup });
 });
 
 app.get('/api/my-groups', function(req, res) {
@@ -640,7 +685,18 @@ app.get('/api/my-groups', function(req, res) {
     const currentUserEmail = activeTokens[token].email.toLowerCase().trim();
     const db = readDatabase();
     const myGroups = (db.groups || []).filter(function(g) {
-        return g.members && g.members.includes(currentUserEmail);
+        return (g.members || []).some(function(encM) {
+            return decryptEmail(encM).toLowerCase().trim() === currentUserEmail;
+        });
+    }).map(function(g) {
+        return {
+            id: g.id,
+            name: g.name,
+            avatar: g.avatar,
+            creator: decryptEmail(g.creator),
+            members: (g.members || []).map(decryptEmail),
+            created: g.created
+        };
     });
     res.json({ groups: myGroups });
 });
@@ -652,7 +708,8 @@ app.get('/api/group-info', function(req, res) {
     const group = (db.groups || []).find(function(g) { return g.id === groupId; });
     if (!group) return res.status(404).json({ error: 'Gруппа не найдена' });
 
-    const memberDetails = group.members.map(function(email) {
+    const plainMembers = (group.members || []).map(decryptEmail);
+    const memberDetails = plainMembers.map(function(email) {
         const u = findUserByEmail(db, email);
         return {
             email: email,
@@ -662,7 +719,16 @@ app.get('/api/group-info', function(req, res) {
         };
     });
 
-    res.json({ group: group, memberDetails: memberDetails });
+    const safeGroup = {
+        id: group.id,
+        name: group.name,
+        avatar: group.avatar,
+        creator: decryptEmail(group.creator),
+        members: plainMembers,
+        created: group.created
+    };
+
+    res.json({ group: safeGroup, memberDetails: memberDetails });
 });
 
 app.get('/api/group-messages', function(req, res) {
@@ -739,7 +805,10 @@ io.on('connection', function(socket) {
 
     const db = readDatabase();
     (db.groups || []).forEach(function(g) {
-        if (g.members && g.members.includes(socket.user.email)) {
+        const hasMember = (g.members || []).some(function(encM) {
+            return decryptEmail(encM).toLowerCase().trim() === socket.user.email;
+        });
+        if (hasMember) {
             socket.join(g.id);
         }
     });

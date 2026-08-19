@@ -36,16 +36,14 @@
                 <input type="password" id="password" placeholder="Пароль">
                 <button id="main-btn" class="action-btn" onclick="handleMainAction()">Войти</button>
                 
-                <!-- Подтверждение авторизации -->
                 <div id="code-section">
-                    <p id="code-text">Код отправлен на почту</p>
+                    <p id="code-text">Код отправлен на почту (проверьте спам, если не нашли код)</p>
                     <input type="text" id="code" placeholder="Код из письма">
                     <button class="action-btn" style="background: #2980b9;" onclick="verifyCode()">Подтвердить</button>
                 </div>
 
-                <!-- Подтверждение сброса пароля -->
                 <div id="reset-section">
-                    <p id="reset-text">Код сброса отправлен на почту</p>
+                    <p id="reset-text">Код сброса отправлен на почту (проверьте спам, если не нашли код)</p>
                     <input type="text" id="reset-code" placeholder="Код сброса">
                     <input type="password" id="new-password" placeholder="Новый пароль">
                     <button id="save-pass-btn" class="action-btn" style="background: #e67e22;" onclick="submitResetPassword()">Сохранить пароль</button>
@@ -65,7 +63,7 @@
                 newPassword: 'Новый пароль',
                 btnLog: 'Войти', btnReg: 'Зарегистрироваться', btnReset: 'Запросить код',
                 btnSavePass: 'Сохранить пароль',
-                codeSent: 'Код отправлен на почту', resetCodeSent: 'Код сброса отправлен на почту',
+                codeSent: 'Код отправлен на почту (проверьте спам, если не нашли код)', resetCodeSent: 'Код сброса отправлен на почту (проверьте спам, если не нашли код)',
                 btnConfirm: 'Подтвердить', enterCode: 'Введите код',
                 wrongCode: 'Неверный код', error: 'Ошибка сервера', fillAll: 'Заполните все поля',
                 passChanged: 'Пароль успешно изменен! Теперь войдите.'
@@ -76,7 +74,7 @@
                 newPassword: 'New Password',
                 btnLog: 'Log In', btnReg: 'Sign Up', btnReset: 'Request Code',
                 btnSavePass: 'Save Password',
-                codeSent: 'Code sent to email', resetCodeSent: 'Reset code sent to email',
+                codeSent: 'Code sent to email (check your spam folder if you didn't find the code)', resetCodeSent: 'Reset code sent to email (check your spam folder if you didn't find the code)',
                 btnConfirm: 'Confirm', enterCode: 'Enter code',
                 wrongCode: 'Invalid code', error: 'Server error', fillAll: 'Fill all fields',
                 passChanged: 'Password changed successfully! Please log in.'

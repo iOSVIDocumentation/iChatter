@@ -36,14 +36,16 @@
                 <input type="password" id="password" placeholder="Пароль">
                 <button id="main-btn" class="action-btn" onclick="handleMainAction()">Войти</button>
                 
+                <!-- Подтверждение авторизации -->
                 <div id="code-section">
-                    <p id="code-text">Код отправлен на почту (проверьте спам, если не нашли код)</p>
+                    <p id="code-text" style="font-size:13px;color:#f1c40f;margin:8px 0;">Код отправлен на почту (проверьте спам, если не нашли код)</p>
                     <input type="text" id="code" placeholder="Код из письма">
                     <button class="action-btn" style="background: #2980b9;" onclick="verifyCode()">Подтвердить</button>
                 </div>
 
+                <!-- Подтверждение сброса пароля -->
                 <div id="reset-section">
-                    <p id="reset-text">Код сброса отправлен на почту (проверьте спам, если не нашли код)</p>
+                    <p id="reset-text" style="font-size:13px;color:#f1c40f;margin:8px 0;">Код сброса отправлен на почту (проверьте спам, если не нашли код)</p>
                     <input type="text" id="reset-code" placeholder="Код сброса">
                     <input type="password" id="new-password" placeholder="Новый пароль">
                     <button id="save-pass-btn" class="action-btn" style="background: #e67e22;" onclick="submitResetPassword()">Сохранить пароль</button>
@@ -63,7 +65,8 @@
                 newPassword: 'Новый пароль',
                 btnLog: 'Войти', btnReg: 'Зарегистрироваться', btnReset: 'Запросить код',
                 btnSavePass: 'Сохранить пароль',
-                codeSent: 'Код отправлен на почту (проверьте спам, если не нашли код)', resetCodeSent: 'Код сброса отправлен на почту (проверьте спам, если не нашли код)',
+                codeSent: 'Код отправлен на почту (проверьте спам, если не нашли код)',
+                resetCodeSent: 'Код сброса отправлен на почту (проверьте спам, если не нашли код)',
                 btnConfirm: 'Подтвердить', enterCode: 'Введите код',
                 wrongCode: 'Неверный код', error: 'Ошибка сервера', fillAll: 'Заполните все поля',
                 passChanged: 'Пароль успешно изменен! Теперь войдите.'
@@ -74,7 +77,8 @@
                 newPassword: 'New Password',
                 btnLog: 'Log In', btnReg: 'Sign Up', btnReset: 'Request Code',
                 btnSavePass: 'Save Password',
-                codeSent: 'Code sent to email (check your spam folder if you didn't find the code)', resetCodeSent: 'Reset code sent to email (check your spam folder if you didn't find the code)',
+                codeSent: 'Code sent to email (check your spam folder if you didn\'t find the code)',
+                resetCodeSent: 'Reset code sent to email (check your spam folder if you didn\'t find the code)',
                 btnConfirm: 'Confirm', enterCode: 'Enter code',
                 wrongCode: 'Invalid code', error: 'Server error', fillAll: 'Fill all fields',
                 passChanged: 'Password changed successfully! Please log in.'
@@ -85,44 +89,51 @@
 
         function switchLang() {
             currentLang = (currentLang === 'ru') ? 'en' : 'ru';
-            document.getElementById('lang-btn').textContent = (currentLang === 'ru') ? 'EN' : 'RU';
+            document.getElementById('lang-btn').innerHTML = (currentLang === 'ru') ? 'EN' : 'RU';
             updateUI();
         }
 
         function updateUI() {
-            document.getElementById('tab-login').textContent = t('login');
-            document.getElementById('tab-register').textContent = t('register');
-            document.getElementById('tab-reset').textContent = t('reset');
+            document.getElementById('tab-login').innerHTML = t('login');
+            document.getElementById('tab-register').innerHTML = t('register');
+            document.getElementById('tab-reset').innerHTML = t('reset');
             document.getElementById('email').placeholder = t('email');
             document.getElementById('username').placeholder = t('username');
             document.getElementById('password').placeholder = t('password');
-            document.getElementById('code-text').textContent = t('codeSent');
-            document.getElementById('reset-text').textContent = t('resetCodeSent');
-            document.getElementById('save-pass-btn').textContent = t('btnSavePass');
+            document.getElementById('code-text').innerHTML = t('codeSent');
+            document.getElementById('code').placeholder = t('codePlaceholder') || 'Код из письма';
+            document.getElementById('reset-text').innerHTML = t('resetCodeSent');
+            document.getElementById('reset-code').placeholder = t('resetPlaceholder') || 'Код сброса';
             document.getElementById('new-password').placeholder = t('newPassword');
-
-            if (currentMode === 'login') {
-                document.getElementById('main-btn').textContent = t('btnLog');
-            } else if (currentMode === 'register') {
-                document.getElementById('main-btn').textContent = t('btnReg');
-            } else if (currentMode === 'reset') {
-                document.getElementById('main-btn').textContent = t('btnReset');
-            }
+            document.getElementById('save-pass-btn').innerHTML = t('savePass') || t('btnSavePass');
+            
+            if (currentMode === 'login') document.getElementById('main-btn').innerHTML = t('btnLog');
+            else if (currentMode === 'register') document.getElementById('main-btn').innerHTML = t('btnReg');
+            else document.getElementById('main-btn').innerHTML = t('btnReset');
         }
 
         function setMode(mode) {
             currentMode = mode;
-            document.getElementById('tab-login').className = (mode === 'login') ? 'tab-btn active' : 'tab-btn';
-            document.getElementById('tab-register').className = (mode === 'register') ? 'tab-btn active' : 'tab-btn';
-            document.getElementById('tab-reset').className = (mode === 'reset') ? 'tab-btn active' : 'tab-btn';
-            
-            document.getElementById('username').style.display = (mode === 'register') ? 'block' : 'none';
-            document.getElementById('password').style.display = (mode === 'reset') ? 'none' : 'block';
-            
             document.getElementById('code-section').style.display = 'none';
             document.getElementById('reset-section').style.display = 'none';
             
-            updateUI();
+            document.getElementById('tab-login').className = (mode === 'login') ? 'tab-btn active' : 'tab-btn';
+            document.getElementById('tab-register').className = (mode === 'register') ? 'tab-btn active' : 'tab-btn';
+            document.getElementById('tab-reset').className = (mode === 'reset') ? 'tab-btn active' : 'tab-btn';
+
+            if (mode === 'register') {
+                document.getElementById('username').style.display = 'block';
+                document.getElementById('password').style.display = 'block';
+                document.getElementById('main-btn').innerHTML = t('btnReg');
+            } else if (mode === 'login') {
+                document.getElementById('username').style.display = 'none';
+                document.getElementById('password').style.display = 'block';
+                document.getElementById('main-btn').innerHTML = t('btnLog');
+            } else {
+                document.getElementById('username').style.display = 'none';
+                document.getElementById('password').style.display = 'none';
+                document.getElementById('main-btn').innerHTML = t('btnReset');
+            }
         }
 
         function handleMainAction() {
@@ -137,12 +148,10 @@
             var email = document.getElementById('email').value.trim();
             var password = document.getElementById('password').value;
             var username = document.getElementById('username').value.trim();
-
             if (!email || !password || (currentMode === 'register' && !username)) {
                 alert(t('fillAll'));
                 return;
             }
-
             var xhr = new XMLHttpRequest();
             xhr.open('POST', API + '/api/send-code', true);
             xhr.setRequestHeader('Content-Type', 'application/json');
